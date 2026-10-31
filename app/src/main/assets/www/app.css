@@ -903,11 +903,12 @@ body.tap-edit .die-slot:active .die {
    位置在骰盅正下方、按钮上方那片空档，操作起来像在点桌子。 */
 .hot-zone {
   position: absolute;
-  left: 50%;
-  bottom: 1.07vw;
-  width: 66.67vw;
-  height: 26.67vw;
-  margin-left: -33.34vw;
+  left: 0;
+  right: 0;
+  /* 从骰盅底部（舞台高 101.33vw，居中，半高 50.67vw）往上咬一点，
+     一直铺到按钮上方 —— 整块桌面空白都能点，不用对准 */
+  top: calc(50% + 41vw);
+  bottom: 0;
   z-index: 4;
   background: transparent;
   -webkit-tap-highlight-color: transparent;

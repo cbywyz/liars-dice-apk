@@ -215,7 +215,10 @@
     grabbing: false,
     swallowDieTap: false,
     shakeTimer: null,
-    titleTimer: null
+    titleTimer: null,
+    hotTimer: null,
+    hotY: null,
+    hotX: null
   };
 
   var d = S.data;
@@ -737,6 +740,39 @@
     }
   }
 
+  /* 骰盅下方空白：同样要按住 1.2s，随手碰一下不会弹菜单 */
+  var HOLD_MS = 1200;
+
+  function onHoldStart(e) {
+    var t = e && e.touches && e.touches[0];
+    S.hotX = t ? t.clientX : null;
+    S.hotY = t ? t.clientY : null;
+    if (S.hotTimer) clearTimeout(S.hotTimer);
+    S.hotTimer = setTimeout(function () {
+      S.hotTimer = null;
+      openPanel();
+    }, HOLD_MS);
+  }
+
+  function onHoldMove(e) {
+    if (!S.hotTimer || S.hotY === null) return;
+    var t = e && e.touches && e.touches[0];
+    if (!t) return;
+    // 手指挪开超过 12px 就当作不是长按（滑动/误碰）
+    if (Math.abs(t.clientY - S.hotY) > 12 || Math.abs(t.clientX - S.hotX) > 12) {
+      onHoldEnd();
+    }
+  }
+
+  function onHoldEnd() {
+    if (S.hotTimer) {
+      clearTimeout(S.hotTimer);
+      S.hotTimer = null;
+    }
+    S.hotY = null;
+    S.hotX = null;
+  }
+
   function openPanel() {
     vibrate('light');
     setData({ panel: true, pickIdx: -1, panelRows: buildPanelRows(d.forceValues) });
@@ -871,12 +907,14 @@
     // 音效
     on(el.soundBtn, 'click', function () { setSound(!d.soundOn); });
 
-    // 隐藏入口：点骰盅下方的空白桌面 → 打开设置面板
-    // （标题长按仍然有效，作为备用入口）
-    on(el.hotZone, 'click', function () {
-      if (d.panel) return;
-      openPanel();
-    });
+    // 隐藏入口：按住骰盅下方的空白桌面 1.2s → 打开设置面板
+    // 和标题长按一致，随手碰一下不会弹出来
+    on(el.hotZone, 'touchstart', onHoldStart, { passive: true });
+    on(el.hotZone, 'touchmove', onHoldMove, { passive: true });
+    on(el.hotZone, 'touchend', onHoldEnd);
+    on(el.hotZone, 'touchcancel', onHoldEnd);
+    on(el.hotZone, 'mousedown', onHoldStart);
+    on(document, 'mouseup', onHoldEnd);
 
     // 舞台手势
     on(el.stage, 'touchstart', onStageStart, { passive: true });
