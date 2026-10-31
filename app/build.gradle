@@ -1,3 +1,7 @@
+plugins {
+    id 'com.android.application'
+}
+
 def ksFile = rootProject.file("keystore.properties")
 def ks = new Properties()
 if (ksFile.exists()) {
