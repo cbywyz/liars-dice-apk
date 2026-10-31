@@ -430,12 +430,9 @@
   /* ---------------- 面板 ---------------- */
 
   function buildPanel() {
-    // 一键豹子
-    var lh = '';
-    for (var i = 0; i < LION_CHIPS.length; i++) {
-      lh += '<div class="qchip" data-lion="' + LION_CHIPS[i] + '">' + LION_CHIPS[i] + '</div>';
-    }
-    el.lionRow.innerHTML = lh;
+    // 一键豹子：只放一个按钮。1 是万能牌，豹子的形态组合太多，
+    // 与其列一堆点数让人选，不如点一下随机给一个。
+    el.lionRow.innerHTML = '<div class="qchip wide" data-lion="1">随机豹子</div>';
 
     // 顺子
     el.straightRow.innerHTML =
@@ -450,11 +447,10 @@
   }
 
   function syncPanel() {
-    // 豹子 chips
+    // 豹子 chip：只要当前是豹子就亮
     var lions = el.lionRow.children;
     for (var i = 0; i < lions.length; i++) {
-      var lv = Number(lions[i].getAttribute('data-lion'));
-      lions[i].classList.toggle('on', !!(d.forceOn && d.quickLion === lv));
+      lions[i].classList.toggle('on', !!(d.forceOn && d.quickLion > 0));
     }
     // 顺子 chips
     var sts = el.straightRow.children;
@@ -581,7 +577,6 @@
     S.baseP = S.progress;
     S.moved = 0;
     S.grabbing = true;
-    console.log('[s] start y=' + Math.round(S.startY) + ' st=' + d.state + ' p=' + S.progress);
   }
 
   function onStageMove(e) {
@@ -592,7 +587,6 @@
     if (Math.abs(dy) > S.moved) S.moved = Math.abs(dy);
 
     var p = clamp(S.baseP + (dy * S.ratio) / OPEN_DIST, 0, 1);
-    console.log('[s] move dy=' + Math.round(dy) + ' p=' + p.toFixed(2) + ' n=' + (e.touches ? e.touches.length : -1));
     if (p !== S.progress) {
       if (!d.revealed && p > 0.28) setData({ revealed: true });
       applyProgress(p, true);
@@ -605,8 +599,6 @@
 
     var cancelled = !!(e && e.type === 'touchcancel');
     var tapped = S.moved < 8;
-    console.log('[s] end type=' + ((e && e.type) || '?') + ' moved=' + Math.round(S.moved) +
-      ' p=' + S.progress.toFixed(2) + ' st=' + d.state);
 
     if (d.state === 'idle') {
       if (tapped) toast('先摇一摇');
@@ -831,8 +823,32 @@
     toast(shown ? '本局点数已改' : '下一局按此点数开');
   }
 
-  function onSetLion(v) {
-    applyCheat([v, v, v, v, v]);
+
+  /* 随机一个豹子：点数随机 × 形态随机。
+     1 是万能牌，所以点「随机豹子」会得到各种样子：
+       44444 / 14444 / 11444 / 11144 / 11114 / 14144 / 41144 …
+     组合数 = 5 个点数 × 31 种排列 = 155 种，不会老是那几个。
+     至少保留一个真正的点数，否则就成了「全 1」而不是这个点数的豹子。 */
+  function randomLion() {
+    var v = 1 + Math.floor(Math.random() * 6); // 1~6，1 只能是五个 1
+    if (v === 1) return [1, 1, 1, 1, 1];
+
+    var r = Math.random();
+    var k = r < 0.08 ? 1 : r < 0.26 ? 2 : r < 0.54 ? 3 : r < 0.81 ? 4 : 5;
+    var out = [];
+    var i;
+    for (i = 0; i < k; i++) out.push(v);
+    while (out.length < 5) out.push(1);
+    // 打散顺序，别让 1 全堆在后面
+    for (i = out.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = out[i]; out[i] = out[j]; out[j] = t;
+    }
+    return out;
+  }
+
+  function onSetLion() {
+    applyCheat(randomLion());
   }
 
   function onSetStraight(key) {
@@ -976,7 +992,7 @@
     // 一键豹子 / 顺子 / 逐颗点数
     on(el.lionRow, 'click', function (e) {
       var c = e.target.closest ? e.target.closest('[data-lion]') : null;
-      if (c) onSetLion(Number(c.getAttribute('data-lion')));
+      if (c) onSetLion();
     });
     on(el.straightRow, 'click', function (e) {
       var c = e.target.closest ? e.target.closest('[data-straight]') : null;
@@ -1037,21 +1053,6 @@
       S.ratio = 750 / (window.innerWidth || 375);
     });
 
-    /* 自检（临时）：把各个图层的实际范围打出来。
-       手指落点到底有没有落在 stage 里，一眼就能看出来。 */
-    setTimeout(function () {
-      function box(sel) {
-        var n = document.querySelector(sel);
-        if (!n) return sel + '=null';
-        var r = n.getBoundingClientRect();
-        return sel + ' ' + Math.round(r.top) + '~' + Math.round(r.bottom);
-      }
-      var info = [box('.stage'), box('.hot-zone'), box('.cup'), box('.stage-wrap'),
-                  'vw=' + window.innerWidth + 'x' + window.innerHeight].join(' | ');
-      console.log('[d] ' + info);
-      var f = document.querySelector('.foot');
-      if (f) f.textContent = 'v1.7.4 调试 ' + info;
-    }, 900);
   }
 
   if (document.readyState === 'loading') {

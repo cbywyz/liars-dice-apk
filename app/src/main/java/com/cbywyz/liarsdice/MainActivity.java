@@ -65,11 +65,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // 打开 WebView 调试：页面里的 console.log 会进 logcat（tag: chromium）
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            WebView.setWebContentsDebuggingEnabled(true);
-        }
-
         setContentView(web);
         web.loadUrl("file:///android_asset/www/index.html");
     }
