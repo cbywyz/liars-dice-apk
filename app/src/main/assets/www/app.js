@@ -566,6 +566,17 @@
   // 这些地方不归我们管：按钮自己点、骰子自己双击、面板和标题各自处理
   var G_SKIP = 'button, .panel, .panel-mask, .sound-btn, .nav, .toast, .die-slot';
 
+  /* 页脚诊断（临时）：一次手势结束后把「区间/状态/收到几帧/位移/结果」
+     写在版本号那一行，用户截个图就能看出到底哪一步断了。 */
+  var DBG = { zone: '-', st: '-', tm: 0, cx: 0, m: 0, end: '-' };
+
+  function dbgShow() {
+    var f = document.querySelector('.foot');
+    if (!f) return;
+    f.textContent = 'v1.6.8 · ' + DBG.zone + '/' + DBG.st + ' t' + DBG.tm + ' c' + DBG.cx +
+      ' m' + Math.round(DBG.m) + ' p' + Number(S.progress).toFixed(2) + ' ' + DBG.end;
+  }
+
   function gZone(t) {
     if (!t || !t.closest) return '';
     if (t.closest(G_SKIP)) return '';
@@ -592,14 +603,16 @@
   }
 
   function gStart(e) {
-    /* 一个触点 = 新手势，无条件接管。
-       不能写成「已经有手势就不接管」——万一上一串触摸因为
-       来电、切后台、系统手势没收到结束事件，标志位会一直挂着，
-       之后所有滑动都被丢掉，表现就是「怎么滑都没反应，只有按钮能点」。
-       真正的多指（第二根手指蹭上来）是 2 个以上触点，直接忽略。 */
-    if (e.touches && e.touches.length > 1) return;
+    /* 门槛只有一条：已经有手指在拖、这次是多出来的第二根 → 忽略，别打断。
+       其它情况一律当新手势接管。
+       这里绝不能写「已经有手势就不接管」或「多指就不接管」：
+       万一上一串触摸没收到结束事件，标志位会一直挂着，
+       表现就是「怎么滑都没反应，只有按钮能点」。 */
+    if (G.dragging && e.touches && e.touches.length > 1) return;
 
-    if (d.panel || d.state === 'shaking') return;
+    if (d.panel) return;
+    // 摇骰中也接管这次手势，只是摇完之前不推进盖子 ——
+    // 否则手指在摇骰动画期间落下，整段滑动都被丢掉，看着就是「滑不动」
 
     var zone = gZone(e.target);
     if (!zone) return;
@@ -614,8 +627,8 @@
 
     G.on = true;
     G.zone = zone;
-    // 诊断：logcat 里搜 [g] 就能看到每次手势的走向
-    console.log('[g] start zone=' + zone + ' state=' + d.state + ' p=' + Number(S.progress).toFixed(2));
+    DBG.zone = zone; DBG.st = String(d.state).slice(0, 2); DBG.tm = 0; DBG.m = 0; DBG.end = '...';
+    dbgShow();
     G.fingerId = e.touches ? e.touches[0].identifier : null;
     G.startY = t.clientY;
     G.startX = t.clientX;
@@ -643,16 +656,18 @@
 
     var t = gPoint(e);
     if (!t) return;
-    if (d.state === 'idle') { G.moved = 0; return; } // 没摇过也没上把：不响应
+    // 没摇过、或还在摇骰动画里：先不推进，等状态允许了自然接上
+    if (d.state === 'idle' || d.state === 'shaking') { G.moved = 0; return; }
 
     var dy = G.startY - t.clientY; // 上滑为正
     var dist = Math.max(Math.abs(dy), Math.abs(t.clientX - G.startX));
     if (dist > G.moved) G.moved = dist;
+    DBG.tm++; DBG.m = G.moved;
+    if (DBG.tm % 4 === 1) dbgShow();
 
     if (!G.dragging) {
       if (dist < 8) return; // 还没动开：继续当长按候选
       G.dragging = true;
-      console.log('[g] drag begin dist=' + dist.toFixed(0));
       gClearHold();         // 动了就不算长按
       G.startY = t.clientY; // 从这里重新算零点，盖子不跳
       G.baseP = S.progress;
@@ -669,21 +684,8 @@
   function gEnd(e) {
     if (!G.on) return;
 
-    // 松手的不是我们跟的那根手指（比如另一根手指先抬起来）：继续等
-    // 但屏幕上已经没有手指了，就必须收尾，否则标志位会挂住
-    if (e && e.type === 'touchend' && e.changedTouches && G.fingerId !== null &&
-        e.touches && e.touches.length > 0) {
-      var mine = false;
-      for (var i = 0; i < e.changedTouches.length; i++) {
-        if (e.changedTouches[i].identifier === G.fingerId) { mine = true; break; }
-      }
-      if (!mine) return;
-    }
-
     var cancelled = !!(e && e.type === 'touchcancel');
     var dragged = G.dragging && G.moved >= 8;
-    console.log('[g] end type=' + ((e && e.type) || '?') + ' dragged=' + dragged +
-      ' moved=' + Number(G.moved).toFixed(0) + ' p=' + Number(S.progress).toFixed(2));
     var zone = G.zone;
     var fired = G.holdFired;
     var baseP = G.baseP;
@@ -693,6 +695,9 @@
     G.holdFired = false;
     G.fingerId = null;
     gClearHold();
+
+    DBG.end = (cancelled ? 'CANCEL' : (dragged ? 'drag' : 'tap'));
+    dbgShow();
 
     if (fired) return; // 刚按住开了面板，收尾什么都不做
 
@@ -956,16 +961,13 @@
     on(document, 'touchstart', gStart, { passive: false });
     on(document, 'touchmove', gMove, { passive: false });
     on(document, 'touchend', gEnd);
-    on(document, 'touchcancel', gEnd);
+    on(document, 'touchcancel', function (e) { DBG.cx++; gEnd(e); });
     // 桌面浏览器：鼠标也能拖（手机不会走到这里，触摸已在 touchstart 里 preventDefault）
     on(document, 'mousedown', function (e) { if (e.button === 0) gStart(e); });
     on(document, 'mousemove', function (e) { if (e.buttons === 1) gMove(e); });
     on(document, 'mouseup', gEnd);
     // 长按弹系统菜单也会把触摸掐掉（contextmenu → touchcancel），一律禁掉
     on(document, 'contextmenu', function (e) { e.preventDefault(); });
-    // 切后台、来电、系统手势抢走焦点：收尾一次，别让手势标志位挂着
-    on(document, 'visibilitychange', function () { if (document.hidden) gEnd(); });
-    on(window, 'blur', function () { gEnd(); });
 
     // 骰子点击（事件委托）
     on(el.diceLayer, 'click', function (e) {
