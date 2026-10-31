@@ -431,9 +431,9 @@
 
   function buildPanel() {
     /* 一键豹子：
-       · 「随机豹子」—— 点数、形态都随机（1 是万能牌，组合太多）
-       · 下面 1~6 —— 固定豹子，干净利落的五个一样的数字，不带万能 1 */
-    var lh = '<div class="quick-row"><div class="qchip wide" data-lion="0">随机豹子</div></div>';
+       · 「万能豹子」—— 点数、形态都随机，里面会带 1（1 是万能牌，组合太多）
+       · 下面 1~6 —— 全豹子，干净利落的五个一样的数字，不带 1 */
+    var lh = '<div class="quick-row"><div class="qchip wide" data-lion="0">万能豹子</div></div>';
     lh += '<div class="quick-row">';
     for (var i = 0; i < LION_CHIPS.length; i++) {
       lh += '<div class="qchip" data-lion="' + LION_CHIPS[i] + '">' + LION_CHIPS[i] + '</div>';
