@@ -6,6 +6,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import android.util.Log;
+import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -54,7 +56,14 @@ public class MainActivity extends Activity {
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         web.setWebViewClient(new WebViewClient());
-        web.setWebChromeClient(new WebChromeClient());
+        // 页面里的 console.log 转发到 logcat（tag: WEBJS），方便排查手势
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage cm) {
+                Log.i("WEBJS", cm.message() + "  @" + cm.lineNumber());
+                return true;
+            }
+        });
 
         // 打开 WebView 调试：页面里的 console.log 会进 logcat（tag: chromium）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {

@@ -1001,6 +1001,22 @@
     window.addEventListener('resize', function () {
       S.ratio = 750 / (window.innerWidth || 375);
     });
+
+    /* 自检（临时）：把各个图层的实际范围打出来。
+       手指落点到底有没有落在 stage 里，一眼就能看出来。 */
+    setTimeout(function () {
+      function box(sel) {
+        var n = document.querySelector(sel);
+        if (!n) return sel + '=null';
+        var r = n.getBoundingClientRect();
+        return sel + ' ' + Math.round(r.top) + '~' + Math.round(r.bottom);
+      }
+      var info = [box('.stage'), box('.hot-zone'), box('.cup'), box('.stage-wrap'),
+                  'vw=' + window.innerWidth + 'x' + window.innerHeight].join(' | ');
+      console.log('[d] ' + info);
+      var f = document.querySelector('.foot');
+      if (f) f.textContent = 'v1.7.3 调试 ' + info;
+    }, 900);
   }
 
   if (document.readyState === 'loading') {
