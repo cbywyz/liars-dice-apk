@@ -11,6 +11,7 @@
   var LIFT = 340;            // 完全揭开时盖子向上抬起的距离(rpx)
   var SHAKE_MS = 1600;       // 摇骰动画时长（与 shake.mp3 对齐）
   var DOUBLE_TAP_MS = 420;   // 点骰改点：两下之间的最大间隔
+  var ARM_HOLD_MS = 800;     // 按住底部按钮多久算「暗中装填」（远长于正常点按）
 
   var PIPS = {
     1: [4],
@@ -223,7 +224,15 @@
     hotY: null,
     hotX: null,
     hotDragging: false,
-    holdFired: false
+    holdFired: false,
+
+    /* 按住「摇一摇 / 开盖」暗中装填用 */
+    armTimer: null,
+    armAct: '',
+    armX: 0,
+    armY: 0,
+    armFired: false,
+    swallowMaskClick: false
   };
 
   var d = S.data;
@@ -759,6 +768,9 @@
       S.hotTimer = null;
       S.holdFired = true;
       openPanel();
+      // 手指抬起后浏览器会补一次 click，落在遮罩上就会「刚打开又关掉」
+      S.swallowMaskClick = true;
+      setTimeout(function () { S.swallowMaskClick = false; }, 800);
     }, HOLD_MS);
   }
 
@@ -822,6 +834,57 @@
     setData({ panel: false });
   }
 
+  /* ================= 隐藏入口 ②：按住底部按钮 ================= */
+
+  /* 长按「摇一摇」= 装填随机顺子；长按「开盖」= 装填随机万能豹子。
+     临时想给对家一个结果时，手不用离开按钮去开菜单，也不弹任何文字。
+     长按成功必须把紧接着的那次 click 吞掉，否则「按住开盖」会顺手把盖子掀了。 */
+  var ARM_ACTS = { onShake: true, openCup: true };
+
+  function armFor(act) {
+    if (act === 'onShake') applyCheat(randomStraight());
+    else if (act === 'openCup') applyCheat(randomLion());
+  }
+
+  function onArmStart(e) {
+    if (d.panel || d.shaking || d.isLocked) return;
+    var btn = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
+    if (!btn) return;
+    var act = btn.getAttribute('data-act');
+    if (!ARM_ACTS[act]) return;
+
+    var t = e.touches && e.touches[0];
+    S.armAct = act;
+    S.armX = t ? t.clientX : 0;
+    S.armY = t ? t.clientY : 0;
+    if (S.armTimer) clearTimeout(S.armTimer);
+    S.armTimer = setTimeout(function () {
+      S.armTimer = null;
+      S.armFired = true;
+      armFor(S.armAct);
+      // 手抬起来之后的 click 还要一会儿才到，700ms 足够把这次点按吃干净
+      setTimeout(function () { S.armFired = false; }, 700);
+    }, ARM_HOLD_MS);
+  }
+
+  function onArmMove(e) {
+    if (!S.armTimer) return;
+    var t = e.touches && e.touches[0];
+    if (!t) return;
+    if (Math.abs(t.clientX - S.armX) > 12 || Math.abs(t.clientY - S.armY) > 12) {
+      clearTimeout(S.armTimer);   // 手指挪了就不算长按
+      S.armTimer = null;
+    }
+  }
+
+  function onArmEnd() {
+    if (S.armTimer) {
+      clearTimeout(S.armTimer);
+      S.armTimer = null;
+    }
+    S.armAct = '';
+  }
+
   /* ================= 作弊 ================= */
 
   /* 只「装填」，绝不碰当前这一把。
@@ -839,9 +902,10 @@
     });
   }
 
+  /* 静默：不弹任何文字。确认感靠一下轻震 —— 只有握着手机的人知道。 */
   function applyCheat(values) {
     commitValues(values);
-    toast('已装填 · 摇一摇生效');
+    vibrate('light');
   }
 
 
@@ -921,7 +985,6 @@
 
   function applyPanel() {
     setData({ panel: false });
-    if (d.forceOn) toast('已装填 · 摇一摇生效 · 仅一次');
   }
 
   /* ================= 音效开关 ================= */
@@ -996,8 +1059,17 @@
       onDieTap(Number(slot.getAttribute('data-i')));
     });
 
-    // 底部按钮
+    // 底部按钮：长按 = 暗中装填
+    on(el.btnRow, 'touchstart', onArmStart, { passive: true });
+    on(el.btnRow, 'touchmove', onArmMove, { passive: true });
+    on(el.btnRow, 'touchend', onArmEnd);
+    on(el.btnRow, 'touchcancel', onArmEnd);
+
     on(el.btnRow, 'click', function (e) {
+      if (S.armFired) {           // 这次点按属于刚才的长按，吞掉
+        S.armFired = false;
+        return;
+      }
       var btn = e.target.closest ? e.target.closest('button[data-act]') : null;
       if (!btn) return;
       var act = btn.getAttribute('data-act');
@@ -1011,6 +1083,10 @@
 
     // 面板遮罩
     on(el.mask, 'click', function (e) {
+      if (S.swallowMaskClick) {
+        S.swallowMaskClick = false;
+        return;
+      }
       if (e.target === el.mask) closePanel();
     });
 
