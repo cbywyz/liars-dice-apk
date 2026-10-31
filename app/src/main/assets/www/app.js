@@ -546,6 +546,7 @@
     S.baseP = S.progress;
     S.moved = 0;
     S.grabbing = true;
+    console.log('[s] start y=' + Math.round(S.startY) + ' st=' + d.state + ' p=' + S.progress);
   }
 
   function onStageMove(e) {
@@ -556,17 +557,21 @@
     if (Math.abs(dy) > S.moved) S.moved = Math.abs(dy);
 
     var p = clamp(S.baseP + (dy * S.ratio) / OPEN_DIST, 0, 1);
+    console.log('[s] move dy=' + Math.round(dy) + ' p=' + p.toFixed(2) + ' n=' + (e.touches ? e.touches.length : -1));
     if (p !== S.progress) {
       if (!d.revealed && p > 0.28) setData({ revealed: true });
       applyProgress(p, true);
     }
   }
 
-  function onStageEnd() {
+  function onStageEnd(e) {
     if (!S.grabbing) return;
     S.grabbing = false;
 
+    var cancelled = !!(e && e.type === 'touchcancel');
     var tapped = S.moved < 8;
+    console.log('[s] end type=' + ((e && e.type) || '?') + ' moved=' + Math.round(S.moved) +
+      ' p=' + S.progress.toFixed(2) + ' st=' + d.state);
 
     if (d.state === 'idle') {
       if (tapped) toast('先摇一摇');
@@ -579,6 +584,15 @@
       if (d.state === 'ajar') openCup();
       else if (S.progress > 0.5) closeCup();
       else openCup();
+      return;
+    }
+
+    /* 被系统打断（浏览器抢手势、来电、通知栏……）：
+       这时手指其实还在往上划，只是事件被掐了。别把盖子丢在半空，
+       按当前方向直接走完 —— 看到的就是「一划就开」。 */
+    if (cancelled) {
+      if (S.progress >= S.baseP) openCup();
+      else closeCup();
       return;
     }
 
@@ -893,6 +907,11 @@
     }, { passive: false });
     on(el.stage, 'touchend', onStageEnd);
     on(el.stage, 'touchcancel', onStageEnd);
+    // 兜底：万一 touchend/touchcancel 没冒泡到 stage（手指抬起时
+    // 触摸目标已被移除等），document 上一定收得到 —— 否则手势会
+    // 卡在半路，状态还停在「盖着」，只能再滑一次。
+    on(document, 'touchend', function () { if (S.grabbing) onStageEnd({ type: 'touchend' }); });
+    on(document, 'touchcancel', function () { if (S.grabbing) onStageEnd({ type: 'touchcancel' }); });
 
     // 骰子点击（事件委托）
     on(el.diceLayer, 'click', function (e) {
