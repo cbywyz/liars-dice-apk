@@ -566,17 +566,6 @@
   // 这些地方不归我们管：按钮自己点、骰子自己双击、面板和标题各自处理
   var G_SKIP = 'button, .panel, .panel-mask, .sound-btn, .nav, .toast, .die-slot';
 
-  /* 页脚诊断（临时）：一次手势结束后把「区间/状态/收到几帧/位移/结果」
-     写在版本号那一行，用户截个图就能看出到底哪一步断了。 */
-  var DBG = { zone: '-', st: '-', tm: 0, cx: 0, m: 0, nf: 1, end: '-' };
-
-  function dbgShow() {
-    var f = document.querySelector('.foot');
-    if (!f) return;
-    f.textContent = 'v1.6.9 · ' + DBG.zone + '/' + DBG.st + ' t' + DBG.tm + ' c' + DBG.cx +
-      ' n' + DBG.nf + ' m' + Math.round(DBG.m) + ' p' + Number(S.progress).toFixed(2) + ' ' + DBG.end;
-  }
-
   function gZone(t) {
     if (!t || !t.closest) return '';
     if (t.closest(G_SKIP)) return '';
@@ -592,42 +581,27 @@
     }
   }
 
-  /* 只认「我们正在跟的那根手指」。
-     单手握机时拇指或手掌常常搭在屏幕上，touches 里会有好几个触点；
-     以前取 touches[0]，正好取到那根不动的手指，于是盖子跟不动、
-     看起来就是「滑一点就卡住 / 干脆滑不动」。
-     鼠标事件自带坐标，直接用。 */
+  /* 触摸事件里挑出「我们正在跟的那根手指」；鼠标事件自带坐标 */
   function gPoint(e) {
     if (!e.touches) return { clientX: e.clientX, clientY: e.clientY };
     var list = e.touches;
-    if (G.fingerId !== null) {
-      for (var i = 0; i < list.length; i++) {
-        if (list[i].identifier === G.fingerId) return list[i];
-      }
-      return null; // 跟的那根手指不在了：这次移动不处理
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].identifier === G.fingerId) return list[i];
     }
     return list.length ? list[0] : null;
   }
 
   function gStart(e) {
-    /* 门槛只有一条：已经有手指在拖、这次是多出来的第二根 → 忽略，别打断。
-       其它情况一律当新手势接管。
-       这里绝不能写「已经有手势就不接管」或「多指就不接管」：
-       万一上一串触摸没收到结束事件，标志位会一直挂着，
-       表现就是「怎么滑都没反应，只有按钮能点」。 */
-    if (G.dragging && e.touches && e.touches.length > 1) return;
+    // 手势进行中又来 touchstart：一定是第二根手指/手掌蹭到，
+    // 这时候绝对不能重置状态，否则拖到一半会被当成「没拖动」而卡住
+    if (G.on) return;
 
-    if (d.panel) return;
-    // 摇骰中也接管这次手势，只是摇完之前不推进盖子 ——
-    // 否则手指在摇骰动画期间落下，整段滑动都被丢掉，看着就是「滑不动」
+    if (d.panel || d.state === 'shaking') return;
 
     var zone = gZone(e.target);
     if (!zone) return;
 
-    // 刚落下的那根手指 = changedTouches[0]（不是 touches[0]，那个可能是搭着的拇指）
-    var t = (e.changedTouches && e.changedTouches.length)
-      ? e.changedTouches[0]
-      : (e.touches && e.touches.length ? e.touches[0] : e);
+    var t = gPoint(e);
     if (!t) return;
 
     // 这一把还没摇、但手里有上一把 → 当成「盖着」，能直接拖开看
@@ -637,10 +611,7 @@
 
     G.on = true;
     G.zone = zone;
-    DBG.zone = zone; DBG.st = String(d.state).slice(0, 2); DBG.tm = 0; DBG.m = 0; DBG.end = '...';
-    DBG.nf = e.touches ? e.touches.length : 1;
-    dbgShow();
-    G.fingerId = (e.touches && typeof t.identifier === 'number') ? t.identifier : null;
+    G.fingerId = e.touches ? e.touches[0].identifier : null;
     G.startY = t.clientY;
     G.startX = t.clientX;
     G.baseP = S.progress;
@@ -667,14 +638,11 @@
 
     var t = gPoint(e);
     if (!t) return;
-    // 没摇过、或还在摇骰动画里：先不推进，等状态允许了自然接上
-    if (d.state === 'idle' || d.state === 'shaking') { G.moved = 0; return; }
+    if (d.state === 'idle') { G.moved = 0; return; } // 没摇过也没上把：不响应
 
     var dy = G.startY - t.clientY; // 上滑为正
     var dist = Math.max(Math.abs(dy), Math.abs(t.clientX - G.startX));
     if (dist > G.moved) G.moved = dist;
-    DBG.tm++; DBG.m = G.moved;
-    if (DBG.tm % 4 === 1) dbgShow();
 
     if (!G.dragging) {
       if (dist < 8) return; // 还没动开：继续当长按候选
@@ -695,6 +663,15 @@
   function gEnd(e) {
     if (!G.on) return;
 
+    // 松手的不是我们跟的那根手指（比如另一根手指先抬起来）：继续等
+    if (e && e.type === 'touchend' && e.changedTouches && G.fingerId !== null) {
+      var mine = false;
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === G.fingerId) { mine = true; break; }
+      }
+      if (!mine) return;
+    }
+
     var cancelled = !!(e && e.type === 'touchcancel');
     var dragged = G.dragging && G.moved >= 8;
     var zone = G.zone;
@@ -706,9 +683,6 @@
     G.holdFired = false;
     G.fingerId = null;
     gClearHold();
-
-    DBG.end = (cancelled ? 'CANCEL' : (dragged ? 'drag' : 'tap'));
-    dbgShow();
 
     if (fired) return; // 刚按住开了面板，收尾什么都不做
 
@@ -972,7 +946,7 @@
     on(document, 'touchstart', gStart, { passive: false });
     on(document, 'touchmove', gMove, { passive: false });
     on(document, 'touchend', gEnd);
-    on(document, 'touchcancel', function (e) { DBG.cx++; gEnd(e); });
+    on(document, 'touchcancel', gEnd);
     // 桌面浏览器：鼠标也能拖（手机不会走到这里，触摸已在 touchstart 里 preventDefault）
     on(document, 'mousedown', function (e) { if (e.button === 0) gStart(e); });
     on(document, 'mousemove', function (e) { if (e.buttons === 1) gMove(e); });

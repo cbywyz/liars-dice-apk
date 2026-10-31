@@ -71,3 +71,51 @@ jobs:
 
       - name: Show URL
         run: echo "网页版地址 ${{ steps.deployment.outputs.page_url }}"
+
+  # ---------- 自动发布：每次构建完都挂一个带 APK 的 Release ----------
+  # 之前只有 artifact，链接 90 天过期，所以「一直没有版本发布出来」。
+  # 现在每次构建都建/更新 tag v<versionName> 的 Release，APK 永久可下载。
+  release:
+    needs: [apk, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read versionName
+        id: ver
+        run: |
+          V=$(grep -o 'versionName[[:space:]]*"[^"]*"' app/build.gradle | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "读取到 versionName = $V"
+          echo "v=$V" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: liars-dice-apk
+          path: dist
+
+      - name: Rename APK
+        run: |
+          APK=$(find dist -name "*.apk" | head -1)
+          echo "APK: $APK"
+          cp "$APK" "dist/liars-dice-${{ steps.ver.outputs.v }}.apk"
+          ls -la dist/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.v }}
+          name: 吹牛骰子 v${{ steps.ver.outputs.v }}
+          make_latest: true
+          body: |
+            **安卓**：下载下面的 `liars-dice-${{ steps.ver.outputs.v }}.apk` 直接安装（无需联网）。
+
+            **iPhone / 其他手机**：用浏览器打开 https://cbywyz.github.io/liars-dice-apk/
+            （Safari → 分享 → 添加到主屏幕，就是桌面图标 + 全屏 + 离线可用）
+
+            **本版改动**
+            - 掀盖手势回退到 v1.6.5 的实现：点住盖子上任意位置往上滑即可，恢复跟手
+            - 保留「过半即全开」：不用滑到底，过半松手就直接掀开
+            - 保留手机浏览器底部按钮修复（不再被工具栏顶掉）
+            - 去掉页脚的临时诊断信息
+          files: dist/*.apk
