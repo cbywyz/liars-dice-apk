@@ -463,8 +463,8 @@
     // 装填状态条
     el.forceState.classList.toggle('armed', !!d.forceOn);
     el.fsText.textContent = d.forceOn
-      ? '已装填 · 这次生效一次，用完自动解除'
-      : '未装填 · 点下面的点数才会生效一次';
+      ? '已装填 · 摇一摇生效 · 仅一次'
+      : '未装填 · 点了之后再摇一摇才生效';
     // 开关同步
     el.swTapEdit.checked = !!d.tapEdit;
     el.swSound.checked = !!d.soundOn;
@@ -801,26 +801,24 @@
 
   /* ================= 作弊 ================= */
 
-  function commitValues(values, applyNow) {
+  /* 只「装填」，绝不碰当前这一把。
+     点了立刻改结果的话，旁边人一眼就能看出「还没摇，点数自己变了」；
+     而且摇多少遍都是这个结果。所以一律等摇骰时才按装填的点数出，
+     并且只用一次 —— 下一次摇骰就是真随机。 */
+  function commitValues(values) {
     var q = quickState(values);
-    var inRound = d.state === 'closed' || d.state === 'open' || d.state === 'ajar';
-    var consumed = applyNow && inRound;
-
-    var patch = {
+    setData({
       forceValues: values,
-      forceOn: !consumed,
+      forceOn: true,
       quickLion: q.quickLion,
       quickStraight: q.quickStraight,
       quickFixed: q.quickFixed
-    };
-    if (consumed) patch.dice = makeDice(values);
-    setData(patch);
+    });
   }
 
   function applyCheat(values) {
-    commitValues(values, true);
-    var shown = d.state === 'closed' || d.state === 'open' || d.state === 'ajar';
-    toast(shown ? '本局点数已改' : '下一局按此点数开');
+    commitValues(values);
+    toast('已装填 · 摇一摇生效');
   }
 
 
@@ -893,10 +891,8 @@
   }
 
   function applyPanel() {
-    var inRound = d.state === 'closed' || d.state === 'open' || d.state === 'ajar';
-    if (d.forceOn && inRound) commitValues(d.forceValues, true);
     setData({ panel: false });
-    if (d.forceOn) toast('下次摇骰生效 · 仅一次');
+    if (d.forceOn) toast('已装填 · 摇一摇生效 · 仅一次');
   }
 
   /* ================= 音效开关 ================= */
