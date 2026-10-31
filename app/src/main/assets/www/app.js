@@ -74,16 +74,6 @@
     return v < min ? min : v > max ? max : v;
   }
 
-  function buildPanelRows(values) {
-    var rows = [];
-    for (var i = 0; i < values.length; i++) {
-      var chips = [];
-      for (var v = 1; v <= 6; v++) chips.push({ v: v, on: values[i] === v });
-      rows.push({ idx: i, value: values[i], chips: chips });
-    }
-    return rows;
-  }
-
   function quickState(values) {
     var same = true;
     var uniq = [];
@@ -193,13 +183,10 @@
       panel: false,
       forceOn: false,
       forceValues: [1, 1, 1, 1, 1],
-      panelRows: [],
       quickLion: 1,
       quickStraight: 0,
       quickFixed: 0,
       tapEdit: false,
-      pickIdx: -1,
-      pickCur: 0
     },
     shoundOnGuard: function () { return S.data.soundOn; },
 
@@ -238,20 +225,13 @@
     titleBtn: document.getElementById('titleBtn'),
     mask: document.getElementById('mask'),
     sheet: document.getElementById('sheet'),
-    panelRows: document.getElementById('panelRows'),
     lionRow: document.getElementById('lionRow'),
     straightRow: document.getElementById('straightRow'),
     forceState: document.getElementById('forceState'),
     fsText: document.getElementById('fsText'),
     swTapEdit: document.getElementById('swTapEdit'),
-    swForce: document.getElementById('swForce'),
     swSound: document.getElementById('swSound'),
     panelDone: document.getElementById('panelDone'),
-    pickCard: document.getElementById('pickCard'),
-    pickTitle: document.getElementById('pickTitle'),
-    pickRow: document.getElementById('pickRow'),
-    pickCancel: document.getElementById('pickCancel'),
-    pickCatcher: document.getElementById('pickCatcher'),
     hotZone: document.getElementById('hotZone')
   };
 
@@ -294,9 +274,6 @@
     if (has(keys, 'panel')) {
       el.mask.style.display = d.panel ? 'flex' : 'none';
       if (d.panel) buildPanel();
-    }
-    if (has(keys, 'pickIdx') || has(keys, 'pickCur')) {
-      renderPick();
     }
 
     if (has(keys, 'state')) stageDirty = true;
@@ -424,19 +401,7 @@
       '<div class="qchip wide" data-straight="1">1 2 3 4 5</div>' +
       '<div class="qchip wide" data-straight="2">2 3 4 5 6</div>';
 
-    // 每颗骰子的点数行
-    var rows = '';
-    for (var n = 0; n < d.forceValues.length; n++) {
-      rows += '<div class="row"><span class="row-label">第 ' + (n + 1) + ' 颗</span><div class="chips">';
-      for (var v = 1; v <= 6; v++) {
-        rows += '<div class="chip" data-di="' + n + '" data-v="' + v + '">' + v + '</div>';
-      }
-      rows += '</div></div>';
-    }
-    el.panelRows.innerHTML = rows;
-
     el.swTapEdit.checked = !!d.tapEdit;
-    el.swForce.checked = !!d.forceOn;
     el.swSound.checked = !!d.soundOn;
 
     syncPanel();
@@ -457,13 +422,6 @@
         : !!(d.forceOn && d.quickFixed === key);
       sts[j].classList.toggle('on', on);
     }
-    // 逐颗点数
-    var chips = el.panelRows.querySelectorAll('.chip');
-    for (var m = 0; m < chips.length; m++) {
-      var di = Number(chips[m].getAttribute('data-di'));
-      var v = Number(chips[m].getAttribute('data-v'));
-      chips[m].classList.toggle('on', d.forceValues[di] === v);
-    }
     // 装填状态条
     el.forceState.classList.toggle('armed', !!d.forceOn);
     el.fsText.textContent = d.forceOn
@@ -471,24 +429,10 @@
       : '未装填 · 点下面的点数才会生效一次';
     // 开关同步
     el.swTapEdit.checked = !!d.tapEdit;
-    el.swForce.checked = !!d.forceOn;
     el.swSound.checked = !!d.soundOn;
   }
 
   /* ---------------- 点骰改点 ---------------- */
-
-  function renderPick() {
-    var show = d.pickIdx >= 0;
-    el.pickCard.style.display = show ? 'block' : 'none';
-    el.pickCatcher.style.display = show ? 'block' : 'none';
-    if (!show) return;
-    el.pickTitle.textContent = '第 ' + (d.pickIdx + 1) + ' 颗 · 改成';
-    var html = '';
-    for (var v = 1; v <= 6; v++) {
-      html += '<div class="dchip' + (d.pickCur === v ? ' on' : '') + '" data-v="' + v + '">' + v + '</div>';
-    }
-    el.pickRow.innerHTML = html;
-  }
 
   /* ================= 盖子位移 ================= */
 
@@ -545,7 +489,6 @@
       shaking: true,
       revealed: false,
       lidStyle: lidStyle(0, false),
-      pickIdx: -1,
       hint: '摇骰中…'
     });
     playSound();
@@ -681,7 +624,6 @@
       lidStyle: lidStyle(0, false),
       state: 'closed',
       revealed: false,
-      pickIdx: -1,
       hint: '盖着 · 点「开盖」或上滑掀开'
     });
   }
@@ -717,7 +659,6 @@
       revealed: false,
       dice: emptyDice(),
       lidStyle: lidStyle(0, false),
-      pickIdx: -1,
       hasLast: !!S.lastValues,
       hint: S.lastValues ? '点「开盖」看上把，或摇一摇重开' : '点「摇一摇」开始这一局'
     });
@@ -775,7 +716,7 @@
 
   function openPanel() {
     vibrate('light');
-    setData({ panel: true, pickIdx: -1, panelRows: buildPanelRows(d.forceValues) });
+    setData({ panel: true });
   }
 
   function closePanel() {
@@ -792,7 +733,6 @@
     var patch = {
       forceValues: values,
       forceOn: !consumed,
-      panelRows: buildPanelRows(values),
       quickLion: q.quickLion,
       quickStraight: q.quickStraight,
       quickFixed: q.quickFixed
@@ -842,25 +782,14 @@
     S.tapDieIdx = -1;
     S.tapDieAt = 0;
     vibrate('light');
-    setData({ pickIdx: i, pickCur: cur.value });
-  }
 
-  function closeDiePick() {
-    setData({ pickIdx: -1 });
-  }
-
-  function pickDieValue(v) {
-    var i = d.pickIdx;
-    var cur = d.dice[i];
-    if (i < 0 || !cur) {
-      setData({ pickIdx: -1 });
-      return;
-    }
+    // 连点两下 = 这颗点数 +1（6 之后回到 1）。
+    // 全程不弹任何界面，旁边人看不出在做操作。
+    var next = cur.value >= 6 ? 1 : cur.value + 1;
     var dice = d.dice.slice();
-    dice[i] = { id: cur.id, value: v, pips: pipsOf(v), l: cur.l, t: cur.t, r: cur.r };
-    if (S.lastValues) S.lastValues[i] = v;
-    setData({ dice: dice, pickIdx: -1 });
-    vibrate('light');
+    dice[i] = { id: cur.id, value: next, pips: pipsOf(next), l: cur.l, t: cur.t, r: cur.r };
+    if (S.lastValues) S.lastValues[i] = next;
+    setData({ dice: dice });
   }
 
   function applyPanel() {
@@ -956,18 +885,7 @@
       var c = e.target.closest ? e.target.closest('[data-straight]') : null;
       if (c) onSetStraight(Number(c.getAttribute('data-straight')));
     });
-    on(el.panelRows, 'click', function (e) {
-      var c = e.target.closest ? e.target.closest('.chip') : null;
-      if (!c) return;
-      var idx = Number(c.getAttribute('data-di'));
-      var v = Number(c.getAttribute('data-v'));
-      var values = d.forceValues.slice();
-      values[idx] = v;
-      commitValues(values, false);
-    });
-
     // 开关
-    on(el.swForce, 'change', function (e) { setData({ forceOn: e.target.checked }); });
     on(el.swSound, 'change', function (e) {
       if (e.target.checked === d.soundOn) return;
       setSound(e.target.checked);
@@ -976,18 +894,10 @@
       var v = !!e.target.checked;
       saveTapEdit(v);
       setData({ tapEdit: v });
-      if (v) toast('开盖后连点两下同一颗骰子即可改点');
+      if (v) toast('开盖后连点两下同一颗骰子，点数 +1');
     });
 
     on(el.panelDone, 'click', applyPanel);
-
-    // 点骰改点浮层
-    on(el.pickRow, 'click', function (e) {
-      var c = e.target.closest ? e.target.closest('.dchip') : null;
-      if (c) pickDieValue(Number(c.getAttribute('data-v')));
-    });
-    on(el.pickCancel, 'click', closeDiePick);
-    on(el.pickCatcher, 'click', closeDiePick);
 
     // 页面切走时停音效
     document.addEventListener('visibilitychange', function () {
@@ -1013,7 +923,6 @@
     setData({
       dice: emptyDice(),
       lidStyle: lidStyle(0, false),
-      panelRows: buildPanelRows(d.forceValues),
       soundOn: true,
       forceOn: false,
       isLocked: false,
