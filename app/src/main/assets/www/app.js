@@ -11,7 +11,6 @@
   var LIFT = 340;            // 完全揭开时盖子向上抬起的距离(rpx)
   var SHAKE_MS = 1600;       // 摇骰动画时长（与 shake.mp3 对齐）
   var DOUBLE_TAP_MS = 420;   // 点骰改点：两下之间的最大间隔
-  var ARM_HOLD_MS = 800;     // 按住底部按钮多久算「暗中装填」（远长于正常点按）
 
   var PIPS = {
     1: [4],
@@ -220,19 +219,9 @@
     swallowDieTap: false,
     shakeTimer: null,
     titleTimer: null,
-    hotTimer: null,
     hotY: null,
     hotX: null,
-    hotDragging: false,
-    holdFired: false,
-
-    /* 按住「摇一摇 / 开盖」暗中装填用 */
-    armTimer: null,
-    armAct: '',
-    armX: 0,
-    armY: 0,
-    armFired: false,
-    swallowMaskClick: false
+    hotDragging: false
   };
 
   var d = S.data;
@@ -754,40 +743,25 @@
     }
   }
 
-  /* 骰盅下方空白：同样要按住 1.2s，随手碰一下不会弹菜单 */
-  var HOLD_MS = 1200;
+  /* 骰盅下方那块空白桌面：现在是三格隐形点击区
+       左 1/3 → 随机顺子    中 1/3 → 点骰改点开关    右 1/3 → 随机万能豹子
+     完全静默：不开面板、不弹文字，只有一下轻震。
+     按住不动 = 一次点击；一旦往上拖，手势照旧交给盖子 ——
+     否则手指从这里起滑会被这层吃掉，感觉像「滑了没反应」。 */
 
   function onHoldStart(e) {
     var t = e && e.touches && e.touches[0];
     S.hotX = t ? t.clientX : null;
     S.hotY = t ? t.clientY : null;
     S.hotDragging = false;
-    S.holdFired = false;
-    if (S.hotTimer) clearTimeout(S.hotTimer);
-    S.hotTimer = setTimeout(function () {
-      S.hotTimer = null;
-      S.holdFired = true;
-      openPanel();
-      // 手指抬起后浏览器会补一次 click，落在遮罩上就会「刚打开又关掉」
-      S.swallowMaskClick = true;
-      setTimeout(function () { S.swallowMaskClick = false; }, 800);
-    }, HOLD_MS);
   }
 
-  // 这块区域在骰盅正下方，是最顺手的起手位置。
-  // 光按住 = 开面板；一旦往上拖，就把手势交给盖子，
-  // 否则手指从这里起滑会被这层吃掉，感觉像「滑了没反应」。
   function onHoldMove(e) {
     var t = e && e.touches && e.touches[0];
     if (!t || S.hotY === null) return;
 
     var far = Math.abs(t.clientY - S.hotY) > 10 || Math.abs(t.clientX - S.hotX) > 10;
-    if (far && S.hotTimer) {
-      clearTimeout(S.hotTimer);   // 动了就不是长按
-      S.hotTimer = null;
-    }
-
-    if (far && !S.hotDragging && !S.holdFired && !d.panel) {
+    if (far && !S.hotDragging && !d.panel) {
       S.hotDragging = true;
       if (d.state === 'idle' && restoreLast()) {
         setData({ state: 'closed', hint: '上把的点数 · 点「开盖」或上滑掀开' });
@@ -802,17 +776,41 @@
   }
 
   function onHoldEnd() {
-    if (S.hotTimer) {
-      clearTimeout(S.hotTimer);
-      S.hotTimer = null;
-    }
     var dragged = S.hotDragging && S.moved >= 10;
     S.hotDragging = false;
     S.grabbing = false;
-    S.holdFired = false;
     S.hotY = null;
     S.hotX = null;
-    if (dragged) settleLid();   // 拖过松手就按位置落定；只点一下什么都不做
+    if (dragged) settleLid();
+  }
+
+  function canArm() {
+    return !d.shaking && !d.isLocked && (d.state === 'idle' || d.state === 'closed');
+  }
+
+  /* 点骰改点开关：不弹字，用震动次数区分 —— 开是两下，关是一下 */
+  function toggleTapEdit() {
+    var on = !d.tapEdit;
+    saveTapEdit(on);
+    setData({ tapEdit: on });
+    try {
+      if (navigator.vibrate) navigator.vibrate(on ? [10, 55, 10] : 10);
+    } catch (err) {}
+  }
+
+  function onHotTap(e) {
+    if (d.panel) return;
+    var r = el.hotZone.getBoundingClientRect();
+    if (!r.width) return;
+    var k = (e.clientX - r.left) / r.width;
+
+    if (k < 1 / 3) {
+      if (canArm()) applyCheat(randomStraight());
+    } else if (k < 2 / 3) {
+      toggleTapEdit();
+    } else if (canArm()) {
+      applyCheat(randomLion());
+    }
   }
 
   function openPanel() {
@@ -832,57 +830,6 @@
 
   function closePanel() {
     setData({ panel: false });
-  }
-
-  /* ================= 隐藏入口 ②：按住底部按钮 ================= */
-
-  /* 长按「摇一摇」= 装填随机顺子；长按「开盖」= 装填随机万能豹子。
-     临时想给对家一个结果时，手不用离开按钮去开菜单，也不弹任何文字。
-     长按成功必须把紧接着的那次 click 吞掉，否则「按住开盖」会顺手把盖子掀了。 */
-  var ARM_ACTS = { onShake: true, openCup: true };
-
-  function armFor(act) {
-    if (act === 'onShake') applyCheat(randomStraight());
-    else if (act === 'openCup') applyCheat(randomLion());
-  }
-
-  function onArmStart(e) {
-    if (d.panel || d.shaking || d.isLocked) return;
-    var btn = e.target && e.target.closest ? e.target.closest('button[data-act]') : null;
-    if (!btn) return;
-    var act = btn.getAttribute('data-act');
-    if (!ARM_ACTS[act]) return;
-
-    var t = e.touches && e.touches[0];
-    S.armAct = act;
-    S.armX = t ? t.clientX : 0;
-    S.armY = t ? t.clientY : 0;
-    if (S.armTimer) clearTimeout(S.armTimer);
-    S.armTimer = setTimeout(function () {
-      S.armTimer = null;
-      S.armFired = true;
-      armFor(S.armAct);
-      // 手抬起来之后的 click 还要一会儿才到，700ms 足够把这次点按吃干净
-      setTimeout(function () { S.armFired = false; }, 700);
-    }, ARM_HOLD_MS);
-  }
-
-  function onArmMove(e) {
-    if (!S.armTimer) return;
-    var t = e.touches && e.touches[0];
-    if (!t) return;
-    if (Math.abs(t.clientX - S.armX) > 12 || Math.abs(t.clientY - S.armY) > 12) {
-      clearTimeout(S.armTimer);   // 手指挪了就不算长按
-      S.armTimer = null;
-    }
-  }
-
-  function onArmEnd() {
-    if (S.armTimer) {
-      clearTimeout(S.armTimer);
-      S.armTimer = null;
-    }
-    S.armAct = '';
   }
 
   /* ================= 作弊 ================= */
@@ -1035,6 +982,8 @@
     on(el.hotZone, 'touchcancel', onHoldEnd);
     on(el.hotZone, 'mousedown', onHoldStart);
     on(document, 'mouseup', onHoldEnd);
+    // 三格隐形区：点一下就行（拖动过的不算点）
+    on(el.hotZone, 'click', onHotTap);
 
     // 舞台手势
     // passive 必须是 false：否则浏览器要先判断这是不是滚动，
@@ -1059,17 +1008,8 @@
       onDieTap(Number(slot.getAttribute('data-i')));
     });
 
-    // 底部按钮：长按 = 暗中装填
-    on(el.btnRow, 'touchstart', onArmStart, { passive: true });
-    on(el.btnRow, 'touchmove', onArmMove, { passive: true });
-    on(el.btnRow, 'touchend', onArmEnd);
-    on(el.btnRow, 'touchcancel', onArmEnd);
-
+    // 底部按钮
     on(el.btnRow, 'click', function (e) {
-      if (S.armFired) {           // 这次点按属于刚才的长按，吞掉
-        S.armFired = false;
-        return;
-      }
       var btn = e.target.closest ? e.target.closest('button[data-act]') : null;
       if (!btn) return;
       var act = btn.getAttribute('data-act');
@@ -1083,10 +1023,6 @@
 
     // 面板遮罩
     on(el.mask, 'click', function (e) {
-      if (S.swallowMaskClick) {
-        S.swallowMaskClick = false;
-        return;
-      }
       if (e.target === el.mask) closePanel();
     });
 
