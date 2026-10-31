@@ -196,18 +196,9 @@
     tapDieIdx: -1,
     tapDieAt: 0,
     ratio: 2,
-    baseP: 0,
-    startY: 0,
-    moved: 0,
-    grabbing: false,
     swallowDieTap: false,
     shakeTimer: null,
-    titleTimer: null,
-    hotTimer: null,
-    hotY: null,
-    hotX: null,
-    hotDragging: false,
-    holdFired: false
+    titleTimer: null
   };
 
   var d = S.data;
@@ -257,13 +248,14 @@
   function render(keys) {
     var stageDirty = false;
 
-    if (has(keys, 'dice') || has(keys, 'revealed')) {
-      // 只有「开盖」这一步重建骰子（要播入场动画）；
-      // 改点数、重新排布只更新变化的那一颗，不动其他骰子的 DOM
-      renderDice(
-        has(keys, 'revealed') ||
-        el.diceLayer.children.length !== (d.dice || []).length
-      );
+    if (has(keys, 'dice')) {
+      // 只有骰子数量变了才整层重建；改点数、重新排布只更新变化的那一颗
+      renderDice(el.diceLayer.children.length !== (d.dice || []).length);
+    }
+    if (has(keys, 'revealed')) {
+      // 开盖／合盖只切一下入场动画的 class，绝不重建节点 ——
+      // 重建会打断正在进行的手势（表现为划到一半卡住）
+      revealDice();
     }
     if (has(keys, 'lidStyle')) {
       el.lidHolder.style.cssText = d.lidStyle;
@@ -297,6 +289,23 @@
     if (has(keys, 'forceOn') || has(keys, 'forceValues') ||
         has(keys, 'quickLion') || has(keys, 'quickStraight') || has(keys, 'quickFixed')) {
       if (d.panel) syncPanel();
+    }
+  }
+
+  /* 只切入场动画，不动 DOM 结构 */
+  function revealDice() {
+    var kids = el.diceLayer.children;
+    for (var i = 0; i < kids.length; i++) {
+      var die = kids[i].firstChild;
+      if (!die) continue;
+      if (d.revealed) {
+        die.style.animationDelay = i * 45 + 'ms';
+        die.classList.remove('in');
+        void die.offsetWidth; // 强制一次回流，动画才会重播
+        die.classList.add('in');
+      } else {
+        die.classList.remove('in');
+      }
     }
   }
 
@@ -530,59 +539,176 @@
     return true;
   }
 
-  /* ================= 手势 ================= */
+  /* ================= 手势（一次触摸只走一条管线） ================= */
 
-  function onStageStart(e) {
-    if (d.panel) return;
-    var st = d.state;
-    if (st === 'shaking') return;
+  /* 这块反复出过问题：
+       · 手指从骰盅下方那片空白起手，会被那层透明热区吃掉；
+       · 浏览器把手势判成滚动后直接 touchcancel。
+     两个毛病表现一样：滑一点点就卡住，松手再滑一次才顺。
+     现在所有触摸统一从 document 收，走同一个状态机，
+     并且从第一帧就 preventDefault —— 浏览器没机会把触摸抢走。 */
 
-    if (st === 'idle' && restoreLast()) {
+  var HOLD_MS = 1200; // 隐藏入口要按住多久才弹面板
+
+  var G = {
+    on: false,
+    zone: '', // 'stage' 拖拽+轻点开合 / 'hot' 长按+拖拽 / 'free' 只拖拽
+    startY: 0,
+    startX: 0,
+    baseP: 0,
+    moved: 0,
+    dragging: false,
+    fingerId: null, // 只跟这第一根手指，别的手指碰上来不打断
+    holdTimer: null,
+    holdFired: false
+  };
+
+  // 这些地方不归我们管：按钮自己点、骰子自己双击、面板和标题各自处理
+  var G_SKIP = 'button, .panel, .panel-mask, .sound-btn, .nav, .toast, .die-slot';
+
+  function gZone(t) {
+    if (!t || !t.closest) return '';
+    if (t.closest(G_SKIP)) return '';
+    if (t.closest('.hot-zone')) return 'hot';
+    if (t.closest('.stage')) return 'stage';
+    return 'free'; // 页面其余空白：也能拖，从哪儿划都能掀盖
+  }
+
+  function gClearHold() {
+    if (G.holdTimer) {
+      clearTimeout(G.holdTimer);
+      G.holdTimer = null;
+    }
+  }
+
+  /* 触摸事件里挑出「我们正在跟的那根手指」；鼠标事件自带坐标 */
+  function gPoint(e) {
+    if (!e.touches) return { clientX: e.clientX, clientY: e.clientY };
+    var list = e.touches;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].identifier === G.fingerId) return list[i];
+    }
+    return list.length ? list[0] : null;
+  }
+
+  function gStart(e) {
+    // 手势进行中又来 touchstart：一定是第二根手指/手掌蹭到，
+    // 这时候绝对不能重置状态，否则拖到一半会被当成「没拖动」而卡住
+    if (G.on) return;
+
+    if (d.panel || d.state === 'shaking') return;
+
+    var zone = gZone(e.target);
+    if (!zone) return;
+
+    var t = gPoint(e);
+    if (!t) return;
+
+    // 这一把还没摇、但手里有上一把 → 当成「盖着」，能直接拖开看
+    if (d.state === 'idle' && restoreLast()) {
       setData({ state: 'closed', hint: '上把的点数 · 点「开盖」或上滑掀开' });
     }
 
+    G.on = true;
+    G.zone = zone;
+    G.fingerId = e.touches ? e.touches[0].identifier : null;
+    G.startY = t.clientY;
+    G.startX = t.clientX;
+    G.baseP = S.progress;
+    G.moved = 0;
     S.swallowDieTap = false;
-    S.startY = e.touches[0].clientY;
-    S.baseP = S.progress;
-    S.moved = 0;
-    S.grabbing = true;
+
+    // 抢在浏览器判定「这是滚动」之前把这一串触摸锁死，
+    // 否则它一旦认定是滚动就会发 touchcancel，盖子就冻在第一帧
+    if (e.cancelable) e.preventDefault();
+
+    if (zone === 'hot') {
+      G.holdTimer = setTimeout(function () {
+        G.holdTimer = null;
+        G.holdFired = true;
+        openPanel();
+      }, HOLD_MS);
+    }
   }
 
-  function onStageMove(e) {
-    if (!S.grabbing) return;
-    if (d.state === 'idle') return;
+  function gMove(e) {
+    if (!G.on || G.holdFired) return;
+    // 每一帧都要锁：中间漏一帧，浏览器就可能接管并把触摸取消掉
+    if (e.cancelable) e.preventDefault();
 
-    var dy = S.startY - e.touches[0].clientY; // 上滑为正
-    if (Math.abs(dy) > S.moved) S.moved = Math.abs(dy);
+    var t = gPoint(e);
+    if (!t) return;
+    if (d.state === 'idle') { G.moved = 0; return; } // 没摇过也没上把：不响应
 
-    var p = clamp(S.baseP + (dy * S.ratio) / OPEN_DIST, 0, 1);
+    var dy = G.startY - t.clientY; // 上滑为正
+    var dist = Math.max(Math.abs(dy), Math.abs(t.clientX - G.startX));
+    if (dist > G.moved) G.moved = dist;
+
+    if (!G.dragging) {
+      if (dist < 8) return; // 还没动开：继续当长按候选
+      G.dragging = true;
+      gClearHold();         // 动了就不算长按
+      G.startY = t.clientY; // 从这里重新算零点，盖子不跳
+      G.baseP = S.progress;
+      dy = 0;
+    }
+
+    var p = clamp(G.baseP + (dy * S.ratio) / OPEN_DIST, 0, 1);
     if (p !== S.progress) {
       if (!d.revealed && p > 0.28) setData({ revealed: true });
       applyProgress(p, true);
     }
   }
 
-  function onStageEnd() {
-    if (!S.grabbing) return;
-    S.grabbing = false;
+  function gEnd(e) {
+    if (!G.on) return;
 
-    var tapped = S.moved < 8;
+    // 松手的不是我们跟的那根手指（比如另一根手指先抬起来）：继续等
+    if (e && e.type === 'touchend' && e.changedTouches && G.fingerId !== null) {
+      var mine = false;
+      for (var i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === G.fingerId) { mine = true; break; }
+      }
+      if (!mine) return;
+    }
 
-    if (d.state === 'idle') {
-      if (tapped) toast('先摇一摇');
+    var cancelled = !!(e && e.type === 'touchcancel');
+    var dragged = G.dragging && G.moved >= 8;
+    var zone = G.zone;
+    var fired = G.holdFired;
+    var baseP = G.baseP;
+
+    G.on = false;
+    G.dragging = false;
+    G.holdFired = false;
+    G.fingerId = null;
+    gClearHold();
+
+    if (fired) return; // 刚按住开了面板，收尾什么都不做
+
+    /* 被系统打断（浏览器抢手势、来电、通知栏……）：
+       这时手指其实还在往上划，只是事件被掐了。别把盖子丢在半空，
+       按当前方向直接走完 —— 用户看到的就是「一划就开」，
+       而不是「滑一点卡住、要再滑第二次」。 */
+    if (cancelled && dragged) {
+      if (S.progress >= baseP) openCup();
+      else closeCup();
       return;
     }
 
-    if (tapped) {
-      if (d.tapEdit && (d.state === 'open' || d.state === 'ajar')) return;
-      S.swallowDieTap = true;
-      if (d.state === 'ajar') openCup();
-      else if (S.progress > 0.5) closeCup();
-      else openCup();
-      return;
-    }
+    // 拖过松手：停在当前高度，不吸附 —— 半开着正好当挡板
+    if (dragged) { settleLid(); return; }
 
-    settleLid();
+    if (cancelled) return; // 没拖动就被取消：当成没发生，别顺手开合
+
+    // 轻点：只有骰盅本体／桌面空白切换开合，热区轻点保持静默
+    if (zone !== 'stage') return;
+    if (d.state === 'idle') { toast('先摇一摇'); return; }
+    if (d.tapEdit && (d.state === 'open' || d.state === 'ajar')) return;
+    S.swallowDieTap = true;
+    if (d.state === 'ajar') openCup();
+    else if (S.progress > 0.5) closeCup();
+    else openCup();
   }
 
   function settleLid() {
@@ -686,64 +812,6 @@
       clearTimeout(S.titleTimer);
       S.titleTimer = null;
     }
-  }
-
-  /* 骰盅下方空白：同样要按住 1.2s，随手碰一下不会弹菜单 */
-  var HOLD_MS = 1200;
-
-  function onHoldStart(e) {
-    var t = e && e.touches && e.touches[0];
-    S.hotX = t ? t.clientX : null;
-    S.hotY = t ? t.clientY : null;
-    S.hotDragging = false;
-    S.holdFired = false;
-    if (S.hotTimer) clearTimeout(S.hotTimer);
-    S.hotTimer = setTimeout(function () {
-      S.hotTimer = null;
-      S.holdFired = true;
-      openPanel();
-    }, HOLD_MS);
-  }
-
-  // 这块区域在骰盅正下方，是最顺手的起手位置。
-  // 光按住 = 开面板；一旦往上拖，就把手势交给盖子，
-  // 否则手指从这里起滑会被这层吃掉，感觉像「滑了没反应」。
-  function onHoldMove(e) {
-    var t = e && e.touches && e.touches[0];
-    if (!t || S.hotY === null) return;
-
-    var far = Math.abs(t.clientY - S.hotY) > 10 || Math.abs(t.clientX - S.hotX) > 10;
-    if (far && S.hotTimer) {
-      clearTimeout(S.hotTimer);   // 动了就不是长按
-      S.hotTimer = null;
-    }
-
-    if (far && !S.hotDragging && !S.holdFired && !d.panel) {
-      S.hotDragging = true;
-      if (d.state === 'idle' && restoreLast()) {
-        setData({ state: 'closed', hint: '上把的点数 · 点「开盖」或上滑掀开' });
-      }
-      S.startY = t.clientY;
-      S.baseP = S.progress;
-      S.moved = 0;
-      S.grabbing = true;
-    }
-
-    if (S.hotDragging && S.grabbing) onStageMove(e);
-  }
-
-  function onHoldEnd() {
-    if (S.hotTimer) {
-      clearTimeout(S.hotTimer);
-      S.hotTimer = null;
-    }
-    var dragged = S.hotDragging && S.moved >= 10;
-    S.hotDragging = false;
-    S.grabbing = false;
-    S.holdFired = false;
-    S.hotY = null;
-    S.hotX = null;
-    if (dragged) settleLid();   // 拖过松手就按位置落定；只点一下什么都不做
   }
 
   function openPanel() {
@@ -868,28 +936,19 @@
     // 音效
     on(el.soundBtn, 'click', function () { setSound(!d.soundOn); });
 
-    // 隐藏入口：按住骰盅下方的空白桌面 1.2s → 打开设置面板
-    // 和标题长按一致，随手碰一下不会弹出来
-    on(el.hotZone, 'touchstart', onHoldStart, { passive: true });
-    on(el.hotZone, 'touchmove', function (e) {
-      if (S.hotDragging) e.preventDefault();
-      onHoldMove(e);
-    }, { passive: false });
-    on(el.hotZone, 'touchend', onHoldEnd);
-    on(el.hotZone, 'touchcancel', onHoldEnd);
-    on(el.hotZone, 'mousedown', onHoldStart);
-    on(document, 'mouseup', onHoldEnd);
-
-    // 舞台手势
-    // passive 必须是 false：否则浏览器要先判断这是不是滚动，
-    // 前几帧 touchmove 会被吞掉 —— 表现就是「滑一点停住，再滑才顺」
-    on(el.stage, 'touchstart', onStageStart, { passive: false });
-    on(el.stage, 'touchmove', function (e) {
-      if (S.grabbing) e.preventDefault();
-      onStageMove(e);
-    }, { passive: false });
-    on(el.stage, 'touchend', onStageEnd);
-    on(el.stage, 'touchcancel', onStageEnd);
+    // 手势：全部从 document 收（骰盅本体、骰盅下方空白、页面其余空白都算）
+    // passive 必须是 false —— passive 的监听里 preventDefault 会被忽略，
+    // 浏览器就会先把触摸判成滚动再 touchcancel，表现是「滑一点就卡住」
+    on(document, 'touchstart', gStart, { passive: false });
+    on(document, 'touchmove', gMove, { passive: false });
+    on(document, 'touchend', gEnd);
+    on(document, 'touchcancel', gEnd);
+    // 桌面浏览器：鼠标也能拖（手机不会走到这里，触摸已在 touchstart 里 preventDefault）
+    on(document, 'mousedown', function (e) { if (e.button === 0) gStart(e); });
+    on(document, 'mousemove', function (e) { if (e.buttons === 1) gMove(e); });
+    on(document, 'mouseup', gEnd);
+    // 长按弹系统菜单也会把触摸掐掉（contextmenu → touchcancel），一律禁掉
+    on(document, 'contextmenu', function (e) { e.preventDefault(); });
 
     // 骰子点击（事件委托）
     on(el.diceLayer, 'click', function (e) {

@@ -8,8 +8,11 @@ body {
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
-  /* 全局禁掉双指缩放和橡皮筋，点击照常 */
-  touch-action: manipulation;
+  /* 整个 App 不滚动，也不需要缩放：全局关掉浏览器的滚动手势判定。
+     留着 auto/manipulation 的话，手指从骰盅下方起滑时浏览器会先把它
+     判成滚动，然后发 touchcancel —— 表现就是「滑一点就卡住」。
+     点按不受影响，按钮照常能点。 */
+  touch-action: none;
 }
 /* 小程序 view/text 的默认盒模型 */
 div { display: block; }
@@ -837,6 +840,8 @@ body.tap-edit .die-slot:active .die {
   z-index: 4;
   background: transparent;
   -webkit-tap-highlight-color: transparent;
+  /* 这层只负责长按，拖拽由全局手势管线接管；同样不许浏览器插手 */
+  touch-action: none;
 }
 
 /* 按下时给一线几乎看不见的反馈，确认点中了（别人不会注意） */
