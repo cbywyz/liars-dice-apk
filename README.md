@@ -8,16 +8,19 @@
 
 | 版本 | 应用名 | 图标 | 内容 |
 |---|---|---|---|
-| 完整版 | 吹牛骰子 | **深色底** | 带隐藏的顺子 / 豹子 / 改点 |
-| 纯净版 | 吹牛骰子 | **浅色底** | 只有摇骰、掀盖、锁定 |
+| 完整版 | 吹牛骰子 | 骰子 **4 点（红）** | 带隐藏的顺子 / 豹子 / 改点 |
+| 纯净版 | 吹牛骰子 | 骰子 **6 点（蓝）** | 只有摇骰、掀盖、锁定 |
 
 两个包是**不同的 applicationId**（`com.cbywyz.liarsdice` / `com.cbywyz.liarsdice.clean`），
 所以互不覆盖，可以装在同一台手机上。
 
-**两版除了图标颜色，其它地方完全一样**：应用名、页面标题、底栏版本号都相同，
+两版图标**底色完全一样，只有骰子面不同**（4 点红 / 6 点蓝，和 App 里「1、4 是红点，其余蓝点」的规矩一致），
+摆在一起像同一个 App 的两张牌，不像两个不同的 App。
+
+**除图标外两版完全一样**：应用名、页面标题、底栏版本号都相同，
 不写“纯净”字样，给别人玩不会露馅。
 代价是两个 App 装在一起时，应用列表里会出现两个都叫「吹牛骰子」的图标，
-只能靠深色 / 浅色分辨（长按看应用详情能看到包名后缀 `.clean`）。
+只能靠骰子面分辨（长按看应用详情能看到包名后缀 `.clean`）。
 
 ## 怎么装
 
@@ -35,8 +38,8 @@
 app/src/main/java/com/cbywyz/liarsdice/MainActivity.java   一个 WebView 壳（两版共用）
 app/src/full/assets/www/                                    完整版的界面与逻辑
 app/src/clean/assets/www/                                   纯净版的界面与逻辑
-app/src/full/res/mipmap-*/ic_launcher.png                   完整版图标（深色）
-app/src/clean/res/mipmap-*/ic_launcher.png                  纯净版图标（浅色）
+app/src/full/res/mipmap-*/ic_launcher.png                   完整版图标（骰子 4 点）
+app/src/clean/res/mipmap-*/ic_launcher.png                  纯净版图标（骰子 6 点）
 app/src/main/res/values/styles.xml                          主题
 .github/workflows/build.yml                                 GitHub Actions 云端编译
 ```
