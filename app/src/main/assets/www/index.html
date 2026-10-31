@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#f4f0e9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="吹牛骰子">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<title>吹牛骰子</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- 顶部：标题（长按 1.2 秒 = 隐藏入口） -->
+  <div class="nav">
+    <div class="nav-title" id="titleBtn">
+      <span class="t1">吹牛骰子</span>
+      <span class="t2">LIAR'S DICE</span>
+    </div>
+    <div class="sound-btn" id="soundBtn"><span class="sound-ic" id="soundIc">🔊</span></div>
+  </div>
+
+  <!-- 骰盅舞台 -->
+  <div class="stage-wrap">
+    <div class="stage" id="stage">
+      <div class="table-ring"></div>
+
+      <div class="cup-rig" id="cupRig">
+        <div class="cup-body"></div>
+        <div class="cup-mouth"><div class="mouth-rim"></div></div>
+        <div class="dice-layer" id="diceLayer"></div>
+        <div class="cup-rim"></div>
+
+        <div class="lid-holder" id="lidHolder">
+          <div class="lid">
+            <div class="lid-side"></div>
+            <div class="lid-top">
+              <div class="lid-ring"></div>
+              <div class="lid-gloss"></div>
+            </div>
+            <div class="knob"><div class="knob-hole"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lock-tag" id="lockTag" style="display:none">已锁定</div>
+    </div>
+
+    <!-- 点骰改点：点中骰子后，就在骰盅下方当场选它变成几点 -->
+    <div class="dice-pick-card" id="pickCard" style="display:none">
+      <div class="dp-head">
+        <span class="dp-title" id="pickTitle">第 1 颗 · 改成</span>
+        <span class="dp-cancel" id="pickCancel">取消</span>
+      </div>
+      <div class="dp-row" id="pickRow"></div>
+    </div>
+  </div>
+
+  <!-- 底部操作区 -->
+  <div class="controls">
+    <div class="hint" id="hint">点「摇一摇」开始这一局</div>
+    <div class="btn-row" id="btnRow"></div>
+    <div class="foot">v1.6.0 · 仅供朋友聚会娱乐</div>
+  </div>
+
+  <div class="pick-catcher" id="pickCatcher" style="display:none"></div>
+
+  <!-- 隐藏面板：长按标题打开 -->
+  <div class="mask" id="mask" style="display:none">
+    <div class="sheet" id="sheet">
+      <span class="sheet-title">点数设置</span>
+      <span class="sheet-sub">仅本机生效 · 点数作弊一次有效，摇完自动解除</span>
+
+      <div class="force-state" id="forceState">
+        <div class="fs-dot"></div>
+        <span class="fs-text" id="fsText"></span>
+      </div>
+
+      <div class="quick">
+        <div class="quick-head">
+          <span class="quick-title">一键豹子</span>
+          <span class="quick-tip">盖子合着时按下即时生效</span>
+        </div>
+        <div class="quick-row" id="lionRow"></div>
+        <div class="quick-row" id="straightRow"></div>
+      </div>
+
+      <div class="tapbox">
+        <div class="tapbox-head">
+          <div class="tapbox-text">
+            <span class="tapbox-title">开盖后点骰改点</span>
+            <span class="tapbox-sub">掀开后连点两下骰子改点 · 开关长期有效</span>
+          </div>
+          <label class="sw"><input type="checkbox" id="swTapEdit"><span class="track"></span></label>
+        </div>
+      </div>
+
+      <div id="panelRows"></div>
+
+      <div class="switch-row">
+        <span>启用手动点数</span>
+        <label class="sw"><input type="checkbox" id="swForce"><span class="track"></span></label>
+      </div>
+
+      <div class="switch-row">
+        <span>音效</span>
+        <label class="sw"><input type="checkbox" id="swSound"><span class="track"></span></label>
+      </div>
+
+      <button class="btn primary sheet-btn" id="panelDone">完成</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

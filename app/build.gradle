@@ -1,0 +1,55 @@
+def ksFile = rootProject.file("keystore.properties")
+def ks = new Properties()
+if (ksFile.exists()) {
+    ksFile.withInputStream { ks.load(it) }
+}
+
+android {
+    namespace 'com.cbywyz.liarsdice'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.cbywyz.liarsdice"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.6.0"
+    }
+
+    signingConfigs {
+        if (ksFile.exists()) {
+            release {
+                storeFile rootProject.file(ks['storeFile'])
+                storePassword ks['storePassword']
+                keyAlias ks['keyAlias']
+                keyPassword ks['keyPassword']
+                if (ks['storeType']) storeType ks['storeType']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (ksFile.exists()) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // 资源里没有 png 密度分级，关掉自动压缩避免报警告
+    androidResources {
+        noCompress 'mp3'
+    }
+}
+
+dependencies {
+}
