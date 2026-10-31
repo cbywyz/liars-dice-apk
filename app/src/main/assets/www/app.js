@@ -568,13 +568,13 @@
 
   /* 页脚诊断（临时）：一次手势结束后把「区间/状态/收到几帧/位移/结果」
      写在版本号那一行，用户截个图就能看出到底哪一步断了。 */
-  var DBG = { zone: '-', st: '-', tm: 0, cx: 0, m: 0, end: '-' };
+  var DBG = { zone: '-', st: '-', tm: 0, cx: 0, m: 0, nf: 1, end: '-' };
 
   function dbgShow() {
     var f = document.querySelector('.foot');
     if (!f) return;
-    f.textContent = 'v1.6.8 · ' + DBG.zone + '/' + DBG.st + ' t' + DBG.tm + ' c' + DBG.cx +
-      ' m' + Math.round(DBG.m) + ' p' + Number(S.progress).toFixed(2) + ' ' + DBG.end;
+    f.textContent = 'v1.6.9 · ' + DBG.zone + '/' + DBG.st + ' t' + DBG.tm + ' c' + DBG.cx +
+      ' n' + DBG.nf + ' m' + Math.round(DBG.m) + ' p' + Number(S.progress).toFixed(2) + ' ' + DBG.end;
   }
 
   function gZone(t) {
@@ -592,12 +592,19 @@
     }
   }
 
-  /* 触摸事件里挑出「我们正在跟的那根手指」；鼠标事件自带坐标 */
+  /* 只认「我们正在跟的那根手指」。
+     单手握机时拇指或手掌常常搭在屏幕上，touches 里会有好几个触点；
+     以前取 touches[0]，正好取到那根不动的手指，于是盖子跟不动、
+     看起来就是「滑一点就卡住 / 干脆滑不动」。
+     鼠标事件自带坐标，直接用。 */
   function gPoint(e) {
     if (!e.touches) return { clientX: e.clientX, clientY: e.clientY };
     var list = e.touches;
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].identifier === G.fingerId) return list[i];
+    if (G.fingerId !== null) {
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].identifier === G.fingerId) return list[i];
+      }
+      return null; // 跟的那根手指不在了：这次移动不处理
     }
     return list.length ? list[0] : null;
   }
@@ -617,7 +624,10 @@
     var zone = gZone(e.target);
     if (!zone) return;
 
-    var t = gPoint(e);
+    // 刚落下的那根手指 = changedTouches[0]（不是 touches[0]，那个可能是搭着的拇指）
+    var t = (e.changedTouches && e.changedTouches.length)
+      ? e.changedTouches[0]
+      : (e.touches && e.touches.length ? e.touches[0] : e);
     if (!t) return;
 
     // 这一把还没摇、但手里有上一把 → 当成「盖着」，能直接拖开看
@@ -628,8 +638,9 @@
     G.on = true;
     G.zone = zone;
     DBG.zone = zone; DBG.st = String(d.state).slice(0, 2); DBG.tm = 0; DBG.m = 0; DBG.end = '...';
+    DBG.nf = e.touches ? e.touches.length : 1;
     dbgShow();
-    G.fingerId = e.touches ? e.touches[0].identifier : null;
+    G.fingerId = (e.touches && typeof t.identifier === 'number') ? t.identifier : null;
     G.startY = t.clientY;
     G.startX = t.clientX;
     G.baseP = S.progress;
