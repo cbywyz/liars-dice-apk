@@ -713,7 +713,11 @@
 
   function settleLid() {
     var p = S.progress;
-    if (p >= 0.985) {
+    /* 过了半程就直接吸附到全开。
+       以前要拖到 98.5% 才算开，松手稍微差一点就停在「半开」，
+       用户的感觉就是「第一次只能开一点，得再滑一次」。
+       半开（当挡板）留给主动拖到一小半就松手的情况。 */
+    if (p >= 0.5) {
       S.progress = 1;
       setData({
         state: 'open',
@@ -721,7 +725,7 @@
         lidStyle: lidStyle(1, false),
         hint: '看清点数 · 锁定即结束本局'
       });
-    } else if (p <= 0.015) {
+    } else if (p <= 0.05) {
       closeCup();
     } else {
       setData({
