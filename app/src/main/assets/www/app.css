@@ -8,6 +8,8 @@ body {
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
+  /* 全局禁掉双指缩放和橡皮筋，点击照常 */
+  touch-action: manipulation;
 }
 /* 小程序 view/text 的默认盒模型 */
 div { display: block; }
@@ -122,6 +124,8 @@ button[disabled] { opacity: 1; }
 
 .stage {
   position: relative;
+  /* 拖拽掀盖自己处理，别让浏览器拿去做滚动判定 */
+  touch-action: none;
   width: 80vw;
   height: 101.3333vw;
   /* 留出四周余量，别顶到屏幕边 */

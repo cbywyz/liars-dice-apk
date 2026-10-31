@@ -256,7 +256,12 @@
     var stageDirty = false;
 
     if (has(keys, 'dice') || has(keys, 'revealed')) {
-      renderDice(has(keys, 'dice') || has(keys, 'revealed'));
+      // 只有「开盖」这一步重建骰子（要播入场动画）；
+      // 改点数、重新排布只更新变化的那一颗，不动其他骰子的 DOM
+      renderDice(
+        has(keys, 'revealed') ||
+        el.diceLayer.children.length !== (d.dice || []).length
+      );
     }
     if (has(keys, 'lidStyle')) {
       el.lidHolder.style.cssText = d.lidStyle;
@@ -846,8 +851,13 @@
     on(document, 'mouseup', onHoldEnd);
 
     // 舞台手势
-    on(el.stage, 'touchstart', onStageStart, { passive: true });
-    on(el.stage, 'touchmove', onStageMove, { passive: true });
+    // passive 必须是 false：否则浏览器要先判断这是不是滚动，
+    // 前几帧 touchmove 会被吞掉 —— 表现就是「滑一点停住，再滑才顺」
+    on(el.stage, 'touchstart', onStageStart, { passive: false });
+    on(el.stage, 'touchmove', function (e) {
+      if (S.grabbing) e.preventDefault();
+      onStageMove(e);
+    }, { passive: false });
     on(el.stage, 'touchend', onStageEnd);
     on(el.stage, 'touchcancel', onStageEnd);
 
