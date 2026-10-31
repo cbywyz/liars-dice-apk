@@ -427,23 +427,25 @@
       items.push({ cls: 'btn ghost', text: '摇一摇', act: 'onShake' });
       items.push({ cls: 'btn primary', text: '开盖', act: 'openCup' });
     }
-    if (!d.isLocked && d.state === 'ajar') {
-      items.push({ cls: 'btn ghost', text: '合上', act: 'closeCup' });
-      items.push({ cls: 'btn primary', text: '锁定', act: 'onLock' });
+    /* 掀开中 / 半开：锁定挪到左边，「合上」钉在最右 —— 就是刚才「开盖」
+       的位置，手指不用挪。以前是「合上」在左、「锁定」在右，
+       点完开盖再去找合上，位置全变了，很别扭。 */
+    if (!d.isLocked && (d.state === 'ajar' || d.state === 'open')) {
+      items.push({ cls: 'btn ghost', text: '锁定', act: 'onLock' });
+      items.push({ cls: 'btn primary', text: '合上', act: 'closeCup' });
     }
-    if (!d.isLocked && d.state === 'open') {
-      items.push({ cls: 'btn ghost', text: '合上', act: 'closeCup' });
-      items.push({ cls: 'btn primary', text: '锁定', act: 'onLock' });
-    }
-    if (d.isLocked && d.state !== 'closed') {
-      items.push({ cls: 'btn ghost', text: '合上', act: 'closeCup' });
-    }
-    if (d.isLocked && d.state === 'closed') {
-      items.push({ cls: 'btn ghost', text: '开盖', act: 'openCup' });
-    }
+    /* 已锁定：解锁 → 再来一局 → 合上/开盖。
+       最右一格永远是盅盖开关，解锁和重开排在它前面。
+       锁定态一行三个按钮，右边这位宽度是钉死的，所以左边两个按字数分：
+       「解锁」两个字拿窄的，「再来一局」四个字拿宽的。 */
     if (d.isLocked) {
-      items.push({ cls: 'btn ghost', text: '解锁', act: 'onUnlock' });
-      items.push({ cls: 'btn primary', text: '再来一局', act: 'onReset' });
+      items.push({ cls: 'btn ghost slim', text: '解锁', act: 'onUnlock' });
+      items.push({ cls: 'btn primary wide', text: '再来一局', act: 'onReset' });
+      items.push({
+        cls: 'btn ghost',
+        text: d.state === 'closed' ? '开盖' : '合上',
+        act: d.state === 'closed' ? 'openCup' : 'closeCup'
+      });
     }
 
     var html = '';

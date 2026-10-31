@@ -468,7 +468,24 @@ body.tap-edit .die-slot:active .die {
 
 .btn-row {
   display: flex;
+  justify-content: flex-end;
   margin: 0 -1.3333vw;
+}
+
+/* 最右一格固定宽度：不管这一行是 2 个还是 3 个按钮，
+   「开盖 / 合上」永远落在同一个位置 —— 点完开盖，收手再点就是合上。
+   只留一个按钮时（摇骰中…）仍旧铺满整行，不然孤零零缩在右边很怪。 */
+.btn-row .btn:last-child:nth-child(n+2) {
+  flex: 0 0 37vw;
+}
+
+/* 锁定态那三个按钮：右边钉死，左边按字数分宽度，
+   两个字的不至于空一大块，四个字的不至于挤成一团。 */
+.btn-row .btn.slim {
+  flex: 0.85 1 0;
+}
+.btn-row .btn.wide {
+  flex: 1.15 1 0;
 }
 
 .btn {
