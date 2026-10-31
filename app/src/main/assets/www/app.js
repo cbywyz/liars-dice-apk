@@ -106,8 +106,11 @@
   }
 
   function randomStraight() {
-    var pool = [1, 2, 3, 4, 5, 6];
-    pool.splice(Math.floor(Math.random() * 6), 1);
+    /* 顺子只有两种：12345 和 23456。
+       以前是从 1~6 里随机删掉一个数 —— 删到 2/3/4/5 时得到的
+       是 13456、12456 这种「断一截」的牌，根本不是顺子。
+       这里先选好是哪一种，再打乱顺序。 */
+    var pool = Math.random() < 0.5 ? [1, 2, 3, 4, 5] : [2, 3, 4, 5, 6];
     for (var i = pool.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
       var tmp = pool[i];
@@ -121,6 +124,27 @@
 
   var STORE_KEY = 'ld_tap_edit';
   var memTapEdit = false;
+
+  /* 骰盅下方那三格的总闸，默认关。
+     平时它就是一块普通桌面（怎么点都不会误触发），
+     要用时在点数设置里打开，直到再关掉为止。 */
+  var HOTZONE_KEY = 'ld_hotzone_on';
+  var memHotZone = false;
+
+  function loadHotZone() {
+    try {
+      return localStorage.getItem(HOTZONE_KEY) === '1';
+    } catch (e) {
+      return memHotZone;
+    }
+  }
+  function saveHotZone(on) {
+    try {
+      localStorage.setItem(HOTZONE_KEY, on ? '1' : '0');
+    } catch (e) {
+      memHotZone = !!on;
+    }
+  }
 
   function loadTapEdit() {
     try {
@@ -203,6 +227,7 @@
       quickStraight: 0,
       quickFixed: 0,
       tapEdit: false,
+      hotZoneOn: false,
     },
     shoundOnGuard: function () { return S.data.soundOn; },
 
@@ -247,6 +272,7 @@
     straightRow: document.getElementById('straightRow'),
     forceState: document.getElementById('forceState'),
     fsText: document.getElementById('fsText'),
+    swHotZone: document.getElementById('swHotZone'),
     swTapEdit: document.getElementById('swTapEdit'),
     swSound: document.getElementById('swSound'),
     panelDone: document.getElementById('panelDone'),
@@ -314,7 +340,8 @@
     }
 
     if (has(keys, 'forceOn') || has(keys, 'forceValues') ||
-        has(keys, 'quickLion') || has(keys, 'quickStraight') || has(keys, 'quickFixed')) {
+        has(keys, 'quickLion') || has(keys, 'quickStraight') || has(keys, 'quickFixed') ||
+        has(keys, 'hotZoneOn') || has(keys, 'tapEdit')) {
       if (d.panel) syncPanel();
     }
   }
@@ -477,6 +504,7 @@
       ? '已装填 · 摇一摇生效 · 仅一次'
       : '未装填 · 点了之后再摇一摇才生效';
     // 开关同步
+    if (el.swHotZone) el.swHotZone.checked = !!d.hotZoneOn;
     el.swTapEdit.checked = !!d.tapEdit;
     el.swSound.checked = !!d.soundOn;
   }
@@ -657,6 +685,10 @@
       setData({
         state: 'ajar',
         revealed: true,
+        /* 半开也能看清点数了 —— 和全开一样算「已经开过盖」，
+           装填必须在这里解除。否则「半开看一眼 → 合上 → 再摇」
+           会还是同一副牌，看起来像卡住了。 */
+        forceOn: false,
         lidStyle: lidStyle(p, false),
         hint: '半开着 · 可当挡板，再上滑继续掀'
       });
@@ -721,6 +753,9 @@
       isLocked: false,
       shaking: false,
       revealed: false,
+      /* 开新一局：上一局装填的东西一律作废。
+         不然「装填 → 摇 → 一轮结束 → 再来一局 → 摇」会还是同一副牌。 */
+      forceOn: false,
       dice: emptyDice(),
       lidStyle: lidStyle(0, false),
       hasLast: !!S.lastValues,
@@ -798,6 +833,15 @@
     return !d.shaking && !d.isLocked && (d.state === 'idle' || d.state === 'closed');
   }
 
+  /* 三格总闸：开/关只在点数设置里做，同样不弹文字 */
+  function setHotZone(on) {
+    saveHotZone(on);
+    setData({ hotZoneOn: !!on });
+    try {
+      if (navigator.vibrate) navigator.vibrate(on ? [14, 75, 14] : 45);
+    } catch (err) {}
+  }
+
   /* 点骰改点开关：不弹字，用震动次数区分 —— 开是两下，关是一下 */
   function toggleTapEdit() {
     var on = !d.tapEdit;
@@ -812,6 +856,7 @@
 
   function onHotTap(e) {
     if (d.panel) return;
+    if (!d.hotZoneOn) return;      // 总闸关着 —— 这块就是普通桌面
     if (S.hotSwallowTap && Date.now() - S.hotSwallowAt < HOT_TAP_BACK) {
       S.hotSwallowTap = false;   // 这是刚才掀盖手势的尾巴，不是点击
       return;
@@ -1070,6 +1115,12 @@
       if (v) toast('开盖后连点两下同一颗骰子，点数 +1');
     });
 
+    if (el.swHotZone) {
+      on(el.swHotZone, 'change', function (e) {
+        setHotZone(!!e.target.checked);
+      });
+    }
+
     on(el.panelDone, 'click', applyPanel);
 
     // 页面切走时停音效
@@ -1099,7 +1150,8 @@
       soundOn: true,
       forceOn: false,
       isLocked: false,
-      tapEdit: loadTapEdit()
+      tapEdit: loadTapEdit(),
+      hotZoneOn: loadHotZone()
     });
 
     // 首帧把按钮和音效图标补上
