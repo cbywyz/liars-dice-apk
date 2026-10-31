@@ -4,6 +4,16 @@
 
 **完全离线**：没有后端、没有网络请求、没有登录、没有充值。APK 里不含 `INTERNET` 权限，飞行模式也能玩。
 
+<p align="center">
+  <img src="docs/shots/full-closed.png" width="23%" alt="盖着等摇">
+  <img src="docs/shots/full-open.png" width="23%" alt="开盖看点数">
+  <img src="docs/shots/full-locked.png" width="23%" alt="锁定本局">
+  <img src="docs/shots/clean-open.png" width="23%" alt="纯净版开盖">
+</p>
+<p align="center">
+  <sub>盖着等摇 → 开盖看点数 → 锁定本局　　（最右是纯净版，界面和完整版完全一样）</sub>
+</p>
+
 ## 两个版本，装哪个都行，可以同时装
 
 | 版本 | 应用名 | 图标 | 内容 |
@@ -16,6 +26,10 @@
 
 两版图标**底色完全一样，只有骰子面不同**（4 点红 / 6 点蓝，和 App 里「1、4 是红点，其余蓝点」的规矩一致），
 摆在一起像同一个 App 的两张牌，不像两个不同的 App。
+
+<p align="center">
+  <img src="docs/shots/icons.png" width="70%" alt="图标对照：完整版骰子 4 点红，纯净版骰子 6 点蓝">
+</p>
 
 **除图标外两版完全一样**：应用名、页面标题、底栏版本号都相同，
 不写“纯净”字样，给别人玩不会露馅。
@@ -41,6 +55,7 @@ app/src/clean/assets/www/                                   纯净版的界面�
 app/src/full/res/mipmap-*/ic_launcher.png                   完整版图标（骰子 4 点）
 app/src/clean/res/mipmap-*/ic_launcher.png                  纯净版图标（骰子 6 点）
 app/src/main/res/values/styles.xml                          主题
+docs/shots/                                                 README 里的截图
 .github/workflows/build.yml                                 GitHub Actions 云端编译
 ```
 
@@ -70,6 +85,22 @@ APK 里的 `assets/www` 是从仓库外的两个源码目录同步来的（`liar
 
 **长按顶部标题「吹牛骰子」1.2 秒**打开设置面板：一键豹子（1–6）、随机顺子 / 12345 / 23456、
 开盖后点骰改点、骰盅下方三格隐形区的总闸、音效。
+
+<p align="center">
+  <img src="docs/shots/hidden-entries.png" width="42%" alt="两个隐藏入口的位置：长按标题、骰盅下方三格">
+  <img src="docs/shots/panel.png" width="42%" alt="长按标题后弹出的点数设置面板">
+</p>
+<p align="center">
+  <sub>左：两个「看不见的入口」　　右：长按标题后弹出的面板</sub>
+</p>
+
+**两个入口在界面上都没有任何提示**，第一次用建议对着上图找：
+
+| 入口 | 在哪 | 怎么用 |
+|---|---|---|
+| 设置面板 | 顶部标题「吹牛骰子」 | 长按 **1.2 秒**（按一下只是标题，没反应） |
+| 三格隐形区 | 骰盅下方那块空白桌面 | 左 1/3 = 随机顺子，中 1/3 = 点骰改点开关，右 1/3 = 随机万能豹子；单击就生效 |
+
 
 - **一键豹子 / 顺子**：点了只「装填」，**不会当场改当前这把** —— 摇一摇才出这个点数；
   只要还没开盖，摇多少次都是它；开盖之后装填解除，下一把恢复真随机
