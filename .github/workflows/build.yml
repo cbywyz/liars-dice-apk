@@ -3,6 +3,10 @@ name: build
 on:
   push:
     branches: [ main, master ]
+    # 只改文档/截图不用重新编译打包（否则每次顺手改个 README 都要跑一遍十分钟的构建）
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   workflow_dispatch:
 
 permissions:
