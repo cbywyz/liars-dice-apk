@@ -430,9 +430,16 @@
   /* ---------------- 面板 ---------------- */
 
   function buildPanel() {
-    // 一键豹子：只放一个按钮。1 是万能牌，豹子的形态组合太多，
-    // 与其列一堆点数让人选，不如点一下随机给一个。
-    el.lionRow.innerHTML = '<div class="qchip wide" data-lion="1">随机豹子</div>';
+    /* 一键豹子：
+       · 「随机豹子」—— 点数、形态都随机（1 是万能牌，组合太多）
+       · 下面 1~6 —— 固定豹子，干净利落的五个一样的数字，不带万能 1 */
+    var lh = '<div class="quick-row"><div class="qchip wide" data-lion="0">随机豹子</div></div>';
+    lh += '<div class="quick-row">';
+    for (var i = 0; i < LION_CHIPS.length; i++) {
+      lh += '<div class="qchip" data-lion="' + LION_CHIPS[i] + '">' + LION_CHIPS[i] + '</div>';
+    }
+    lh += '</div>';
+    el.lionRow.innerHTML = lh;
 
     // 顺子
     el.straightRow.innerHTML =
@@ -447,10 +454,14 @@
   }
 
   function syncPanel() {
-    // 豹子 chip：只要当前是豹子就亮
-    var lions = el.lionRow.children;
+    // 豹子 chip：随机那个只要当前是豹子就亮；点数那个按点数亮
+    var lions = el.lionRow.querySelectorAll('.qchip');
     for (var i = 0; i < lions.length; i++) {
-      lions[i].classList.toggle('on', !!(d.forceOn && d.quickLion > 0));
+      var lv = Number(lions[i].getAttribute('data-lion'));
+      var onLion = lv === 0
+        ? !!(d.forceOn && d.quickLion > 0)
+        : !!(d.forceOn && d.quickLion === lv);
+      lions[i].classList.toggle('on', onLion);
     }
     // 顺子 chips
     var sts = el.straightRow.children;
@@ -547,7 +558,7 @@
         hasLast: true,
         hint: '盖着 · 点「开盖」或上滑掀开'
       };
-      if (forced) patch.forceOn = false; // 作弊只生效一次
+      // 装填不清：只要还没开盖，摇多少次都是这个点数（用户要的就是这个）
       setData(patch);
       vibrate('light');
     }, SHAKE_MS);
@@ -636,6 +647,7 @@
       setData({
         state: 'open',
         revealed: true,
+        forceOn: false,   // 开盖了：本局作弊到此为止，下次摇骰恢复真随机
         lidStyle: lidStyle(1, false),
         hint: '看清点数 · 锁定即结束本局'
       });
@@ -663,6 +675,7 @@
       lidStyle: lidStyle(1, false),
       state: 'open',
       revealed: true,
+      forceOn: false,   // 揭开了：装填解除
       hint: '看清点数 · 锁定即结束本局'
     });
     vibrate('light');
@@ -793,6 +806,16 @@
   function openPanel() {
     vibrate('light');
     setData({ panel: true });
+    /* 面板是贴着底部弹出来的，长按时手指正好在它上面 ——
+       松手（touchend）会把面板上的按钮当成一次点击，
+       于是「刚打开面板就自动点了一个作弊项」。
+       这里挡掉这次触摸剩下的点击，手指抬起后自动恢复。 */
+    if (el.sheet) {
+      el.sheet.style.pointerEvents = 'none';
+      setTimeout(function () {
+        if (el.sheet) el.sheet.style.pointerEvents = '';
+      }, 400);
+    }
   }
 
   function closePanel() {
@@ -845,8 +868,13 @@
     return out;
   }
 
-  function onSetLion() {
-    applyCheat(randomLion());
+  /* v = 0 → 随机豹子；1~6 → 固定豹子（五个一样的数字，不带万能 1） */
+  function onSetLion(v) {
+    if (!v) {
+      applyCheat(randomLion());
+      return;
+    }
+    applyCheat([v, v, v, v, v]);
   }
 
   function onSetStraight(key) {
@@ -988,7 +1016,7 @@
     // 一键豹子 / 顺子 / 逐颗点数
     on(el.lionRow, 'click', function (e) {
       var c = e.target.closest ? e.target.closest('[data-lion]') : null;
-      if (c) onSetLion();
+      if (c) onSetLion(Number(c.getAttribute('data-lion')));
     });
     on(el.straightRow, 'click', function (e) {
       var c = e.target.closest ? e.target.closest('[data-straight]') : null;
