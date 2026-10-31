@@ -248,7 +248,8 @@
     pickTitle: document.getElementById('pickTitle'),
     pickRow: document.getElementById('pickRow'),
     pickCancel: document.getElementById('pickCancel'),
-    pickCatcher: document.getElementById('pickCatcher')
+    pickCatcher: document.getElementById('pickCatcher'),
+    hotZone: document.getElementById('hotZone')
   };
 
   /* ================= 渲染 ================= */
@@ -869,6 +870,13 @@
 
     // 音效
     on(el.soundBtn, 'click', function () { setSound(!d.soundOn); });
+
+    // 隐藏入口：点骰盅下方的空白桌面 → 打开设置面板
+    // （标题长按仍然有效，作为备用入口）
+    on(el.hotZone, 'click', function () {
+      if (d.panel) return;
+      openPanel();
+    });
 
     // 舞台手势
     on(el.stage, 'touchstart', onStageStart, { passive: true });

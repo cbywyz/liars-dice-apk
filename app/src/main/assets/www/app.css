@@ -897,3 +897,23 @@ body.tap-edit .die-slot:active .die {
   transition: opacity 0.16s ease;
 }
 .toast.show { opacity: 1; }
+
+/* ---------------- 隐藏入口：骰盅下方的空白桌面 ----------------
+   点这块区域打开设置面板。完全透明，没有任何视觉提示；
+   位置在骰盅正下方、按钮上方那片空档，操作起来像在点桌子。 */
+.hot-zone {
+  position: absolute;
+  left: 50%;
+  bottom: 1.07vw;
+  width: 66.67vw;
+  height: 26.67vw;
+  margin-left: -33.34vw;
+  z-index: 4;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 按下时给一线几乎看不见的反馈，确认点中了（别人不会注意） */
+.hot-zone:active {
+  background: radial-gradient(60% 70% at 50% 50%, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
+}
