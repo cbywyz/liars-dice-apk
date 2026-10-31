@@ -74,16 +74,32 @@
     return v < min ? min : v > max ? max : v;
   }
 
+  /* 豹子：1 是万能牌 —— 去掉所有 1 之后，剩下的必须全部相同。
+     所以 11111 / 11333 / 14444 / 11114 / 11122 都算豹子。
+     顺子：5 个数互不重复（12345 / 13456 都算）。 */
   function quickState(values) {
-    var same = true;
-    var uniq = [];
+    var rest = [];
     for (var i = 0; i < values.length; i++) {
-      if (values[i] !== values[0]) same = false;
-      if (uniq.indexOf(values[i]) < 0) uniq.push(values[i]);
+      if (values[i] !== 1) rest.push(values[i]);
+    }
+    var lion = 0;
+    if (!rest.length) {
+      lion = 1;                       // 全是 1
+    } else {
+      var same = true;
+      for (var j = 1; j < rest.length; j++) {
+        if (rest[j] !== rest[0]) { same = false; break; }
+      }
+      if (same) lion = rest[0];
+    }
+
+    var uniq = [];
+    for (var k = 0; k < values.length; k++) {
+      if (uniq.indexOf(values[k]) < 0) uniq.push(values[k]);
     }
     var key = values.join('');
     return {
-      quickLion: same ? values[0] : 0,
+      quickLion: lion,
       quickStraight: uniq.length === values.length ? 1 : 0,
       quickFixed: key === '12345' ? 1 : key === '23456' ? 2 : 0
     };
@@ -257,13 +273,16 @@
   function render(keys) {
     var stageDirty = false;
 
-    if (has(keys, 'dice') || has(keys, 'revealed')) {
-      // 只有「开盖」这一步重建骰子（要播入场动画）；
-      // 改点数、重新排布只更新变化的那一颗，不动其他骰子的 DOM
-      renderDice(
-        has(keys, 'revealed') ||
-        el.diceLayer.children.length !== (d.dice || []).length
-      );
+    if (has(keys, 'dice')) {
+      // 只有骰子数量变了才整层重建；改点数、重新排布只更新变化的那一颗
+      renderDice(el.diceLayer.children.length !== (d.dice || []).length);
+    }
+    if (has(keys, 'revealed')) {
+      /* 开盖／合盖只切一下入场动画的 class，绝不重建节点。
+         这是「滑一点就卡住」的真凶：拖动到 28% 时会 setData(revealed)
+         让骰子层重建，手指底下的节点被换成新的，浏览器直接把整串
+         触摸静默丢弃 —— 连 touchcancel 都不发，盖子就冻在半路。 */
+      revealDice();
     }
     if (has(keys, 'lidStyle')) {
       el.lidHolder.style.cssText = d.lidStyle;
@@ -297,6 +316,22 @@
     if (has(keys, 'forceOn') || has(keys, 'forceValues') ||
         has(keys, 'quickLion') || has(keys, 'quickStraight') || has(keys, 'quickFixed')) {
       if (d.panel) syncPanel();
+    }
+  }
+
+  function revealDice() {
+    var kids = el.diceLayer.children;
+    for (var i = 0; i < kids.length; i++) {
+      var die = kids[i].firstChild;
+      if (!die) continue;
+      if (d.revealed) {
+        die.style.animationDelay = i * 45 + 'ms';
+        die.classList.remove('in');
+        void die.offsetWidth; // 强制一次回流，动画才会重播
+        die.classList.add('in');
+      } else {
+        die.classList.remove('in');
+      }
     }
   }
 
@@ -1015,7 +1050,7 @@
                   'vw=' + window.innerWidth + 'x' + window.innerHeight].join(' | ');
       console.log('[d] ' + info);
       var f = document.querySelector('.foot');
-      if (f) f.textContent = 'v1.7.3 调试 ' + info;
+      if (f) f.textContent = 'v1.7.4 调试 ' + info;
     }, 900);
   }
 
