@@ -16,8 +16,8 @@ android {
         applicationId "com.cbywyz.liarsdice"
         minSdk 24
         targetSdk 34
-        versionCode 7
-        versionName "1.6.6"
+        versionCode 8
+        versionName "1.6.7"
     }
 
     signingConfigs {

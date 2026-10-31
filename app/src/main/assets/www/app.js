@@ -592,9 +592,12 @@
   }
 
   function gStart(e) {
-    // 手势进行中又来 touchstart：一定是第二根手指/手掌蹭到，
-    // 这时候绝对不能重置状态，否则拖到一半会被当成「没拖动」而卡住
-    if (G.on) return;
+    /* 一个触点 = 新手势，无条件接管。
+       不能写成「已经有手势就不接管」——万一上一串触摸因为
+       来电、切后台、系统手势没收到结束事件，标志位会一直挂着，
+       之后所有滑动都被丢掉，表现就是「怎么滑都没反应，只有按钮能点」。
+       真正的多指（第二根手指蹭上来）是 2 个以上触点，直接忽略。 */
+    if (e.touches && e.touches.length > 1) return;
 
     if (d.panel || d.state === 'shaking') return;
 
@@ -611,6 +614,8 @@
 
     G.on = true;
     G.zone = zone;
+    // 诊断：logcat 里搜 [g] 就能看到每次手势的走向
+    console.log('[g] start zone=' + zone + ' state=' + d.state + ' p=' + Number(S.progress).toFixed(2));
     G.fingerId = e.touches ? e.touches[0].identifier : null;
     G.startY = t.clientY;
     G.startX = t.clientX;
@@ -647,6 +652,7 @@
     if (!G.dragging) {
       if (dist < 8) return; // 还没动开：继续当长按候选
       G.dragging = true;
+      console.log('[g] drag begin dist=' + dist.toFixed(0));
       gClearHold();         // 动了就不算长按
       G.startY = t.clientY; // 从这里重新算零点，盖子不跳
       G.baseP = S.progress;
@@ -664,7 +670,9 @@
     if (!G.on) return;
 
     // 松手的不是我们跟的那根手指（比如另一根手指先抬起来）：继续等
-    if (e && e.type === 'touchend' && e.changedTouches && G.fingerId !== null) {
+    // 但屏幕上已经没有手指了，就必须收尾，否则标志位会挂住
+    if (e && e.type === 'touchend' && e.changedTouches && G.fingerId !== null &&
+        e.touches && e.touches.length > 0) {
       var mine = false;
       for (var i = 0; i < e.changedTouches.length; i++) {
         if (e.changedTouches[i].identifier === G.fingerId) { mine = true; break; }
@@ -674,6 +682,8 @@
 
     var cancelled = !!(e && e.type === 'touchcancel');
     var dragged = G.dragging && G.moved >= 8;
+    console.log('[g] end type=' + ((e && e.type) || '?') + ' dragged=' + dragged +
+      ' moved=' + Number(G.moved).toFixed(0) + ' p=' + Number(S.progress).toFixed(2));
     var zone = G.zone;
     var fired = G.holdFired;
     var baseP = G.baseP;
@@ -953,6 +963,9 @@
     on(document, 'mouseup', gEnd);
     // 长按弹系统菜单也会把触摸掐掉（contextmenu → touchcancel），一律禁掉
     on(document, 'contextmenu', function (e) { e.preventDefault(); });
+    // 切后台、来电、系统手势抢走焦点：收尾一次，别让手势标志位挂着
+    on(document, 'visibilitychange', function () { if (document.hidden) gEnd(); });
+    on(window, 'blur', function () { gEnd(); });
 
     // 骰子点击（事件委托）
     on(el.diceLayer, 'click', function (e) {
