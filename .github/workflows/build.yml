@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  # ---------- 安卓：编译 APK ----------
+  # ---------- 安卓：编译两份 APK（完整版 + 纯净版） ----------
   apk:
     runs-on: ubuntu-latest
     steps:
@@ -26,13 +26,14 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build release APK
-        run: gradle assembleRelease --no-daemon --stacktrace
+      - name: Build release APKs (full + clean)
+        run: gradle assembleFullRelease assembleCleanRelease --no-daemon --stacktrace
 
-      - name: Collect APK
+      - name: Collect APKs
         run: |
           mkdir -p out
-          find app/build/outputs/apk -name "*.apk" -exec cp {} out/ \;
+          cp "$(find app/build/outputs/apk/full  -name '*.apk' | head -1)" out/liars-dice-full.apk
+          cp "$(find app/build/outputs/apk/clean -name '*.apk' | head -1)" out/liars-dice-clean.apk
           ls -la out/
 
       - uses: actions/upload-artifact@v4
@@ -43,12 +44,15 @@ jobs:
 
       - name: Show signature
         run: |
-          APK=$(find out -name "*.apk" | head -1)
-          echo "APK: $APK"
-          $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs "$APK" || true
+          for APK in out/*.apk; do
+            echo "== $APK"
+            $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs "$APK" || true
+          done
 
-  # ---------- 苹果 + 浏览器：把同一份网页发到 GitHub Pages ----------
+  # ---------- 苹果 + 浏览器：把两版网页发到 GitHub Pages ----------
   # iPhone 用 Safari 打开后「分享 → 添加到主屏幕」，就是桌面图标 + 全屏 + 离线可用
+  #   根路径 /    → 完整版
+  #   /clean/     → 纯净版
   web:
     runs-on: ubuntu-latest
     permissions:
@@ -60,21 +64,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Assemble site (full at root, clean at /clean/)
+        run: |
+          mkdir -p site/clean
+          cp -r app/src/full/assets/www/.  site/
+          cp -r app/src/clean/assets/www/. site/clean/
+          echo "--- 根目录（完整版）"
+          ls site/
+          echo "--- /clean/（纯净版）"
+          ls site/clean/
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: app/src/main/assets/www
+          path: site
 
       - id: deployment
         uses: actions/deploy-pages@v4
 
       - name: Show URL
-        run: echo "网页版地址 ${{ steps.deployment.outputs.page_url }}"
+        run: |
+          echo "完整版 ${{ steps.deployment.outputs.page_url }}"
+          echo "纯净版 ${{ steps.deployment.outputs.page_url }}clean/"
 
-  # ---------- 自动发布：每次构建完都挂一个带 APK 的 Release ----------
-  # 之前只有 artifact，链接 90 天过期，所以「一直没有版本发布出来」。
-  # 现在每次构建都建/更新 tag v<versionName> 的 Release，APK 永久可下载。
+  # ---------- 自动发布：每次构建完都挂一个带两个 APK 的 Release ----------
   release:
     needs: [apk, web]
     runs-on: ubuntu-latest
@@ -95,11 +109,11 @@ jobs:
           name: liars-dice-apk
           path: dist
 
-      - name: Rename APK
+      - name: Rename APKs
         run: |
-          APK=$(find dist -name "*.apk" | head -1)
-          echo "APK: $APK"
-          cp "$APK" "dist/liars-dice-${{ steps.ver.outputs.v }}.apk"
+          cp dist/liars-dice-full.apk  "dist/liars-dice-${{ steps.ver.outputs.v }}.apk"
+          cp dist/liars-dice-clean.apk "dist/liars-dice-clean-${{ steps.ver.outputs.v }}.apk"
+          rm -f dist/liars-dice-full.apk dist/liars-dice-clean.apk
           ls -la dist/
 
       - uses: softprops/action-gh-release@v2
@@ -108,13 +122,24 @@ jobs:
           name: 吹牛骰子 v${{ steps.ver.outputs.v }}
           make_latest: true
           body: |
-            **安卓**：下载下面的 `liars-dice-${{ steps.ver.outputs.v }}.apk` 直接安装（无需联网）。
+            **两个安卓包，装哪个都行，可以同时装（互不覆盖）**
 
-            **iPhone / 其他手机**：用浏览器打开 https://cbywyz.github.io/liars-dice-apk/
+            | 文件 | 说明 |
+            |---|---|
+            | `liars-dice-${{ steps.ver.outputs.v }}.apk` | 完整版（深色图标），带隐藏的顺子 / 豹子 / 改点 |
+            | `liars-dice-clean-${{ steps.ver.outputs.v }}.apk` | 纯净版（浅色图标），只有摇骰、掀盖、锁定 |
+
+            **iPhone / 其他手机**
+
+            - 完整版 https://cbywyz.github.io/liars-dice-apk/
+            - 纯净版 https://cbywyz.github.io/liars-dice-apk/clean/
+
             （Safari → 分享 → 添加到主屏幕，就是桌面图标 + 全屏 + 离线可用）
 
             **本版改动**
-            - 底部按钮换位：开盖 / 合上 钉在同一个位置，点完开盖收手再点就是合上，手指不用挪
-            - 锁定后按钮顺序改为「解锁 → 再来一局 → 合上 / 开盖」，最右一格永远是盅盖开关
-            - 按钮宽度按字数分配，三个按钮一行也不挤
-          files: dist/liars-dice-*.apk
+
+            - 换了新图标：一只扣着的骰盅 + 一颗骰子（完整版深色底，纯净版浅色底）
+            - 新增纯净版：没有三格隐形区、没有点数设置面板、没有点骰改点，界面与完整版完全一致
+            - 两个包是不同的 applicationId，可以装在同一台手机上互不覆盖
+            - 网页版同步出两版：根路径是完整版，`/clean/` 是纯净版
+          files: dist/*.apk

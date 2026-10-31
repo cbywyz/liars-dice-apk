@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);          // 点骰改点的开关存在 localStorage
+        s.setDomStorageEnabled(true);          // 音效等设置存在 localStorage
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
         s.setDatabaseEnabled(true);

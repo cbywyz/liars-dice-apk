@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#f4f0e9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="吹牛骰子">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<title>吹牛骰子</title>
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- iOS「添加到主屏幕」用的图标：没有它 iPhone 桌面会显示网页截图 -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="page">
+
+  <!-- 顶部：标题 -->
+  <div class="nav">
+    <div class="nav-title" id="titleBtn">
+      <span class="t1">吹牛骰子</span>
+      <span class="t2">LIAR'S DICE</span>
+    </div>
+    <div class="sound-btn" id="soundBtn"><span class="sound-ic" id="soundIc">🔊</span></div>
+  </div>
+
+  <!-- 骰盅舞台 -->
+  <div class="stage-wrap">
+    <div class="stage" id="stage">
+      <div class="table-ring"></div>
+
+      <div class="cup-rig" id="cupRig">
+        <div class="cup-body"></div>
+        <div class="cup-mouth"><div class="mouth-rim"></div></div>
+        <div class="dice-layer" id="diceLayer"></div>
+        <div class="cup-rim"></div>
+
+        <div class="lid-holder" id="lidHolder">
+          <div class="lid">
+            <div class="lid-side"></div>
+            <div class="lid-top">
+              <div class="lid-ring"></div>
+              <div class="lid-gloss"></div>
+            </div>
+            <div class="knob"><div class="knob-hole"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lock-tag" id="lockTag" style="display:none">已锁定</div>
+    </div>
+
+    <!-- 骰盅下方的空白桌面：从这里起手往上滑也能掀盖 -->
+    <div class="hot-zone" id="hotZone"></div>
+  </div>
+
+  <!-- 底部操作区 -->
+  <div class="controls">
+    <div class="hint" id="hint">点「摇一摇」开始这一局</div>
+    <div class="btn-row" id="btnRow"></div>
+    <div class="foot">v1.9.0 · 仅供朋友聚会娱乐</div>
+  </div>
+
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
