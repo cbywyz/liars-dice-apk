@@ -221,7 +221,9 @@
     titleTimer: null,
     hotY: null,
     hotX: null,
-    hotDragging: false
+    hotDragging: false,
+    hotSwallowTap: false,
+    hotSwallowAt: 0
   };
 
   var d = S.data;
@@ -743,11 +745,12 @@
     }
   }
 
-  /* 骰盅下方那块空白桌面：现在是三格隐形点击区
+  /* 骰盅下方那块空白桌面：三格隐形点击区
        左 1/3 → 随机顺子    中 1/3 → 点骰改点开关    右 1/3 → 随机万能豹子
-     完全静默：不开面板、不弹文字，只有一下轻震。
-     按住不动 = 一次点击；一旦往上拖，手势照旧交给盖子 ——
-     否则手指从这里起滑会被这层吃掉，感觉像「滑了没反应」。 */
+     单击就生效，没有任何长按、也没有任何文字。
+     手指往上拖才算「掀盖」：位移要超过 HOT_MOVE，否则轻微抖动都当点击。 */
+  var HOT_MOVE = 16;          // 超过这么多才算在拖盖子（手指抖一下不算）
+  var HOT_TAP_BACK = 500;     // 拖过之后这 500ms 内的 click 不再算「点了三格」
 
   function onHoldStart(e) {
     var t = e && e.touches && e.touches[0];
@@ -760,7 +763,7 @@
     var t = e && e.touches && e.touches[0];
     if (!t || S.hotY === null) return;
 
-    var far = Math.abs(t.clientY - S.hotY) > 10 || Math.abs(t.clientX - S.hotX) > 10;
+    var far = Math.abs(t.clientY - S.hotY) > HOT_MOVE || Math.abs(t.clientX - S.hotX) > HOT_MOVE;
     if (far && !S.hotDragging && !d.panel) {
       S.hotDragging = true;
       if (d.state === 'idle' && restoreLast()) {
@@ -776,12 +779,19 @@
   }
 
   function onHoldEnd() {
-    var dragged = S.hotDragging && S.moved >= 10;
+    var dragged = S.hotDragging && S.moved >= HOT_MOVE;
     S.hotDragging = false;
     S.grabbing = false;
     S.hotY = null;
     S.hotX = null;
-    if (dragged) settleLid();
+    if (dragged) {
+      settleLid();
+      /* 掀完盖手指抬起，浏览器有时还会补一次 click。
+         那一瞬间手指已经离开桌面了，不该再算「点了三格」，
+         否则上滑开盖会顺手装填一次。 */
+      S.hotSwallowTap = true;
+      S.hotSwallowAt = Date.now();
+    }
   }
 
   function canArm() {
@@ -793,13 +803,20 @@
     var on = !d.tapEdit;
     saveTapEdit(on);
     setData({ tapEdit: on });
+    /* 完全没有视觉反馈，只能靠手感区分：
+       开 = 两下短促的「咔咔」，关 = 一下长的「嗡」 */
     try {
-      if (navigator.vibrate) navigator.vibrate(on ? [10, 55, 10] : 10);
+      if (navigator.vibrate) navigator.vibrate(on ? [14, 75, 14] : 45);
     } catch (err) {}
   }
 
   function onHotTap(e) {
     if (d.panel) return;
+    if (S.hotSwallowTap && Date.now() - S.hotSwallowAt < HOT_TAP_BACK) {
+      S.hotSwallowTap = false;   // 这是刚才掀盖手势的尾巴，不是点击
+      return;
+    }
+    S.hotSwallowTap = false;
     var r = el.hotZone.getBoundingClientRect();
     if (!r.width) return;
     var k = (e.clientX - r.left) / r.width;
@@ -849,10 +866,16 @@
     });
   }
 
-  /* 静默：不弹任何文字。确认感靠一下轻震 —— 只有握着手机的人知道。 */
+  /* 静默：不弹任何文字。确认感靠一下震动 —— 只有握着手机的人知道。
+     8ms 那种轻震在口袋里都感觉不到，这里用 22ms，和「中格开关」的节奏错开：
+       装填 = 一下（左右两格）
+       开   = 两下（中格）
+       关   = 一下长的（中格） */
   function applyCheat(values) {
     commitValues(values);
-    vibrate('light');
+    try {
+      if (navigator.vibrate) navigator.vibrate(22);
+    } catch (err) {}
   }
 
 
