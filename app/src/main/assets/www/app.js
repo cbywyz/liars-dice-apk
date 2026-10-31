@@ -7,7 +7,7 @@
 
   /* ================= 常量 ================= */
 
-  var OPEN_DIST = 240;       // 拖动多少 rpx 视为完全揭开
+  var OPEN_DIST = 190;      // 上滑多少 rpx 算完全掀开（越小越跟手）
   var LIFT = 340;            // 完全揭开时盖子向上抬起的距离(rpx)
   var SHAKE_MS = 1600;       // 摇骰动画时长（与 shake.mp3 对齐）
   var DOUBLE_TAP_MS = 420;   // 点骰改点：两下之间的最大间隔
@@ -205,7 +205,9 @@
     titleTimer: null,
     hotTimer: null,
     hotY: null,
-    hotX: null
+    hotX: null,
+    hotDragging: false,
+    holdFired: false
   };
 
   var d = S.data;
@@ -693,21 +695,41 @@
     var t = e && e.touches && e.touches[0];
     S.hotX = t ? t.clientX : null;
     S.hotY = t ? t.clientY : null;
+    S.hotDragging = false;
+    S.holdFired = false;
     if (S.hotTimer) clearTimeout(S.hotTimer);
     S.hotTimer = setTimeout(function () {
       S.hotTimer = null;
+      S.holdFired = true;
       openPanel();
     }, HOLD_MS);
   }
 
+  // 这块区域在骰盅正下方，是最顺手的起手位置。
+  // 光按住 = 开面板；一旦往上拖，就把手势交给盖子，
+  // 否则手指从这里起滑会被这层吃掉，感觉像「滑了没反应」。
   function onHoldMove(e) {
-    if (!S.hotTimer || S.hotY === null) return;
     var t = e && e.touches && e.touches[0];
-    if (!t) return;
-    // 手指挪开超过 12px 就当作不是长按（滑动/误碰）
-    if (Math.abs(t.clientY - S.hotY) > 12 || Math.abs(t.clientX - S.hotX) > 12) {
-      onHoldEnd();
+    if (!t || S.hotY === null) return;
+
+    var far = Math.abs(t.clientY - S.hotY) > 10 || Math.abs(t.clientX - S.hotX) > 10;
+    if (far && S.hotTimer) {
+      clearTimeout(S.hotTimer);   // 动了就不是长按
+      S.hotTimer = null;
     }
+
+    if (far && !S.hotDragging && !S.holdFired && !d.panel) {
+      S.hotDragging = true;
+      if (d.state === 'idle' && restoreLast()) {
+        setData({ state: 'closed', hint: '上把的点数 · 点「开盖」或上滑掀开' });
+      }
+      S.startY = t.clientY;
+      S.baseP = S.progress;
+      S.moved = 0;
+      S.grabbing = true;
+    }
+
+    if (S.hotDragging && S.grabbing) onStageMove(e);
   }
 
   function onHoldEnd() {
@@ -715,8 +737,13 @@
       clearTimeout(S.hotTimer);
       S.hotTimer = null;
     }
+    var dragged = S.hotDragging && S.moved >= 10;
+    S.hotDragging = false;
+    S.grabbing = false;
+    S.holdFired = false;
     S.hotY = null;
     S.hotX = null;
+    if (dragged) settleLid();   // 拖过松手就按位置落定；只点一下什么都不做
   }
 
   function openPanel() {
@@ -844,7 +871,10 @@
     // 隐藏入口：按住骰盅下方的空白桌面 1.2s → 打开设置面板
     // 和标题长按一致，随手碰一下不会弹出来
     on(el.hotZone, 'touchstart', onHoldStart, { passive: true });
-    on(el.hotZone, 'touchmove', onHoldMove, { passive: true });
+    on(el.hotZone, 'touchmove', function (e) {
+      if (S.hotDragging) e.preventDefault();
+      onHoldMove(e);
+    }, { passive: false });
     on(el.hotZone, 'touchend', onHoldEnd);
     on(el.hotZone, 'touchcancel', onHoldEnd);
     on(el.hotZone, 'mousedown', onHoldStart);
