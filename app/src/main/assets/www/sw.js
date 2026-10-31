@@ -1,5 +1,5 @@
 /* 离线缓存：装到桌面后断网也能玩 */
-var CACHE = 'liars-dice-v1';
+var CACHE = 'liars-dice-v2';
 var FILES = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ var FILES = [
   './app.js',
   './manifest.webmanifest',
   './assets/audio/shake.mp3',
+  './apple-touch-icon.png',
   './icon-192.png',
   './icon-512.png'
 ];

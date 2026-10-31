@@ -1,12 +1,16 @@
-name: build-apk
+name: build
 
 on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  # ---------- 安卓：编译 APK ----------
+  apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,3 +46,28 @@ jobs:
           APK=$(find out -name "*.apk" | head -1)
           echo "APK: $APK"
           $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs "$APK" || true
+
+  # ---------- 苹果 + 浏览器：把同一份网页发到 GitHub Pages ----------
+  # iPhone 用 Safari 打开后「分享 → 添加到主屏幕」，就是桌面图标 + 全屏 + 离线可用
+  web:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/src/main/assets/www
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Show URL
+        run: echo "网页版地址 ${{ steps.deployment.outputs.page_url }}"
