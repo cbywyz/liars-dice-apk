@@ -701,3 +701,124 @@ button[disabled] { opacity: 1; }
   color: #fdfaf4;
   box-shadow: inset 0 0 0 0.1333vw #23262d, 0 0.8vw 1.6vw rgba(35, 38, 45, 0.22);
 }
+
+/* ==================== 首页（单机 / 联机） ==================== */
+/* .page 是 display:flex，会盖掉 [hidden] 的 display:none，必须自己声明 */
+.page-home[hidden] { display: none; }
+
+.home {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 8vw calc(5.3333vw + env(safe-area-inset-bottom));
+}
+
+.home-head {
+  flex: 0 0 auto;
+  padding-top: 16vw;
+  text-align: center;
+}
+.home-t1 {
+  font-size: 11.2vw;
+  font-weight: 600;
+  letter-spacing: 2.1333vw;
+  text-indent: 2.1333vw;
+  color: #23262d;
+}
+.home-t2 {
+  margin-top: 1.0667vw;
+  font-size: 2.9333vw;
+  letter-spacing: 1.0667vw;
+  text-indent: 1.0667vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+/* 两张卡竖排，靠上留白把视觉重心压在中上部 */
+.home-cards {
+  flex: 0 0 auto;
+  margin-top: 21.3333vw;
+  display: flex;
+  flex-direction: column;
+  gap: 6.4vw;
+}
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2.1333vw;
+  width: 100%;
+  padding: 9.0667vw 7.4667vw;
+  border-radius: 5.3333vw;
+  text-align: left;
+  background: linear-gradient(180deg, #ffffff, #fbf7ef);
+  box-shadow: 0 2.1333vw 4.8vw rgba(35, 38, 45, 0.10),
+              inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06);
+}
+.mode-card:active { transform: scale(0.985); opacity: 0.94; }
+
+.mc-top {
+  display: flex;
+  align-items: center;
+  gap: 2.6667vw;
+  width: 100%;
+}
+.mc-ic {
+  width: 7.4667vw;
+  height: 7.4667vw;
+  flex: 0 0 auto;
+  color: #23262d;
+}
+.mc-title {
+  font-size: 5.0667vw;
+  font-weight: 600;
+  letter-spacing: 0.5333vw;
+  color: #23262d;
+}
+.mc-sub {
+  font-size: 3.2vw;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+.mc-badge {
+  margin-left: auto;
+  padding: 0.8vw 2.1333vw;
+  border-radius: 2.6667vw;
+  font-size: 2.6667vw;
+  letter-spacing: 0.2667vw;
+  color: #8a6a1f;
+  background: rgba(190, 155, 60, 0.14);
+  box-shadow: inset 0 0 0 0.1333vw rgba(190, 155, 60, 0.28);
+}
+
+/* 占位的联机卡：压暗 + 虚线，一眼看出"还不能点" */
+.mode-card.is-soon {
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.12);
+}
+.mode-card.is-soon .mc-ic,
+.mode-card.is-soon .mc-title { color: rgba(35, 38, 45, 0.46); }
+
+.home-tip {
+  flex: 0 0 auto;
+  min-height: 5.3333vw;
+  margin-top: 5.3333vw;
+  text-align: center;
+  font-size: 3.2vw;
+  line-height: 5.3333vw;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.44);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.home-tip.on { opacity: 1; }
+
+.home-foot {
+  margin-top: auto;
+  padding-top: 6.4vw;
+  text-align: center;
+  font-size: 2.6667vw;
+  letter-spacing: 0.1333vw;
+  color: rgba(35, 38, 45, 0.26);
+}

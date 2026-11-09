@@ -19,6 +19,54 @@
 </head>
 <body>
 
+<!-- ==================== 首页：先选单机 / 联机，再选玩法 ==================== -->
+<div class="page page-home" id="pageHome">
+
+  <div class="home">
+    <div class="home-head">
+      <div class="home-t1">骰子</div>
+      <div class="home-t2">DICE</div>
+    </div>
+
+    <div class="home-cards">
+      <!-- 单人：一台手机轮流玩，现有两个玩法都在这里 -->
+      <button class="mode-card" id="modeSolo">
+        <span class="mc-top">
+          <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5"
+                  fill="none" stroke="currentColor" stroke-width="1.7"/>
+            <circle cx="8.6" cy="8.6" r="1.5" fill="currentColor"/>
+            <circle cx="15.4" cy="12" r="1.5" fill="currentColor"/>
+            <circle cx="8.6" cy="15.4" r="1.5" fill="currentColor"/>
+          </svg>
+          <span class="mc-title">单人模式</span>
+        </span>
+        <span class="mc-sub">一台手机，大家轮着玩</span>
+      </button>
+
+      <!-- 联机：先占位。真做的时候主机是安卓端，其他手机浏览器当客户端 -->
+      <button class="mode-card is-soon" id="modeNet">
+        <span class="mc-top">
+          <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 9.5a12.5 12.5 0 0 1 16 0" fill="none" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M7 13a8.2 8.2 0 0 1 10 0" fill="none" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="12" cy="17.6" r="1.7" fill="currentColor"/>
+          </svg>
+          <span class="mc-title">联机模式</span>
+          <span class="mc-badge">开发中</span>
+        </span>
+        <span class="mc-sub">每人一台手机 · 连同一个 WiFi</span>
+      </button>
+    </div>
+
+    <div class="home-tip" id="homeTip"></div>
+
+    <div class="home-foot" id="homeVer">v1.10.1 · 仅供朋友聚会娱乐</div>
+  </div>
+</div>
+
 <div class="page page-liar">
 
   <!-- 顶部：标题（长按 1.2 秒 = 隐藏入口） -->
@@ -69,8 +117,9 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span>v1.10.0 · 仅供朋友聚会娱乐</span>
+      <span>v1.10.1 · 仅供朋友聚会娱乐</span>
       <button class="mode-link" id="toF350">350 玩法</button>
+      <button class="mode-link" id="toHome">首页</button>
     </div>
   </div>
 
@@ -159,6 +208,7 @@
 
   <div class="foot">
     <button class="mode-link" id="toLiar">吹牛骰子</button>
+    <button class="mode-link" id="toHome2">首页</button>
   </div>
 </div>
 

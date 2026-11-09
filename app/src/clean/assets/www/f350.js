@@ -102,9 +102,28 @@
     shakeAt: 0
   };
 
-  var S = { timer: null, toastTimer: null };
+  var S = { timer: null, toastTimer: null, lastTapIdx: -1, lastTapAt: 0, shake: null };
 
   var el = {};
+
+  /* ================= 音效 =================
+     350 之前一直没有任何音效：摇完只有震动，手机上就是"摇骰子没声音"。
+     这里直接复用吹牛模式那颗 shake.mp3，不另外存一份，
+     免得两个玩法以后各改各的、声音不一致。 */
+  function playShake() {
+    try {
+      if (!S.shake) {
+        S.shake = new Audio('assets/audio/shake.mp3');
+        S.shake.preload = 'auto';
+        S.shake.addEventListener('error', function () { S.shake = null; });
+      }
+      S.shake.currentTime = 0;
+      var p = S.shake.play();
+      /* 安卓 WebView 首次播放可能被拦，这里必须吞掉 rejection，
+         否则控制台一片红、看起来像代码报错 */
+      if (p && p.catch) p.catch(function () {});
+    } catch (e) { /* 没有音频文件也不能影响摇骰 */ }
+  }
   function $(id) { return document.getElementById(id); }
 
   /* ================= 存档 ================= */
@@ -205,6 +224,7 @@
     }
 
     vibrate(18);
+    playShake();
     G.phase = 'rolled';
     save();
     render();
@@ -543,12 +563,30 @@
     var i = parseInt(t.getAttribute('data-i'), 10);
     var d = G.hand[i];
     if (!d || !pointsOf(d.v)) return;      // 只有 1 和 5 能点
+
+    /* 连点两下同一颗 = 选中它并立刻收下，省掉「先点骰子再按收下」两步。
+       320ms 是双指的常见阈值：比系统双击判定稍宽，手指粗一点也能触发，
+       但慢到能看出是两次独立点击时又不会误收。 */
+    var now = Date.now();
+    var dbl = (S.lastTapIdx === i && now - S.lastTapAt < 320);
+    S.lastTapIdx = i;
+    S.lastTapAt = now;
+
+    if (dbl) {
+      d.sel = true;                        // 双击一定把点到的这颗算进去
+      renderDice();
+      renderBtns();
+      vibrate(10);
+      onPick();
+      return;
+    }
+
     d.sel = !d.sel;
     vibrate(10);
     renderDice();
     renderBtns();
     var s = pickedSum();
-    hint(s ? '已选 ' + s + ' 分 · 点「收下」才算' : '还没选 · 点要拿走的骰子');
+    hint(s ? '已选 ' + s + ' 分 · 点「收下」才算（连点两下可直接收）' : '还没选 · 点要拿走的骰子');
   }
 
   function onBtn(e) {
@@ -619,6 +657,18 @@
     var back = $('toLiar');
     if (back) back.addEventListener('click', function () { switchTo('liar'); });
 
+    /* 首页两个入口 + 两个玩法页各自的「首页」返回 */
+    var solo = $('modeSolo');
+    if (solo) solo.addEventListener('click', enterSolo);
+    var net = $('modeNet');
+    if (net) net.addEventListener('click', function () {
+      showHomeTip('联机还在做 · 一台手机当主机，其他人连同一个网');
+    });
+    var h1 = $('toHome');
+    if (h1) h1.addEventListener('click', function () { switchTo('home'); });
+    var h2 = $('toHome2');
+    if (h2) h2.addEventListener('click', function () { switchTo('home'); });
+
     if (load()) {
       render();
     } else {
@@ -629,23 +679,49 @@
       renderBtns();
     }
 
-    // 上次停在哪个玩法，这次就还进哪个；默认是吹牛
-    var last = 'liar';
-    try { last = localStorage.getItem('ld_mode') || 'liar'; } catch (e) {}
-    if (last === 'f350') switchTo('f350');
-    else document.body.setAttribute('data-mode', 'liar');
+    // 启动一律停在首页：先选单机 / 联机，再进玩法。
+    // 上次玩哪个玩法只在「单人模式」里生效（ld_last_play），别在这里直接跳过去。
+    switchTo('home');
   }
 
   function switchTo(mode) {
     document.body.setAttribute('data-mode', mode);
+
+    var home = document.querySelector('.page-home');
     var liar = document.querySelector('.page-liar');
     var f3 = document.querySelector('.page-f350');
-    if (liar) liar.hidden = mode === 'f350';
+    if (home) home.hidden = mode !== 'home';
+    if (liar) liar.hidden = mode !== 'liar';
     if (f3) f3.hidden = mode !== 'f350';
+
+    /* ld_mode 记住"当前在哪"，ld_last_play 只记"上次玩哪个玩法"：
+       从首页进单人时要回到上次那个玩法，但从首页本身不该被当成玩法记下来。 */
     try { localStorage.setItem('ld_mode', mode); } catch (e) {}
+    if (mode === 'liar' || mode === 'f350') {
+      try { localStorage.setItem('ld_last_play', mode); } catch (e) {}
+    }
+
     if (mode === 'f350' && !G.players.length && el.pop.style.display !== 'flex') {
       showSetup();
     }
+  }
+
+  function enterSolo() {
+    var last = 'liar';
+    try { last = localStorage.getItem('ld_last_play') || 'liar'; } catch (e) {}
+    switchTo(last);
+  }
+
+  /* 联机先占位：真做的时候主机必须是安卓端（它能监听端口），
+     手机浏览器和 iPhone 只能当客户端。这里只给一句实话，别画饼。 */
+  var tipTimer = null;
+  function showHomeTip(msg) {
+    var t = document.getElementById('homeTip');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('on');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(function () { t.classList.remove('on'); }, 2600);
   }
 
   if (document.readyState === 'loading') {
