@@ -63,7 +63,7 @@
 
     <div class="home-tip" id="homeTip"></div>
 
-    <div class="home-foot" id="homeVer">v1.10.4 · 仅供朋友聚会娱乐</div>
+    <div class="home-foot" id="homeVer">v1.10.5 · 仅供朋友聚会娱乐</div>
   </div>
 </div>
 
@@ -179,7 +179,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span>v1.10.4</span>
+      <span>v1.10.5</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -220,12 +220,12 @@
 
   <!-- 本回合分数 -->
   <div class="f3-panel">
+    <!-- 这一回合已经收下的骰子：摆在桌子和分数之间那块空当里，分数就是它们加出来的 -->
+    <div class="f3-taken" id="f3Taken" hidden></div>
     <div class="f3-score" id="f3ScoreBox">
       <span class="f3-score-num" id="f3ScoreNum">0</span>
       <span class="f3-score-unit">本回合</span>
     </div>
-    <!-- 这一回合已经收下的骰子：分数是它们加起来的结果 -->
-    <div class="f3-taken" id="f3Taken" hidden></div>
     <div class="f3-hint" id="f3Hint">满 350 才能收手 · 封顶 700</div>
   </div>
 

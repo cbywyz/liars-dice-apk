@@ -235,22 +235,23 @@
 
 /* ---------------- 收下的骰子 ---------------- */
 
-/* 分数下面那一排：这一回合已经被拿走的 1 和 5，按收的先后排 */
+/* 桌子和分数之间那一排：这一回合已经被拿走的 1 和 5，按收的先后排。
+   那块本来就是空当（stage 是 flex:1，桌子固定 50vw 居中），摆这儿不占额外地方，
+   骰子还能比贴在分数下面时大一号；尺寸由 f350.js 按颗数算（--ds）。 */
 .f3-taken {
+  --ds: 8.4vw;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  /* 0.55 而不是 0.8：封顶那一下最多 14 颗（700 / 每颗最少 50），
-     间距小一点才能在 88vw 里排成一整行，不至于孤零零掉下来一颗 */
-  gap: 0.55vw;
-  margin-top: 1.3333vw;
+  gap: 0.7vw;
+  /* 和下面的大数字留一口气，别贴上去 */
+  margin: 0 0 2.4vw;
 }
 /* hidden 属性得自己兜一下：上面那句 display:flex 会盖掉浏览器默认的 display:none */
 .f3-taken[hidden] { display: none; }
 
 .f3-taken .tk-die {
-  --ds: 5.6vw;
   flex: 0 0 auto;
   width: var(--ds);
   height: var(--ds);

@@ -498,6 +498,15 @@
     var key = list.length + '/' + G.round;
     if (box.getAttribute('data-key') === key) return;
 
+    /* 大小跟着颗数走：平时 8.4vw（比贴在分数下面时大一半），
+       颗数多到一行放不下就等比缩 —— 反正就是要一行排完，
+       掉一颗去第二行最难看。88vw 是面板可用宽度（左右各 6vw 内边距），
+       0.7 是下面 CSS 里的 gap。 */
+    var n = list.length;
+    var ds = n ? (88 - (n - 1) * 0.7) / n : 8.4;
+    ds = Math.min(8.4, Math.max(5.4, ds));
+    box.style.setProperty('--ds', ds.toFixed(3) + 'vw');
+
     var prev = parseInt(box.getAttribute('data-n') || '0', 10);
     box.innerHTML = '';
     for (var i = 0; i < list.length; i++) {
