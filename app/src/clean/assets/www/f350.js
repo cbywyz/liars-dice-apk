@@ -292,8 +292,16 @@
     var list = liveHand();
     if (!list.length) return;
 
-    /* 豹子：7 颗全是 1 和 5 —— 记一次，分数清零，重新拿 7 颗继续摇 */
+    /* 豹子：7 颗全是 1 和 5 —— 记一次，分数清零，重新拿 7 颗继续摇。
+       正豹（清一色 1 或 5）比 15 豹更狠：桌上其他人喝 2 杯，15 豹喝 1 杯，
+       摇的人自己不喝 —— 所以有人会专门去拼。 */
     if (isLion(list)) {
+      var allOne = true, allFive = true;
+      for (var q = 0; q < list.length; q++) {
+        if (list[q].v !== 1) allOne = false;
+        if (list[q].v !== 5) allFive = false;
+      }
+      var pure = allOne || allFive;
       current().lion = (current().lion || 0) + 1;
       G.round = 0;
       G.taken = [];
@@ -302,7 +310,8 @@
       G.phase = 'ready';
       save();
       render();
-      hint('豹子 · 记 1 次，分数清零，重新摇', 'gold');
+      hint(pure ? '正豹！其他每人喝 2 杯 · 分数清零重摇'
+                : '15 豹！其他每人喝 1 杯 · 分数清零重摇', 'gold');
       vibrate([16, 60, 16, 60, 26]);
       return;
     }
@@ -321,7 +330,7 @@
       G.phase = 'bust';
       save();
       render();
-      hint('一个 1 和 5 都没有 · 分数清零 · 点「清零重摇」继续', 'warn');
+      hint('爆了 · 喝 1 杯 · 分数清零，点「清零重摇」继续', 'warn');
       vibrate([40, 70, 40]);
       return;
     }
@@ -759,7 +768,7 @@
     }
     openMask(
       '<span class="f3-sheet-title">' + arr[0].name + ' 赢</span>' +
-      '<span class="f3-sheet-sub">同分先收手的排前面</span>' +
+      '<span class="f3-sheet-sub">同分先收手的排前面 · 最低的喝 2 杯</span>' +
       '<div class="f3-rank">' + rows + '</div>' +
       '<button class="btn primary" data-act="restart">再来一局</button>'
     );
@@ -1117,11 +1126,21 @@
       rules: [
         '拿一颗就少一颗。所以经常会放着 50 分不拿，把 5 留在桌上凑数量，继续搏 1 点。',
         '一把里一个 1、一个 5 都没有 = 爆掉：本回合分数清零，拿回 7 颗重摇，还是你摇，不换人。',
-        '7 颗全是 1 和 5 = 豹子：记一次豹子（只做记录，不影响输赢），分数清零，继续摇。',
+        '7 颗全是 1 和 5 = 豹子：记一次豹子，分数清零，继续摇。',
         '封顶 700 分，到顶自动锁，不用手动点。',
         '比锁定的最终分数，高者赢；同分时先收手的排前面。'
       ],
-      note: '人数 2~6 人，开局时选；想改点右上角的「N 人」，换了人数会重开一局。点错了再点一次取消要隔开一下 —— 连点两下会被当成「直接收」。'
+      /* 这几条是桌上真正分酒的地方。App 只算分、只记豹子，
+         喝多少由桌上自己定，所以单独一段，跟「规则」分开写。 */
+      drinks: [
+        '<strong>爆掉</strong>（一把里没有 1 也没有 5）：这个躲不掉，<strong>自己喝 1 杯</strong>，然后清零重摇。',
+        '<strong>摇出豹子</strong>：摇的人不喝，台上其他人一起喝 —— ' +
+        '<strong>15 豹</strong>（1 和 5 混着）每人 <strong>1 杯</strong>；' +
+        '<strong>正豹</strong>（清一色 1111111 或 5555555）每人 <strong>2 杯</strong>。',
+        '所以有人会专门去拼豹子：自己一分不涨、还不用喝，一桌人都得端杯。',
+        '<strong>整局打完</strong>：分数最低的喝 <strong>2 杯</strong>。'
+      ],
+      note: '上面这些杯数是默认值，开局前按自己的量定，能加能减。App 只管算分和记豹子，喝不喝、喝多少在桌上说好。想改人数点右上角「N 人」（2~12），换人数会重开一局。'
     }
   };
 
@@ -1141,7 +1160,16 @@
     for (var j = 0; j < r.rules.length; j++) {
       h += '<div class="rule-li"><em></em><span>' + r.rules[j] + '</span></div>';
     }
-    h += '</div><div class="rule-note">' + r.note + '</div>';
+    h += '</div>';
+    /* 「喝多少」单独一段：这是桌上真正分酒的地方，混在规则里容易被当成可选事项划过去 */
+    if (r.drinks) {
+      h += '<div class="rule-sec"><div class="rule-sec-t">输赢 · 喝多少</div>';
+      for (var k = 0; k < r.drinks.length; k++) {
+        h += '<div class="rule-li"><em></em><span>' + r.drinks[k] + '</span></div>';
+      }
+      h += '</div>';
+    }
+    h += '<div class="rule-note">' + r.note + '</div>';
 
     $('ruleBody').innerHTML = h;
     mask.style.display = 'flex';

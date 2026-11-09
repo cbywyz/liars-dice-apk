@@ -1267,6 +1267,12 @@ body.tap-edit .die-slot:active .die {
   font-weight: 600;
   color: #23262d;
 }
+/* 「喝多少」那几条里的强调是行内的，不能套上面那个 display:block —— 
+   否则一句话会被拆成好几行 */
+.rule-li strong {
+  font-weight: 600;
+  color: #23262d;
+}
 
 .rule-note {
   margin-top: 5.3333vw;

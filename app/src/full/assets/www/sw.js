@@ -1,5 +1,5 @@
 /* 离线缓存：装到桌面后断网也能玩 */
-var CACHE = 'liars-dice-v32';
+var CACHE = 'liars-dice-v33';
 var FILES = [
   './',
   './index.html',
