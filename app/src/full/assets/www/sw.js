@@ -1,5 +1,12 @@
-/* 离线缓存：装到桌面后断网也能玩 */
-var CACHE = 'liars-dice-v35';
+/* 离线缓存：装到桌面后断网也能玩
+ *
+ * 策略要点（2026-11-09 改）：代码类请求一律「网络优先 + 强制校验」。
+ * 以前这里是纯缓存优先，只要装过一次，index.html 更新了、f350.js 却还在吃旧缓存 ——
+ * 于是出现「底栏版本号是新的、玩法行为还是旧的」，用户清浏览器缓存也治不好（清的
+ * 是 HTTP 缓存，Cache Storage 里那份还在）。现在只要联网，就一定拿到最新代码；
+ * 断网才回退到缓存。
+ */
+var CACHE = 'liars-dice-v36';
 var FILES = [
   './',
   './index.html',
@@ -18,7 +25,8 @@ self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(CACHE).then(function (c) {
       return Promise.all(FILES.map(function (f) {
-        return c.add(f).catch(function () {});
+        /* 装的时候也别信 HTTP 缓存，直接要最新的 */
+        return c.add(new Request(f, { cache: 'reload' })).catch(function () {});
       }));
     }).then(function () { return self.skipWaiting(); })
   );
@@ -34,13 +42,43 @@ self.addEventListener('activate', function (e) {
   );
 });
 
+/* 会变的东西：页面本体、脚本、样式 */
+function isCode(req, url) {
+  if (req.mode === 'navigate') return true;
+  if (req.destination === 'document') return true;
+  return /\.(?:html|js|css|webmanifest)$/.test(url.pathname) || url.pathname.slice(-1) === '/';
+}
+
 self.addEventListener('fetch', function (e) {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request).then(function (hit) {
-      return hit || fetch(e.request).then(function (res) {
+  var req = e.request;
+  if (req.method !== 'GET') return;
+
+  var url;
+  try { url = new URL(req.url); } catch (err) { return; }
+  if (url.origin !== self.location.origin) return;
+
+  if (isCode(req, url)) {
+    e.respondWith(
+      fetch(req, { cache: 'no-cache' }).then(function (res) {
         var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(e.request, copy); }).catch(function () {});
+        caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
+        return res;
+      }).catch(function () {
+        /* 断网 / 服务器挂了：退到缓存，页面还有得看 */
+        return caches.match(req).then(function (hit) {
+          return hit || caches.match('./index.html') || caches.match('./');
+        });
+      })
+    );
+    return;
+  }
+
+  /* 图片、音频这些带指纹的静态资源照旧缓存优先，省流量 */
+  e.respondWith(
+    caches.match(req).then(function (hit) {
+      return hit || fetch(req).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
         return res;
       }).catch(function () { return hit; });
     })
