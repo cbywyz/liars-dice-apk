@@ -185,15 +185,26 @@
         G.hand = blankHand();
       }
 
+      /* 豹子 / 爆掉都是「结果留在桌上等人按清零重摇」的状态，
+         这两步不能当成「可以接着收」恢复 —— 骰子还摆着，但一颗都不该点得动。 */
       if (o.phase === 'over') {
         G.phase = 'over';
+      } else if (o.phase === 'lion' && liveHand().length) {
+        G.phase = 'lion';
+      } else if (o.phase === 'bust' && liveHand().length) {
+        G.phase = 'bust';
       } else if (liveHand().length) {
         /* 桌上有牌就回「可以点」的状态：刚才没来得及收的那几颗还点得动 */
         G.phase = 'rolled';
       } else {
         G.phase = 'ready';
       }
-      if (G.phase === 'rolled') {
+      if (G.phase === 'lion') {
+        hint(o.lionPure ? '正豹！其他每人喝 2 杯 · 点「清零重摇」继续'
+                        : '15 豹！其他每人喝 1 杯 · 点「清零重摇」继续', 'gold');
+      } else if (G.phase === 'bust') {
+        hint(bustText(liveHand().length), 'warn');
+      } else if (G.phase === 'rolled') {
         if (G.took) hint('还剩 ' + liveHand().length + ' 颗 · 还能接着收，或者摇一摇');
         else hint('点要拿走的 1 和 5 · 不点的留在桌上继续摇');
       }
@@ -269,7 +280,7 @@
   /* ================= 动作 ================= */
 
   function onRoll() {
-    if (G.phase === 'bust' || G.phase === 'over') return;
+    if (G.phase === 'bust' || G.phase === 'lion' || G.phase === 'over') return;
     if (!G.hand.length) G.hand = blankHand();
 
     // 摇就是摇桌上全部骰子，不区分「上一把留下的」和「新拿回来的」
@@ -302,16 +313,18 @@
         if (list[q].v !== 5) allFive = false;
       }
       var pure = allOne || allFive;
+      G.lionPure = pure;
       current().lion = (current().lion || 0) + 1;
       G.round = 0;
       G.taken = [];
       G.took = false;
-      G.hand = blankHand();
-      G.phase = 'ready';
+      /* 豹子跟爆掉一样，结果留在桌上等人看 —— 一桌人都得看清是正豹还是 15 豹才认账，
+         骰子瞬间变空位等于什么都没发生。按钮只剩「清零重摇」，谁看够了谁按。 */
+      G.phase = 'lion';
       save();
       render();
-      hint(pure ? '正豹！其他每人喝 2 杯 · 分数清零重摇'
-                : '15 豹！其他每人喝 1 杯 · 分数清零重摇', 'gold');
+      hint(pure ? '正豹！其他每人喝 2 杯 · 点「清零重摇」继续'
+                : '15 豹！其他每人喝 1 杯 · 点「清零重摇」继续', 'gold');
       vibrate([16, 60, 16, 60, 26]);
       return;
     }
@@ -330,12 +343,21 @@
       G.phase = 'bust';
       save();
       render();
-      hint('爆了 · 喝 1 杯 · 分数清零，点「清零重摇」继续', 'warn');
+      hint(bustText(list.length), 'warn');
       vibrate([40, 70, 40]);
       return;
     }
 
     hint('点要拿走的 1 和 5 · 不点的留在桌上继续摇');
+  }
+
+  /* 爆掉的文案：一把里一个 1 一个 5 都没有就喝 1 杯；
+     但如果这一把是「7 颗全摇」（本回合还没收过骰子、桌上满 7 颗），规矩是喝双倍。
+     默认杯数写在玩法说明里，这里只是把它念出来，不改任何判定。 */
+  function bustText(n) {
+    return n >= DICE
+      ? '爆了 · 7 颗全摇 · 喝双倍 2 杯 · 分数清零，点「清零重摇」继续'
+      : '爆了 · 喝 1 杯 · 分数清零，点「清零重摇」继续';
   }
 
   function pickedSum() {
@@ -641,7 +663,7 @@
       } else {
         list.push({ t: '点骰子收分', cls: 'primary is-off', act: 'pick' });
       }
-    } else if (G.phase === 'bust') {
+    } else if (G.phase === 'bust' || G.phase === 'lion') {
       list.push({ t: '清零重摇', cls: 'primary', act: 'bust' });
     } else {
       var left = liveHand().length;
@@ -654,7 +676,7 @@
 
     /* 爆掉时不给锁分：本局分数已经清 0，锁无可锁，
        留一个灰按钮在旁边只会让人以为还能点 */
-    if (G.phase !== 'over' && G.phase !== 'bust') {
+    if (G.phase !== 'over' && G.phase !== 'bust' && G.phase !== 'lion') {
       var ok = G.round >= BASE;
       list.push({
         t: ok ? '锁 ' + G.round + ' 分' : '满 ' + BASE + ' 锁分',
@@ -1125,15 +1147,16 @@
       ],
       rules: [
         '拿一颗就少一颗。所以经常会放着 50 分不拿，把 5 留在桌上凑数量，继续搏 1 点。',
-        '一把里一个 1、一个 5 都没有 = 爆掉：本回合分数清零，拿回 7 颗重摇，还是你摇，不换人。',
-        '7 颗全是 1 和 5 = 豹子：记一次豹子，分数清零，继续摇。',
+        '一把里一个 1、一个 5 都没有 = 爆掉：本回合分数清零，结果留在桌上，点「清零重摇」才拿回 7 颗，还是你摇，不换人。',
+        '7 颗全是 1 和 5 = 豹子：记一次豹子，分数清零，同样点「清零重摇」再继续。',
         '封顶 700 分，到顶自动锁，不用手动点。',
         '比锁定的最终分数，高者赢；同分时先收手的排前面。'
       ],
       /* 这几条是桌上真正分酒的地方。App 只算分、只记豹子，
          喝多少由桌上自己定，所以单独一段，跟「规则」分开写。 */
       drinks: [
-        '<strong>爆掉</strong>（一把里没有 1 也没有 5）：这个躲不掉，<strong>自己喝 1 杯</strong>，然后清零重摇。',
+        '<strong>爆掉</strong>（一把里没有 1 也没有 5）：这个躲不掉，<strong>自己喝 1 杯</strong>；' +
+        '如果这一把是 <strong>7 颗全摇</strong>（还没收过骰子、桌上满 7 颗），要<strong>喝双倍 · 2 杯</strong>。然后清零重摇。',
         '<strong>摇出豹子</strong>：摇的人不喝，台上其他人一起喝 —— ' +
         '<strong>15 豹</strong>（1 和 5 混着）每人 <strong>1 杯</strong>；' +
         '<strong>正豹</strong>（清一色 1111111 或 5555555）每人 <strong>2 杯</strong>。',
