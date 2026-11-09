@@ -189,7 +189,9 @@
          这两步不能当成「可以接着收」恢复 —— 骰子还摆着，但一颗都不该点得动。 */
       if (o.phase === 'over') {
         G.phase = 'over';
-      } else if (o.phase === 'lion' && liveHand().length) {
+      } else if (o.phase === 'lion' && (liveHand().length || G.taken.length === DICE)) {
+        /* 整轮收齐的豹子桌面是空的（7 颗都在「已收下」那一排），
+           只认 liveHand 会把它当成 ready，白丢一次选择 */
         G.phase = 'lion';
       } else if (o.phase === 'bust' && liveHand().length) {
         G.phase = 'bust';
@@ -277,6 +279,18 @@
     return true;
   }
 
+  /* 正豹 = 清一色 1 或者清一色 5；混着 1 和 5 叫 15 豹。
+     两种豹子判断口径必须一致，所以抽出来，别一处一处抄。 */
+  function lionPureOf(values) {
+    if (!values.length) return false;
+    var one = true, five = true;
+    for (var i = 0; i < values.length; i++) {
+      if (values[i] !== 1) one = false;
+      if (values[i] !== 5) five = false;
+    }
+    return one || five;
+  }
+
   /* ================= 动作 ================= */
 
   function onRoll() {
@@ -303,16 +317,20 @@
     var list = liveHand();
     if (!list.length) return;
 
+    /* 留一份最近 12 把的底：豹子这条反复有人说「明明全是 1 和 5，就是不弹」，
+       光看代码猜不出当时桌上到底几颗、收过几颗。这一行把现场留下来，
+       下次直接从手机存档里读，不用再靠猜。每项 = [点数串, 已收颗数, 桌上颗数]。 */
+    var vs = '';
+    for (var r = 0; r < list.length; r++) vs += list[r].v;
+    G.rolls = (G.rolls || []).concat([[vs, G.taken.length, list.length]]).slice(-12);
+
     /* 豹子：7 颗全是 1 和 5 —— 记一次，分数清零，重新拿 7 颗继续摇。
        正豹（清一色 1 或 5）比 15 豹更狠：桌上其他人喝 2 杯，15 豹喝 1 杯，
        摇的人自己不喝 —— 所以有人会专门去拼。 */
     if (isLion(list)) {
-      var allOne = true, allFive = true;
-      for (var q = 0; q < list.length; q++) {
-        if (list[q].v !== 1) allOne = false;
-        if (list[q].v !== 5) allFive = false;
-      }
-      var pure = allOne || allFive;
+      var vals = [];
+      for (var q = 0; q < list.length; q++) vals.push(list[q].v);
+      var pure = lionPureOf(vals);
       G.lionPure = pure;
       current().lion = (current().lion || 0) + 1;
       G.took = false;
@@ -351,12 +369,13 @@
     hint('点要拿走的 1 和 5 · 不点的留在桌上继续摇');
   }
 
-  /* 豹子这一把值多少分：7 颗全是 1 和 5，全都计分，所以就是全桌的总和（350~700）。
-     「收下换人」按这个数收，不点收就是清零重摇。 */
+  /* 豹子这一手收下能落多少分：已经收下的（G.round）加上桌上还摆着的。
+     一把摇出的豹子 round 是 0，分全在那 7 颗上；整轮收齐的豹子桌面已空，
+     分全在 round 里 —— 两种豹子用同一个数，不长两张皮。 */
   function lionGain() {
     var list = liveHand(), g = 0;
     for (var i = 0; i < list.length; i++) g += pointsOf(list[i].v);
-    return Math.min(CAP, g);
+    return Math.min(CAP, G.round + g);
   }
 
   /* 爆掉的文案：一把里一个 1 一个 5 都没有就喝 1 杯；
@@ -398,6 +417,25 @@
     G.round = Math.min(CAP, G.round + gain);
 
     if (!rest.length) {
+      /* 整轮 7 颗全收下 —— 这就是「第二种豹子」。
+         7 颗能全收下来，说明颗颗都是 1 或 5（别的点数根本收不走），跟一把摇出豹子
+         是同一手牌，只是一次摇完还是分两三次摇完的区别。
+         以前这里直接翻篇：分数留在 G.round、骰子变回 7 个空位，玩家还没反应过来
+         这一把就结束了，更没有「收下换人 / 清零重摇」可点 —— 手机上一路玩下来，
+         最常见的「我明明收齐了一手 1 和 5，怎么没弹豹子」就是卡在这一行。 */
+      if (G.taken.length === DICE) {
+        G.hand = blankHand();
+        G.phase = 'lion';
+        G.took = false;
+        G.lionPure = lionPureOf(G.taken);
+        current().lion = (current().lion || 0) + 1;
+        save();
+        render();
+        hint(G.lionPure ? '正豹！其他每人喝 2 杯 · 收下换人，或清零重摇'
+                        : '15 豹！其他每人喝 1 杯 · 收下换人，或清零重摇', 'gold');
+        vibrate([16, 60, 16, 60, 26]);
+        return;
+      }
       // 一颗不剩：下一把重新从 7 颗开始
       G.hand = blankHand();
       G.phase = 'ready';
@@ -756,18 +794,18 @@
     if (G.phase !== 'lion') { closeLion(); return; }
     var m = lionNode();
     var g = lionGain();
-    /* 正豹 / 15 豹 从桌上这手现算：存档里不存 lionPure，靠它判断重启后会念错 */
-    var list = liveHand(), allOne = list.length > 0, allFive = list.length > 0;
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].v !== 1) allOne = false;
-      if (list[i].v !== 5) allFive = false;
-    }
-    var pure = list.length ? (allOne || allFive) : !!G.lionPure;
+    /* 正豹 / 15 豹 从这一手现算：一把摇出来的看桌上那 7 颗，
+       整轮收齐的看 already 收下的 7 颗（那会儿桌面已经空了） */
+    var list = liveHand(), vals = [];
+    for (var i = 0; i < list.length; i++) vals.push(list[i].v);
+    var fromTable = vals.length > 0;
+    var pure = fromTable ? lionPureOf(vals) : lionPureOf(G.taken);
+    var who = pure ? '正豹 · 桌上其他人每人 2 杯' : '15 豹 · 桌上其他人每人 1 杯';
+    if (!fromTable) who += ' · 整轮 7 颗收齐';
     var sub = m.querySelector('#lionSub');
     var gain = m.querySelector('#lionGain');
     var take = m.querySelector('#lionTake');
-    if (sub) sub.textContent = pure ? '正豹 · 桌上其他人每人 2 杯'
-                                    : '15 豹 · 桌上其他人每人 1 杯';
+    if (sub) sub.textContent = who;
     if (gain) gain.textContent = g;
     if (take) take.textContent = '收下 ' + g + ' 分';
     m.style.display = 'flex';
@@ -929,8 +967,9 @@
 
   /* 豹子的两条路，弹窗和底栏按钮共用同一份实现，免得两边行为悄悄跑偏 */
   function lionTake() {
-    /* 认这一把豹子：1 和 5 全算分，收完直接锁，换下一位 */
-    G.round = Math.min(CAP, G.round + lionGain());
+    /* 认这一把豹子：1 和 5 全算分，收完直接锁，换下一位。
+       lionGain() 已经含了 G.round，这里别再叠加一次。 */
+    G.round = lionGain();
     G.took = true;
     closeLion();
     render();
@@ -1258,8 +1297,9 @@
       rules: [
         '拿一颗就少一颗。所以经常会放着 50 分不拿，把 5 留在桌上凑数量，继续搏 1 点。',
         '一把里一个 1、一个 5 都没有 = 爆掉：本回合分数清零，结果留在桌上，点「清零重摇」才拿回 7 颗，还是你摇，不换人。',
-        '7 颗全是 1 和 5 = 豹子：记一次豹子。这一步给两个选择 —— 认账就「收下换人」，' +
-        '这一把的 1 和 5 全算分、封顶 700，收完直接锁；不认就「清零重摇」，分数归零、拿回 7 颗还是你摇。',
+        '7 颗全是 1 和 5 = 豹子：记一次豹子。两种都算 —— 一把摇出 7 颗全是 1 和 5，' +
+        '或者这一回合一颗颗把 7 颗全收下来。这一刻给两个选择：认账就「收下换人」，' +
+        '这一手的 1 和 5 全算分、封顶 700，收完直接锁；不认就「清零重摇」，分数归零、拿回 7 颗还是你摇。',
         '封顶 700 分，到顶自动锁，不用手动点。',
         '比锁定的最终分数，高者赢；同分时先收手的排前面。'
       ],

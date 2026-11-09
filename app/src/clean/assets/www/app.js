@@ -1085,20 +1085,21 @@
   bar.hidden = false;
 })();
 
-/* ================= 免责声明 =================
+/* ================= 免责声明与使用条款 =================
 
    第一次打开自动弹一次，点过「我知道了」就不再弹，之后从首页底部那颗「免责声明」看。
 
-   口径就三句，别往里加东西：只能朋友之间娱乐、不得用于任何非法用途、其他功能与本工具无关。
-   三条禁忌（都是明确要求，改文案时别踩）：
-     · 不提钱、不提赌注、不提喝不喝酒 —— 这是个骰子小工具，不是酒桌规矩的背书；
-     · 不点名任何额外功能 —— 声明是公开给别人看的，写出来等于替人指路；
-     · 不放仓库链接 —— 不是分发协议，是给桌上朋友看的一句话说明。
+   这是一份**给别人看的条款**，不是玩法介绍，所以按条款的结构写：
+   一句定性（谁能用、干什么用）+ 禁止用途 + 责任免除 + 其他。
+   改文案时守三条：
+     · 不喝酒 —— 骰子就是骰子，不替酒桌规矩背书；
+     · 不点名任何额外功能 —— 声明是公开的，写出来等于替人指路；
+     · 不放仓库/下载链接 —— 这里只说明立场，不做分发入口。
 
-   篇幅要短：它默认弹在首页上面，写满一屏等于今天别玩了。三条、每条一两行就够；
-   字号和行距比「玩法说明」再收一点（.terms-sheet 那套），整块压在六成屏以内。
-
-   点空白处关掉不算看过 —— 下次还会弹，直到真的点了「我知道了」。 */
+   篇幅比玩法说明长得多，所以弹层做成「标题不动 + 正文内部滚动 + 按钮不动」：
+   整块最高 64vh，上面永远留出首页的一角（一眼看出是压在首页上的一层，不是整屏），
+   按钮永远露在下面，不会出现「滚到底才找得到同意」。
+   正文底部有一条渐隐，滚到底自己淡掉 —— 提示这里还有下文，但不挡字。 */
 
 (function () {
   'use strict';
@@ -1109,11 +1110,47 @@
   var btn = document.getElementById('termsBtn');
   if (!mask || !body) return;
 
-  var LINES = [
-    '仅供<strong>朋友之间娱乐</strong>使用，<strong>不得用于任何非法用途</strong>。',
-    '<strong>其他功能与本工具无关</strong>：按「现状」提供，不担保没有毛病，' +
-      '出了任何问题由使用者自行承担。',
-    '分数只存在<strong>本机</strong>，不上传服务器，也不收集任何个人信息。'
+  var LEAD = '本项目（含 App（APK）、网页版、全部源码与素材）仅供<strong>个人在朋友聚会' +
+    '等非营利场合娱乐</strong>使用，<strong>不得用于任何非法用途</strong>。';
+
+  var SECS = [
+    {
+      t: '一、禁止用途',
+      p: '严禁将本项目或其衍生版本用于以下任何用途：',
+      li: [
+        '任何形式的<strong>赌博、变相赌博</strong>，包括但不限于以金钱、财物、' +
+          '虚拟货币、积分兑奖等作为赌注的场合；',
+        '<strong>抽头渔利</strong>、开设赌场、组织赌博，或为上述活动提供工具、场地、技术支持；',
+        '<strong>诈骗、欺瞒取财</strong>：本项目仅可用于朋友之间的玩笑，不得用于骗取他人财物，' +
+          '或在任何涉及真实利益的场合使用；',
+        '冒充官方应用、诱导他人安装、捆绑分发、植入广告或恶意代码；',
+        '任何违反使用者所在地法律法规的用途。'
+      ],
+      note: '若您所在地区对相关玩法的使用有额外限制，请以当地法律为准，并立即停止使用。'
+    },
+    {
+      t: '二、责任免除',
+      li: [
+        '本项目的代码、安装包与说明文档均按 <strong>AS IS（「现状」）</strong>提供，' +
+          '不附带任何明示或默示的担保，包括但不限于对适用性、无缺陷、不侵权的担保。',
+        '作者不保证本项目在任何设备、任何系统版本上均能正常运行，也不承诺修复缺陷或持续更新。',
+        '使用本项目所产生的<strong>全部风险与后果，由使用者自行承担</strong>。' +
+          '在法律允许的最大范围内，作者不对因下载、安装、使用或无法使用本项目而导致的' +
+          '任何直接、间接、偶然、特殊或后果性损失负责，包括但不限于：财物损失、人身损害、' +
+          '名誉损失、数据丢失、设备损坏、法律纠纷、行政处罚。',
+        '使用者因违反本条款或当地法律而产生的任何法律责任，与作者无关，由使用者独立承担；' +
+          '如因此给作者造成损失（包括合理的律师费），使用者应予赔偿。',
+        '本项目未上架任何应用商店，签名证书随源码公开，仅供个人侧载。' +
+          '任何第三方分发、修改、重新打包的版本均不代表作者，作者不对其内容与安全性负责。'
+      ]
+    },
+    {
+      t: '三、其他',
+      li: [
+        '分数与设置只存在<strong>本机</strong>，不上传服务器，也不收集任何个人信息。',
+        '除上述骰子玩法之外，其他任何用法与本工具无关。'
+      ]
+    }
   ];
 
   function read() {
@@ -1124,13 +1161,46 @@
   }
 
   function build() {
-    var h = '<div class="rule-lead">朋友聚会用的小工具，纯属娱乐。看这三条就够了。</div>';
-    for (var i = 0; i < LINES.length; i++) {
-      h += '<div class="rule-li"><em></em><span>' + LINES[i] + '</span></div>';
+    var i, j;
+    var h = '<div class="terms-scrollwrap">';
+    h += '<div class="terms-scroll" id="termsScroll">';
+    h += '<div class="rule-lead">' + LEAD + '</div>';
+    for (i = 0; i < SECS.length; i++) {
+      var s = SECS[i];
+      h += '<div class="terms-sec"><div class="terms-sec-t">' + s.t + '</div>';
+      if (s.p) h += '<div class="terms-p">' + s.p + '</div>';
+      for (j = 0; j < s.li.length; j++) {
+        h += '<div class="rule-li"><em></em><span>' + s.li[j] + '</span></div>';
+      }
+      if (s.note) h += '<div class="terms-note">' + s.note + '</div>';
+      h += '</div>';
     }
-    h += '<div class="rule-note">点「我知道了」以后不再自动弹，首页底部的「免责声明」随时能再看。</div>' +
-      '<button class="terms-ok" id="termsOk">我知道了</button>';
+    h += '</div><div class="terms-topfade is-off" id="termsTopfade"></div>' +
+      '<div class="terms-fade" id="termsFade"></div></div>';
+    h += '<div class="terms-foot">' +
+      '<button class="terms-ok" id="termsOk">我知道了</button></div>';
     body.innerHTML = h;
+
+    var sc = document.getElementById('termsScroll');
+    var fade = document.getElementById('termsFade');
+    var topfade = document.getElementById('termsTopfade');
+    /* 上下两条渐隐：只在「那个方向还有内容」时出现。
+       一屏装得下就都别留，否则最后一句会被盖层灰。 */
+    function syncFade() {
+      if (!sc) return;
+      if (fade) {
+        fade.className = (sc.scrollHeight - sc.clientHeight - sc.scrollTop > 6)
+          ? 'terms-fade' : 'terms-fade is-off';
+      }
+      if (topfade) {
+        topfade.className = (sc.scrollTop > 4)
+          ? 'terms-topfade' : 'terms-topfade is-off';
+      }
+    }
+    if (sc) {
+      sc.addEventListener('scroll', syncFade, { passive: true });
+      syncFade();
+    }
 
     var okBtn = document.getElementById('termsOk');
     if (okBtn) {
@@ -1144,8 +1214,8 @@
   function open() {
     build();
     mask.style.display = 'flex';
-    var sheet = mask.querySelector('.rule-sheet');
-    if (sheet) sheet.scrollTop = 0;
+    var sc = document.getElementById('termsScroll');
+    if (sc) { sc.scrollTop = 0; sc.dispatchEvent(new Event('scroll')); }
   }
   function close() { mask.style.display = 'none'; }
 

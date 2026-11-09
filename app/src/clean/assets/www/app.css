@@ -629,6 +629,16 @@ button[disabled] { opacity: 1; }
   color: rgba(35, 38, 45, 0.26);
 }
 
+/* 每页底部的版本号：只是让人报版本用的记号，不该抢走视线。
+   比 .foot 再收一档；tabular-nums 让 v1.10.9 → v1.10.18 位数变化时左右不跳。 */
+.page-ver {
+  flex: 0 0 auto;
+  font-size: 2.4vw;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.26);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---------------- H5 补充：轻提示（代替 wx.showToast） ---------------- */
 
 .toast {
@@ -854,6 +864,14 @@ button[disabled] { opacity: 1; }
 }
 .page-solo .home-head { padding-top: 0; }
 .page-solo .home-cards { margin-top: 13.3333vw; }
+
+/* 版本号贴在选玩法页底部：.solo-body 已经 flex:1 把上面撑满，
+   这里只要别再带 .foot 的上外边距，给足安全区，免得压在手势条下面 */
+.solo-foot {
+  flex: 0 0 auto;
+  margin-top: 0;
+  padding: 0 0 calc(3.2vw + env(safe-area-inset-bottom));
+}
 
 /* ==================== 玩法说明 ==================== */
 /* 层级压在 350 人数弹层（40）之上：说明是从玩法页里点开的，不能被别的遮罩盖住 */
@@ -1181,22 +1199,97 @@ button[disabled] { opacity: 1; }
 }
 .terms-ok:active { opacity: 0.86; }
 
-/* 免责声明是「进来先看一眼」的东西，不是玩法说明：
-   默认情况下它自己盖在首页上，铺满一屏等于今天别玩了。所以这块单开一套更紧的排版，
-   字号收一档、行距收到 1.5、段间距减半，三条内容整体压在六成屏以内。
-   真遇到超大字号（系统无障碍）时它最多 76vh，再多就自己滚，绝不截断。 */
+/* 免责声明是一份给别人看的条款，不是玩法说明，所以它比别处都长。
+   长文案不能靠「撑多高算多高」——那一定会盖满一屏。这里改成固定三段式：
+     ① 标题（不动） ② 正文（内部滚动） ③ 按钮（不动）
+   整块封顶 64vh：上面始终留着首页的一角，一眼看出这是压在首页上的一层；
+   按钮始终露在下面，不会出现「滑到底才找得到同意」。
+   正文底部挂一条渐隐（.terms-fade），滚到底自动淡掉，提示还有下文但不挡字。 */
 .terms-sheet {
-  max-height: 76vh;
-  padding: 4.5333vw 5.8667vw calc(4.5333vw + env(safe-area-inset-bottom));
+  max-height: 64vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 4.5333vw 0 0;
+}
+.terms-sheet .rule-head {
+  flex: 0 0 auto;
+  padding: 0 5.8667vw 2.1333vw;
 }
 .terms-sheet .rule-title { font-size: 4.2667vw; }
+
+/* 正文容器本身不滚，滚动交给里面那个 .terms-scroll —— 
+   这样渐隐才能贴着滚动区底部，而不是跟着内容跑。
+   注意别用 flex:1 抢剩余高度：外层只有 max-height、没有确定高度，
+   抢不到东西会把正文压成 0 高（实测塌成 6px）。这里走「自然高度 + 可收缩」，
+   短内容就自然矮，长内容顶到 64vh 再内部滚。 */
+.terms-sheet .rule-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.terms-scrollwrap {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+}
+.terms-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 0 5.8667vw 1.6vw;
+}
+.terms-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 7.4667vw;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(251, 248, 243, 0), #fbf8f3 72%);
+  transition: opacity 0.18s ease;
+}
+.terms-fade.is-off { opacity: 0; }
+
+/* 顶部那条同理：滚起来以后正文会贴着标题下沿被切一刀，用它把切口糊掉 */
+.terms-topfade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4.2667vw;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(251, 248, 243, 0), #fbf8f3 72%);
+  transition: opacity 0.18s ease;
+}
+.terms-topfade.is-off { opacity: 0; }
+
 .terms-sheet .rule-lead {
-  margin-top: 1.8667vw;
+  margin-top: 0;
   font-size: 3.0667vw;
   line-height: 1.5;
 }
+.terms-sec-t {
+  margin-top: 5.3333vw;
+  font-size: 3.3333vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+  color: #23262d;
+}
+.terms-sec:first-of-type .terms-sec-t { margin-top: 4.2667vw; }
+.terms-p {
+  margin-top: 2.1333vw;
+  font-size: 3.0667vw;
+  line-height: 1.5;
+  color: #2c3038;
+}
 .terms-sheet .rule-li {
-  margin-top: 2.4vw;
+  margin-top: 2.1333vw;
   font-size: 3.0667vw;
   line-height: 1.5;
 }
@@ -1205,13 +1298,26 @@ button[disabled] { opacity: 1; }
   height: 5.3333vw;
   margin-top: 0.4vw;
 }
-.terms-sheet .rule-note {
-  margin-top: 3.7333vw;
-  font-size: 2.6667vw;
+.terms-sheet .rule-li em { margin-top: 2.1333vw; }
+.terms-note {
+  margin-top: 2.9333vw;
+  padding: 2.1333vw 2.6667vw;
+  border-radius: 2.1333vw;
+  background: rgba(190, 155, 60, 0.1);
+  font-size: 2.8vw;
   line-height: 1.5;
+  color: rgba(35, 38, 45, 0.62);
+}
+
+/* 按钮那块要和正文隔开：正文滚到这儿会被裁掉，一条细线才不会看成「字被切了」 */
+.terms-foot {
+  flex: 0 0 auto;
+  padding: 2.6667vw 5.8667vw calc(4vw + env(safe-area-inset-bottom));
+  border-top: 0.1333vw solid rgba(35, 38, 45, 0.07);
+  background: #fbf8f3;
 }
 .terms-sheet .terms-ok {
-  margin-top: 4.2667vw;
+  margin-top: 0;
   padding: 3.2vw 0;
   font-size: 3.7333vw;
 }
