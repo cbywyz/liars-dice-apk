@@ -370,8 +370,8 @@
     soundIc: document.getElementById('soundIc'),
     countBtn: document.getElementById('countBtn'),
     countTxt: document.getElementById('countTxt'),
-    countMask: document.getElementById('countMask'),
-    countList: document.getElementById('countList'),
+    countDrop: document.getElementById('countDrop'),
+    countShade: document.getElementById('countShade'),
     titleBtn: document.getElementById('titleBtn'),
     mask: document.getElementById('mask'),
     sheet: document.getElementById('sheet'),
@@ -672,26 +672,33 @@
 
   /* ================= 骰子数量（公开功能，两版都有） ================= */
 
+  /* 2~10 一共 9 档，正好铺成 3×3 —— 和 350 的人数下拉同一个 .drop-grid */
   function buildCountList() {
-    el.countList.innerHTML = '';
+    el.countDrop.innerHTML = '';
     for (var n = MIN_DICE; n <= MAX_DICE; n++) {
       var b = document.createElement('button');
-      b.className = 'count-item' + (n === d.diceCount ? ' on' : '');
+      b.className = 'drop-item' + (n === d.diceCount ? ' on' : '');
       b.setAttribute('data-n', String(n));
       b.type = 'button';
       b.textContent = String(n);
-      el.countList.appendChild(b);
+      el.countDrop.appendChild(b);
     }
   }
 
+  /* 原地展开：面板挂在 .nav 里、绝对定位到按钮下方。
+     改个数量不该整屏弹个模态把人挡住，视线也不用上下跑。 */
   function openCount() {
     if (d.panel || d.shaking) return;
     buildCountList();
-    el.countMask.style.display = 'flex';
+    el.countDrop.hidden = false;
+    el.countShade.hidden = false;
+    el.countBtn.classList.add('on');
   }
 
   function closeCount() {
-    el.countMask.style.display = 'none';
+    el.countDrop.hidden = true;
+    el.countShade.hidden = true;
+    el.countBtn.classList.remove('on');
   }
 
   /* 换数量就当开新的一局：骰子清空、锁定解除、上一把作废。
@@ -1247,14 +1254,15 @@
     on(el.soundBtn, 'click', function () { setSound(!d.soundOn); });
 
     // 骰子数量：点标题右边那个「N 颗」拉开选择条
-    on(el.countBtn, 'click', openCount);
-    on(el.countMask, 'click', function (e) {
-      if (e.target === el.countMask) closeCount();
+    on(el.countBtn, 'click', function () {
+      if (el.countDrop.hidden) openCount();
+      else closeCount();
     });
-    on(el.countList, 'click', function (e) {
+    on(el.countShade, 'click', closeCount);
+    on(el.countDrop, 'click', function (e) {
       var t = e.target;
-      while (t && t !== el.countList && !t.getAttribute('data-n')) t = t.parentNode;
-      if (!t || t === el.countList) return;
+      while (t && t !== el.countDrop && !t.getAttribute('data-n')) t = t.parentNode;
+      if (!t || t === el.countDrop) return;
       setDiceCount(parseInt(t.getAttribute('data-n'), 10));
     });
 
@@ -1393,6 +1401,13 @@
     });
 
   }
+
+  /* 给 f350.js 的路由用：切走了要顺手把数量下拉收掉；
+     系统返回时也得先收起这一层，不然会带着一个悬空的面板退到上一页。 */
+  window.LDCount = {
+    isOpen: function () { return !!el.countDrop && !el.countDrop.hidden; },
+    close: function () { if (el.countDrop) closeCount(); }
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

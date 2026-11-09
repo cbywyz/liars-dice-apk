@@ -22,8 +22,10 @@
   var DICE = 7;          // 每回合的骰子数
   var BASE = 350;        // 最低锁分线
   var CAP = 700;         // 封顶
-  var MIN_P = 2;
-  var MAX_P = 6;
+  /* 人数：4 人起，最多 12 人。少了两三个人不成局，
+     13 以上一桌也挤不下，4~12 共 9 档正好排成 3×3 的下拉网格 */
+  var MIN_P = 4;
+  var MAX_P = 12;
   var STORE = 'f350_state';
   var STORE_P = 'f350_players';
 
@@ -103,7 +105,7 @@
   };
 
   var S = { timer: null, toastTimer: null, lastTapIdx: -1, lastTapAt: 0,
-            shake: null, editing: false };
+            shake: null };
 
   var el = {};
 
@@ -256,18 +258,14 @@
       if (list[i].v === 1 || list[i].v === 5) { has = true; break; }
     }
     if (!has) {
+      /* 爆掉不自动收：1.6 秒就清零的话，桌上好几个人还没看清点数就没了。
+         现在结果留在桌上，等玩家自己按「清零重摇」—— 看够再走。 */
       G.round = 0;
       G.phase = 'bust';
       save();
       render();
-      hint('一个 1 和 5 都没有 · 分数清零，拿回 7 颗重摇', 'warn');
+      hint('一个 1 和 5 都没有 · 分数清零 · 点「清零重摇」继续', 'warn');
       vibrate([40, 70, 40]);
-      S.timer = setTimeout(function () {
-        G.hand = blankHand();
-        G.phase = 'ready';
-        save();
-        render();
-      }, 1600);
       return;
     }
 
@@ -482,7 +480,7 @@
         act: 'pick'
       });
     } else if (G.phase === 'bust') {
-      list.push({ t: '重摇中…', cls: 'primary is-off', act: 'none' });
+      list.push({ t: '清零重摇', cls: 'primary', act: 'bust' });
     } else {
       var left = liveHand().length;
       list.push({
@@ -492,7 +490,9 @@
       });
     }
 
-    if (G.phase !== 'over') {
+    /* 爆掉时不给锁分：本局分数已经清 0，锁无可锁，
+       留一个灰按钮在旁边只会让人以为还能点 */
+    if (G.phase !== 'over' && G.phase !== 'bust') {
       var ok = G.round >= BASE;
       list.push({
         t: ok ? '锁 ' + G.round + ' 分' : '满 ' + BASE + ' 锁分',
@@ -534,23 +534,57 @@
     el.pop.style.display = 'flex';
   }
 
-  /* editing=true 表示局已经开着、是从顶栏「N 人」进来的：
-     这时候换人数等于重开一局，得先把话说在前面。 */
-  function showSetup(editing) {
-    var cur = G.players.length || loadPlayerCount();
-    S.editing = !!editing && G.players.length > 0;
-    var nums = '';
+  /* 人数下拉：原地展开，选一个就生效，不用再按「开始」 */
+  function buildPDrop() {
+    var box = $('pDrop');
+    if (!box) return;
+    var cur = G.players.length;
+    var h = '';
     for (var n = MIN_P; n <= MAX_P; n++) {
-      nums += '<div class="f3-num' + (n === cur ? ' on' : '') + '" data-n="' + n + '">' + n + ' 人</div>';
+      h += '<button class="drop-item' + (n === cur ? ' on' : '') + '" type="button"'
+        + ' data-n="' + n + '">' + n + '</button>';
     }
-    openMask(
-      '<span class="f3-sheet-title">' + (S.editing ? '改人数' : '几个人玩') + '</span>' +
-      '<span class="f3-sheet-sub">' + (S.editing
-        ? '换人数就重开一局，现在的分数清零'
-        : '轮流摇，每人一把 · 满 ' + BASE + ' 才能收手') + '</span>' +
-      '<div class="f3-nums">' + nums + '</div>' +
-      '<button class="btn primary" data-act="start">' + (S.editing ? '重新开局' : '开始') + '</button>'
-    );
+    box.innerHTML = h;
+  }
+
+  function pDropOpen() {
+    var box = $('pDrop');
+    return !!box && !box.hidden;
+  }
+
+  /* 吹牛页那个数量下拉归 app.js 管，这边只问一句开没开 */
+  function countOpen() {
+    return !!(window.LDCount && window.LDCount.isOpen());
+  }
+
+  function openPDrop() {
+    buildPDrop();
+    var box = $('pDrop');
+    var shade = $('pShade');
+    if (box) box.hidden = false;
+    if (shade) shade.hidden = false;
+    var btn = $('pCountBtn');
+    if (btn) btn.classList.add('on');      // 箭头翻个面，表示「再点一下收起」
+  }
+
+  function closePDrop() {
+    var box = $('pDrop');
+    var shade = $('pShade');
+    if (box) box.hidden = true;
+    if (shade) shade.hidden = true;
+    var btn = $('pCountBtn');
+    if (btn) btn.classList.remove('on');
+    /* 一次都没选过就想关掉：给个默认人数，别留一张 0 人的空桌 */
+    if (!G.players.length) newGame(loadPlayerCount());
+  }
+
+  function setPlayers(n) {
+    var had = G.players.length;
+    closePDrop();
+    if (had === n) { toast('还是 ' + n + ' 人，没动'); return; }
+    newGame(n);
+    if (had) toast('已改成 ' + n + ' 人 · 重新开局');
+    else toast(n + ' 人 · 开始');
   }
 
   function showRank() {
@@ -615,6 +649,14 @@
     if (act === 'roll') onRoll();
     else if (act === 'pick') onPick();
     else if (act === 'lock') lockTurn();
+    else if (act === 'bust') {
+      /* 玩家自己按的：拿回 7 颗、清掉桌上结果，还是他摇 */
+      G.hand = blankHand();
+      G.phase = 'ready';
+      save();
+      render();
+      hint('拿回 ' + DICE + ' 颗 · 摇一摇继续');
+    }
     else if (act === 'restart') restart();
   }
 
@@ -635,28 +677,10 @@
     render();
   }
 
+  /* 弹层里现在只剩结算榜的「再来一局」；人数早就改到顶栏的原地下拉了 */
   function onMaskTap(e) {
     var t = e.target;
-    if (t.getAttribute('data-act') === 'start' || t.getAttribute('data-act') === 'restart') {
-      if (t.getAttribute('data-act') === 'restart') { restart(); return; }
-      var pick = el.pop.querySelector('.f3-num.on');
-      var n = pick ? parseInt(pick.getAttribute('data-n'), 10) : loadPlayerCount();
-      var was = G.players.length;
-      var editing = S.editing;
-      S.editing = false;
-      closeMask();
-      /* 人数没变就别动局面：只点开看一眼再把分清了，太亏 */
-      if (editing && was === n) { toast('还是 ' + n + ' 人，没动'); return; }
-      newGame(n);
-      if (editing) toast('已改成 ' + n + ' 人 · 重新开局');
-      return;
-    }
-    if (t.classList && t.classList.contains('f3-num')) {
-      var all = el.pop.querySelectorAll('.f3-num');
-      for (var i = 0; i < all.length; i++) all[i].classList.remove('on');
-      t.classList.add('on');
-      return;
-    }
+    if (t.getAttribute('data-act') === 'restart') { restart(); return; }
     if (t === el.pop) closeMask();
   }
 
@@ -674,7 +698,18 @@
     if (!el.dice) return;
 
     var pc = $('pCountBtn');
-    if (pc) pc.addEventListener('click', function () { showSetup(true); });
+    if (pc) pc.addEventListener('click', function () {
+      if (pDropOpen()) closePDrop(); else openPDrop();
+    });
+    var shade = $('pShade');
+    if (shade) shade.addEventListener('click', closePDrop);
+    var drop = $('pDrop');
+    if (drop) drop.addEventListener('click', function (e) {
+      var t = e.target;
+      while (t && t !== drop && !t.getAttribute('data-n')) t = t.parentNode;
+      if (!t || t === drop) return;
+      setPlayers(parseInt(t.getAttribute('data-n'), 10));
+    });
 
     el.dice.addEventListener('click', onDieTap);
     el.btns.addEventListener('click', onBtn);
@@ -698,7 +733,7 @@
     var pF350 = $('playF350');
     if (pF350) pF350.addEventListener('click', function () { switchTo('f350'); });
 
-    /* 两个玩法页底栏都只有一个「换玩法」，回到选玩法那一层 */
+    /* 底栏「← 返回」= 退到上一层，跟系统返回键同一个效果 */
     var b1 = $('toSolo');
     if (b1) b1.addEventListener('click', function () { switchTo('solo'); });
     var b2 = $('toSolo2');
@@ -729,10 +764,24 @@
 
     // 启动一律停在首页：先选单机 / 联机，再进玩法。
     // 上次玩哪个玩法只在「单人模式」里生效（ld_last_play），别在这里直接跳过去。
-    switchTo('home');
+    applyPage('home');
+    /* 刷新时可能还带着 #f350 之类的旧 hash，直接改成 #home，
+       否则第一下返回会先跳回那个旧页面，看着像乱跳 */
+    if ((location.hash || '') !== '#home') {
+      try { location.replace('#home'); } catch (e) {}
+    }
   }
 
-  function switchTo(mode) {
+  /* 每一层往上退到哪：玩法页 -> 选玩法，选玩法 -> 首页，首页没有上一级 */
+  var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo' };
+  var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2 };
+
+  function curMode() {
+    return document.body.getAttribute('data-mode') || 'home';
+  }
+
+  /* 只切界面，不碰地址栏 */
+  function applyPage(mode) {
     document.body.setAttribute('data-mode', mode);
 
     var pages = {
@@ -745,6 +794,9 @@
       if (pages[k]) pages[k].hidden = (k !== mode);
     }
 
+    /* 离开 350 就把人数弹层收掉：它挂在 body 上，页面藏了它还会浮着 */
+    if (mode !== 'f350' && el.pop && el.pop.style.display === 'flex') closeMask();
+
     /* ld_mode 记"当前在哪一页"，ld_last_play 只记"上次玩哪个玩法"。
        两个混用就会出现「从首页进来被跳过首页」那种 bug，别合。 */
     try { localStorage.setItem('ld_mode', mode); } catch (e) {}
@@ -756,10 +808,85 @@
        一自动跳，中间这一层就又成了摆设，等于回到改之前。 */
     if (mode === 'solo') markLastPlay();
 
-    if (mode === 'f350' && !G.players.length && el.pop.style.display !== 'flex') {
-      showSetup();
+    /* 第一次进来还没有人：直接把人数下拉摊开，别弹一个挡屏的框 */
+    if (mode === 'f350' && !G.players.length && !pDropOpen()) {
+      openPDrop();
+      hint('先选几个人 · 4~12 人，每人一把');
+    }
+
+    /* 吹牛那边的数量下拉是 app.js 自己管的，切走时让它收起来 */
+    if (mode !== 'liar' && window.LDCount && window.LDCount.isOpen()) {
+      window.LDCount.close();
     }
   }
+
+  var navTimer = null;
+
+  /* 切页 + 同步 hash。
+     为什么非要改 hash：安卓壳的返回键只看 webView.canGoBack()，
+     单页应用不产生历史条目，于是侧滑一下直接退出 App。
+     压一条 #solo / #f350 之后，系统返回就能一格一格退。
+
+     往下走压一条新历史；往上退则直接调 history.back()，
+     让「页内返回」和「系统返回」消费同一条记录 —— 早先用 replace 改写当前条目，
+     会让下一层压在同一条地址上，按返回时 hash 没变、看着像没反应。 */
+  function switchTo(mode) {
+    var cur = curMode();
+    if (mode === cur) return;
+
+    if ((DEPTH[mode] || 0) > (DEPTH[cur] || 0)) {
+      applyPage(mode);
+      try { location.hash = mode; } catch (e) {}
+      return;
+    }
+
+    var before = location.hash || '';
+    try { history.back(); } catch (e) {}
+    clearTimeout(navTimer);
+    navTimer = setTimeout(function () {
+      /* 退不动（比如直接带着 #f350 打开）：自己补一次，别让按钮点了没反应 */
+      if ((location.hash || '') === before) {
+        applyPage(mode);
+        try { location.replace('#' + mode); } catch (e) {}
+      }
+    }, 150);
+  }
+
+  /* 弹层被返回键关掉后，把地址补回当前层。
+     用 forward() 而不是 replace()，这样那条历史还在，再按返回才不会跳层。 */
+  function restoreHash(mode) {
+    var want = '#' + mode;
+    if ((location.hash || '') === want) return;
+    try { history.forward(); } catch (e) {}
+    clearTimeout(navTimer);
+    navTimer = setTimeout(function () {
+      if ((location.hash || '') !== want) {
+        try { location.replace(want); } catch (e) {}
+      }
+    }, 150);
+  }
+
+  /* 系统返回键 / 手势退回来时走这里：地址已经变了，只需要把界面切过去 */
+  window.addEventListener('hashchange', function () {
+    var m = (location.hash || '').replace('#', '') || 'home';
+    if (!DEPTH.hasOwnProperty(m)) m = 'home';
+
+    /* 只有"真的往回退"才关弹层：往里进的时候 hash 也会变一次，
+       那时候弹层刚开（比如 350 的人数），不能被自己顺手关掉 */
+    var goingBack = (m !== curMode());
+    if (goingBack && (ruleOpen() || pDropOpen() || countOpen() ||
+                      (el.pop && el.pop.style.display === 'flex'))) {
+      if (ruleOpen()) closeRules();
+      else if (pDropOpen()) closePDrop();
+      else if (countOpen()) window.LDCount.close();
+      else closeMask();
+      /* 把地址补回当前页，页面留在原层不动 */
+      restoreHash(curMode());
+      return;
+    }
+
+    applyPage(m);
+  });
 
   function markLastPlay() {
     var last = null;
@@ -854,6 +981,11 @@
     if (mask) mask.style.display = 'none';
   }
 
+  function ruleOpen() {
+    var mask = $('ruleMask');
+    return !!mask && mask.style.display === 'flex';
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {
@@ -861,7 +993,7 @@
   }
 
   // 给外部（index.html 的首次进入）用
-  window.F350 = { switchTo: switchTo, showSetup: showSetup };
+  window.F350 = { switchTo: switchTo, openPDrop: openPDrop };
 
   /* 只在 ?test=1 时挂出来：自动化测试要能指定点数，
      否则「摇到豹子」「摇到爆」这种分支根本没法稳定复现。 */

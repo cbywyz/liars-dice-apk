@@ -60,7 +60,9 @@ button[disabled] { opacity: 1; }
   align-items: center;
   justify-content: center;
   position: relative;
-  z-index: 6;
+  /* 8 而不是 6：下拉的透明遮罩挂在这里面，得压过同样 6 的 .controls，
+     否则面板开着还能点到底下的「摇一摇」 */
+  z-index: 8;
 }
 
 .nav-title {
@@ -150,6 +152,12 @@ button[disabled] { opacity: 1; }
   border-left: 1.1vw solid transparent;
   border-right: 1.1vw solid transparent;
   border-top: 1.2vw solid rgba(35, 38, 45, 0.42);
+  transition: transform 0.16s ease;
+}
+
+/* 展开时箭头翻个面，一眼看出「再点一下收起来」 */
+.count-btn.on .count-caret {
+  transform: rotate(180deg);
 }
 
 /* ---------------- 桌面 / 骰盅舞台 ---------------- */
@@ -932,88 +940,6 @@ body.tap-edit .die-slot:active .die {
   background: radial-gradient(60% 70% at 50% 50%, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
 }
 
-/* ---------------- 骰子数量选择 ----------------
-   从底部升起的一条，点空白处关掉。 */
-.count-mask {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
-  display: flex;
-  align-items: flex-end;
-  background: rgba(28, 26, 22, 0.44);
-  animation: fadeIn 0.2s ease both;
-}
-
-.count-bar {
-  width: 100%;
-  box-sizing: border-box;
-  background: #fbf8f2;
-  border-radius: 5.3333vw 5.3333vw 0 0;
-  padding: 4.2667vw 4vw calc(4.5333vw + env(safe-area-inset-bottom, 0px));
-  box-shadow: 0 -1.0667vw 3.2vw rgba(40, 32, 20, 0.18);
-  animation: sheetUp 0.26s cubic-bezier(0.2, 0.9, 0.3, 1) both;
-}
-
-.count-head {
-  display: flex;
-  align-items: baseline;
-  gap: 2.4vw;
-  margin-bottom: 3.4667vw;
-  padding-left: 0.8vw;
-}
-
-.count-name {
-  font-size: 3.7333vw;
-  font-weight: 600;
-  color: #23262d;
-  letter-spacing: 0.4vw;
-}
-
-.count-sub {
-  font-size: 2.6667vw;
-  color: rgba(35, 38, 45, 0.42);
-}
-
-.count-list {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 2.6667vw;
-}
-
-.count-item {
-  width: calc((100% - 4 * 2.6667vw) / 5);
-  height: 13.0667vw;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 3.2vw;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1);
-  font-family: inherit;
-  font-size: 3.7333vw;
-  font-weight: 600;
-  color: #23262d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.12s ease, background 0.12s ease;
-}
-
-.count-item:active {
-  transform: scale(0.93);
-}
-
-.count-item.on {
-  background: #23262d;
-  color: #fdfaf4;
-  box-shadow: inset 0 0 0 0.1333vw #23262d, 0 0.8vw 1.6vw rgba(35, 38, 45, 0.22);
-}
-
 /* ==================== 首页（单机 / 联机） ==================== */
 /* .page 是 display:flex，会盖掉 [hidden] 的 display:none，必须自己声明 */
 .page-home[hidden] { display: none; }
@@ -1311,3 +1237,63 @@ body.tap-edit .die-slot:active .die {
   line-height: 1.6;
   color: rgba(35, 38, 45, 0.4);
 }
+
+/* ==================== 原地下拉（人数 / 骰子数量共用） ==================== */
+/* 面板挂在 .nav 里，绝对定位到按钮下方：改个数量不该整屏弹一个模态，
+   原地展开、点一下就选，视线不用来回跳 */
+.drop {
+  position: absolute;
+  top: calc(100% + 1.6vw);
+  right: 3.2vw;
+  z-index: 22;
+  min-width: 33.0667vw;
+  max-height: 54vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1.6vw;
+  border-radius: 3.2vw;
+  background: #fffdf9;
+  box-shadow: 0 2.1333vw 5.3333vw rgba(35, 38, 45, 0.18),
+              inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.08);
+  animation: dropIn 0.14s ease both;
+}
+.drop[hidden] { display: none; }
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-1.6vw); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 数字多的时候排成三列：15 个人一列竖下来会超出屏幕 */
+.drop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.0667vw;
+}
+
+.drop-item {
+  padding: 2.6667vw 0;
+  border-radius: 2.4vw;
+  font-size: 3.4667vw;
+  line-height: 1;
+  color: #2c3038;
+  text-align: center;
+  background: transparent;
+}
+.drop-item.on {
+  font-weight: 600;
+  color: #8a6a1f;
+  background: rgba(190, 155, 60, 0.16);
+  box-shadow: inset 0 0 0 0.1333vw rgba(190, 155, 60, 0.3);
+}
+.drop-item:active { background: rgba(35, 38, 45, 0.07); }
+
+/* 透明遮罩只负责「点别处收起」，本身不可见 */
+.drop-shade {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+}
+.drop-shade[hidden] { display: none; }
