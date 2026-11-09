@@ -1014,6 +1014,23 @@ button[disabled] { opacity: 1; }
 }
 .drop-item:active { background: rgba(35, 38, 45, 0.07); }
 
+/* 面板底部那条「重开一局」：跨满三列，用一条细线和上面的数字格隔开。
+   打了一半想重来、或者中途退出回来想重新开局，总得有个看得见的入口 ——
+   点同一档人数是不重开的，光靠那几个数字等于没有「新开一把」。 */
+.drop-redo {
+  grid-column: 1 / -1;
+  margin-top: 1.0667vw;
+  padding: 2.6667vw 0;
+  border-radius: 2.4vw;
+  font-size: 3.2vw;
+  line-height: 1.15;
+  color: #c0392b;
+  text-align: center;
+  background: rgba(192, 57, 43, 0.07);
+  box-shadow: inset 0 0.2667vw 0 rgba(35, 38, 45, 0.07);
+}
+.drop-redo:active { background: rgba(192, 57, 43, 0.15); }
+
 /* 透明遮罩只负责「点别处收起」，本身不可见 */
 .drop-shade {
   position: fixed;

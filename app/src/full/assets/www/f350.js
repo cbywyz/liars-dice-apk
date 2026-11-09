@@ -148,12 +148,55 @@
       G.order = o.order || [];
       G.turn = o.turn | 0;
       G.round = o.round | 0;
-      G.phase = o.phase === 'over' ? 'over' : 'ready';
-      // 手牌不恢复：刷新回来就在「等他摇」的状态，避免摇到一半的尴尬
-      G.hand = blankHand();
-      // 同理，收下的那串骰子也不恢复 —— 它配的是「刚才那一摇」，留着只会对不上
+
+      /* 手牌和「已收下的骰子」一起恢复 —— 退出再进来应该接着刚才那一把玩。
+         以前这里一律把手牌清成空位，于是出现「本回合 300 分 + 桌上 7 个空位」：
+         看着像新开的一局，分数却还是上一把的，玩家不知道这 300 分算不算数，
+         也没有「重开一局」可按。 */
       G.taken = [];
       G.took = false;
+      G.hand = blankHand();
+      var hand = o.hand;
+      if (hand && hand.length && hand.length <= DICE) {
+        var h = [];
+        for (var i = 0; i < hand.length; i++) {
+          var v = (hand[i] && hand[i].v) | 0;
+          if (v < 1 || v > 6) v = 0;
+          h.push({ v: v, sel: !!(hand[i] && hand[i].sel && v) });
+        }
+        G.hand = h;
+      }
+
+      /* 分数和骰子必须对得上。老版本的存档只有 round、没有 taken，
+         这种「没有骰子支撑的分数」直接丢掉，别让它变成一个孤零零的数字 */
+      var taken = o.taken || [];
+      var sum = 0;
+      for (var j = 0; j < taken.length; j++) {
+        if (taken[j] === 1) sum += 100;
+        else if (taken[j] === 5) sum += 50;
+      }
+      /* 封顶之后 round 会截在 700，而 taken 还在接着累，所以到顶时按 >= 认 */
+      var match = (sum === G.round) || (G.round >= CAP && sum >= CAP);
+      if (match && taken.length) {
+        G.taken = taken;
+        G.took = !!o.took;
+      } else if (G.round) {
+        G.round = 0;
+        G.hand = blankHand();
+      }
+
+      if (o.phase === 'over') {
+        G.phase = 'over';
+      } else if (liveHand().length) {
+        /* 桌上有牌就回「可以点」的状态：刚才没来得及收的那几颗还点得动 */
+        G.phase = 'rolled';
+      } else {
+        G.phase = 'ready';
+      }
+      if (G.phase === 'rolled') {
+        if (G.took) hint('还剩 ' + liveHand().length + ' 颗 · 还能接着收，或者摇一摇');
+        else hint('点要拿走的 1 和 5 · 不点的留在桌上继续摇');
+      }
       return true;
     } catch (e) { return false; }
   }
@@ -655,6 +698,12 @@
       h += '<button class="drop-item' + (n === cur ? ' on' : '') + '" type="button"'
         + ' data-n="' + n + '">' + n + '</button>';
     }
+    /* 打到一半想重来（或者中途退出、回来想重新开局），总得有个入口。
+       点同一档人数是不重开的，光靠它等于没有「新开一把」。 */
+    if (cur) {
+      h += '<button class="drop-redo" type="button" data-redo="1">'
+        + '重开一局 · 分数清零</button>';
+    }
     box.innerHTML = h;
   }
 
@@ -822,8 +871,17 @@
     var drop = $('pDrop');
     if (drop) drop.addEventListener('click', function (e) {
       var t = e.target;
-      while (t && t !== drop && !t.getAttribute('data-n')) t = t.parentNode;
+      while (t && t !== drop && !t.getAttribute('data-n') && !t.getAttribute('data-redo')) {
+        t = t.parentNode;
+      }
       if (!t || t === drop) return;
+      if (t.getAttribute('data-redo')) {
+        closePDrop();
+        var n = G.players.length || loadPlayerCount();
+        newGame(n);
+        toast('已重开 · ' + n + ' 人');
+        return;
+      }
       setPlayers(parseInt(t.getAttribute('data-n'), 10));
     });
 
