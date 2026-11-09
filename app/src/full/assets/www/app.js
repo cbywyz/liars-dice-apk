@@ -1493,16 +1493,42 @@
 
     if (isIOS) {
       h += steps('iPhone / iPad', [
-        '点屏幕<strong>底部中间</strong>的「分享」—— 一个方框加一支向上的箭头（Safari 才有）',
+        '用 <strong>Safari</strong> 打开本页（iOS 只允许 Safari 把网页加到主屏幕）',
+        '点屏幕<strong>底部中间</strong>的「分享」—— 一个方框加一支向上的箭头',
         '在弹出来的列表里往下滑，找到「<strong>添加到主屏幕</strong>」',
         '右上角点「<strong>添加</strong>」'
-      ], 'iOS 只允许 Safari 加桌面图标。用 Chrome 或别的浏览器打开时，那个列表里没有这一项。');
+      ], '这一步是系统限制：别的浏览器打开时，分享列表里没有「添加到主屏幕」这一项。');
     } else if (isAndroid) {
+      /* 网页没有权限去拨系统的「应用权限」页面（Android 不允许网页拉 settings intent），
+         所以「替用户把权限开了」这件事做不到。但有一条绕过去的路：
+         走浏览器的「安装应用」—— Chromium 系装的是 WebAPK，图标由系统自己放到桌面，
+         **压根不需要「桌面快捷方式」权限**。能拿到 beforeinstallprompt 就在这一页直接给按钮，
+         用户点一下、系统弹安装框、点「安装」，比去设置里翻权限快得多。 */
+      if (defer) {
+        h += '<button class="a2hs-install" id="a2hsInstall" type="button">' +
+          '<b>让浏览器直接装</b>' +
+          '<span>系统会弹一个安装框，点「安装」就好 —— 这条路不用「桌面快捷方式」权限，图标自己上桌面</span>' +
+          '</button>';
+      }
       h += steps('安卓', [
-        '点右上角「<strong>⋮</strong>」菜单',
-        '选「<strong>安装应用</strong>」或「<strong>添加到主屏幕</strong>」',
+        '用任意浏览器打开本页（自带浏览器、Chrome、Edge 都行）',
+        '点右上角「<strong>⋮</strong>」，或底部「<strong>≡</strong>」菜单',
+        '优先选「<strong>安装应用</strong>」（有的写「安装」）—— 走这条不用额外权限；' +
+          '没有这一项再选「<strong>添加到主屏幕 / 添加到桌面</strong>」',
         '确认「安装」/「添加」'
-      ], '一加、小米、华为自带浏览器的菜单名不太一样，认「添加到桌面」「添加到主屏幕」「安装」这几个词就行。');
+      ]);
+      /* 加完桌面没图标，八成不是浏览器的事，是它没有「创建桌面快捷方式」这个权限 ——
+         用户 11-09 用华为 + Edge 实测过：同一个 Edge，授权之后就能加。
+         所以这里教怎么开权限，而不是劝人换浏览器（那属于误诊）。 */
+      h += '<div class="a2hs-warn">' +
+        '<b>加了「添加到桌面」却没出现图标？去给浏览器开个权限</b>' +
+        '<span>这种情况是那个浏览器<strong>没有被允许「创建桌面快捷方式」</strong>，跟用哪个浏览器无关。' +
+        '<strong>华为 / 荣耀</strong>：设置 → 应用和服务 → 应用管理 → 找到这个浏览器 → 权限 → ' +
+        '<strong>桌面快捷方式</strong> → 允许。<strong>小米 / OPPO / vivo</strong> 同样在「应用管理 → 权限」里，' +
+        '名字可能叫「桌面快捷方式」「创建桌面快捷方式」。开完回浏览器再添加一次就出来了。' +
+        '（网页没法替你跳过去开，这一页只能把路径写清楚。）</span>' +
+        '</div>' +
+        '<button class="a2hs-copy" id="a2hsCopy" type="button">复制网址</button>';
     } else {
       h += steps('电脑 / 其它设备', [
         'Chrome 地址栏右边点「安装」小图标（一个屏幕加箭头）',
@@ -1521,6 +1547,65 @@
         close();
       });
     }
+
+    /* 换浏览器这一步最容易卡在「网址怎么带过去」：手打一长串不现实，
+       所以给一颗复制按钮。剪贴板 API 在非 https 或老 WebView 里可能没有，
+       退回到 textarea + execCommand 那一套老办法。 */
+    var cp = document.getElementById('a2hsCopy');
+    if (cp) {
+      cp.addEventListener('click', function () {
+        function done() {
+          cp.textContent = '已复制 ✓ 去自带浏览器粘贴打开';
+          cp.classList.add('done');
+        }
+        var url = location.href;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(done, function () { legacyCopy(url, done); });
+        } else {
+          legacyCopy(url, done);
+        }
+      });
+    }
+
+    /* 「让浏览器直接装」：这是这一页里唯一能真正「调起系统」的动作 ——
+       网页拿不到「创建桌面快捷方式」这种系统权限，但能请浏览器走它自己的安装流程。
+       接受就收摊；取消就把按钮改成「刚才取消了」，别让用户以为没点到。 */
+    var ib = document.getElementById('a2hsInstall');
+    if (ib) {
+      ib.addEventListener('click', function () {
+        if (!defer) return;
+        var d = defer;
+        defer = null;
+        d.prompt();
+        if (d.userChoice && d.userChoice.then) {
+          d.userChoice.then(function (r) {
+            if (r && r.outcome === 'accepted') {
+              mark();
+              bar.hidden = true;
+              close();
+              return;
+            }
+            ib.classList.add('done');
+            var t = ib.querySelector('b');
+            var s = ib.querySelector('span');
+            if (t) t.textContent = '刚才取消了';
+            if (s) s.textContent = '也可以照下面第 2 步手动加，效果一样';
+          });
+        }
+      });
+    }
+  }
+
+  function legacyCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
   }
 
   function open() {
@@ -1535,19 +1620,10 @@
     if (mask) mask.style.display = 'none';
   }
 
-  bar.addEventListener('click', function () {
-    /* 系统能给安装框就弹系统的，弹过就不再重复 */
-    if (defer) {
-      var d = defer;
-      defer = null;
-      d.prompt();
-      if (d.userChoice && d.userChoice.then) {
-        d.userChoice.then(function (r) { if (r && r.outcome === 'accepted') mark(); });
-      }
-      return;
-    }
-    open();
-  });
+  /* 一律先开这一页：以前浏览器能装就直接弹系统框，用户看到的是一个没有上下文的
+     「安装应用？」—— 不知道装了会怎样、也不知道还有别的路。现在先给一页说明，
+     能装的话最上面就是那颗「让浏览器直接装」，点一下照样是系统框。 */
+  bar.addEventListener('click', open);
 
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();

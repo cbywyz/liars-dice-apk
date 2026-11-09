@@ -317,8 +317,51 @@
 
 .f3-btns .btn.is-off { opacity: 0.42; }
 
-/* ---------------- 底部 ---------------- */
+/* ---------------- 右上角：重开 / 人数 ---------------- */
 
+/* 「重开一局」以前只藏在人数下拉的最下面 —— 打到一半想重来，得先猜「人数按钮里会重开」，
+   等于没有。现在摆到人数左边，一直看得见；点第一下只是把按钮换成「确定重开？」，
+   再点一下才真清分（分数抹掉不可逆，手指在顶栏滑一下不该把一桌人的分清了）。 */
+.nav-right {
+  position: absolute;
+  right: 3.2vw;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1.8667vw;
+  z-index: 8;
+}
+/* 人数按钮原本自己绝对定位贴右边，进了这一排就交给 flex 管 */
+.nav-right .count-btn {
+  position: static;
+  right: auto;
+  top: auto;
+  transform: none;
+}
+.nav-right .count-btn:active { transform: scale(0.94); }
+
+.redo-btn {
+  height: 8.8vw;
+  padding: 0 3.7333vw;
+  border-radius: 4.4vw;
+  font-size: 2.9333vw;
+  font-weight: 500;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.62);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.09),
+              0 0.5333vw 1.3333vw rgba(35, 38, 45, 0.06);
+  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+.redo-btn:active { transform: scale(0.94); }
+.redo-btn.ask {
+  background: #23262d;
+  color: #f4f0e9;
+  box-shadow: 0 0.8vw 2.4vw rgba(35, 38, 45, 0.24);
+}
+
+/* ---------------- 底部 ---------------- */
 .page-f350 .foot {
   flex: 0 0 auto;
   display: flex;

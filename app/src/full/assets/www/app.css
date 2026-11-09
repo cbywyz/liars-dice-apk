@@ -1301,6 +1301,91 @@ body.tap-edit .die-slot:active .die {
   color: rgba(35, 38, 45, 0.4);
 }
 
+/* ---------------- 玩法 → 点数概率 ---------------- */
+/* 一整段概率不铺在玩法里：那是另一件事，塞进规则会把两页都拉得很长。
+   这里只留一行入口，一句结论 + 箭头，点进去才是那一页。 */
+.rule-link {
+  display: flex;
+  align-items: center;
+  gap: 2.6667vw;
+  width: 100%;
+  margin-top: 2.6667vw;
+  padding: 3.2vw 3.7333vw;
+  border-radius: 3.2vw;
+  text-align: left;
+  color: #8a6a1f;
+  background: rgba(190, 155, 60, 0.12);
+}
+.rule-link .rl-main {
+  flex: 1 1 auto;
+  font-size: 3.2vw;
+  line-height: 1.4;
+  letter-spacing: 0.2667vw;
+}
+.rule-link .rl-arw {
+  flex: 0 0 auto;
+  font-style: normal;
+  font-size: 5.3333vw;
+  line-height: 1;
+  opacity: 0.45;
+}
+.rule-link:active { background: rgba(190, 155, 60, 0.2); }
+
+/* 概率页顶部的返回：这一页是从玩法翻进来的，得能翻回去（不然只能点「关闭」重开） */
+.rule-back {
+  display: inline-block;
+  margin-top: 3.2vw;
+  padding: 1.0667vw 3.4667vw 1.0667vw 2.6667vw;
+  border-radius: 3.2vw;
+  font-size: 2.9333vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.6);
+  background: rgba(35, 38, 45, 0.06);
+}
+.rule-back:active { background: rgba(35, 38, 45, 0.12); }
+
+/* 六个面各 16.7%：摆成六个等宽方块，一眼看出是平均分的。
+   只写一句「六面等概率」容易被人当成敷衍，摆出来才像回事。 */
+.rule-odds {
+  display: flex;
+  gap: 1.6vw;
+  margin-top: 3.2vw;
+}
+.ro-face {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2.1333vw 0 1.8667vw;
+  border-radius: 2.1333vw;
+  text-align: center;
+  background: rgba(35, 38, 45, 0.045);
+}
+.ro-face b {
+  display: block;
+  font-size: 4.8vw;
+  font-weight: 600;
+  line-height: 1.1;
+  color: #23262d;
+}
+.ro-face span {
+  display: block;
+  margin-top: 0.8vw;
+  font-size: 2.4vw;
+  letter-spacing: 0.1333vw;
+  color: rgba(35, 38, 45, 0.4);
+  font-variant-numeric: tabular-nums;
+}
+/* 1 和 5 是记分的两颗，给一层淡金底，把它俩从「只是点数」里挑出来 */
+.ro-face.ro-score { background: rgba(190, 155, 60, 0.14); }
+.ro-face.ro-score b { color: #8a6a1f; }
+.ro-face.ro-score span { color: rgba(138, 106, 31, 0.6); }
+
+/* 上标（如 6⁷）默认会把行高撑开，收一档 */
+.rule-sec sup {
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: super;
+}
+
 /* ==================== 原地下拉（人数 / 骰子数量共用） ==================== */
 /* 面板挂在 .nav 里，绝对定位到按钮下方：改个数量不该整屏弹一个模态，
    原地展开、点一下就选，视线不用来回跳 */
@@ -1349,23 +1434,6 @@ body.tap-edit .die-slot:active .die {
   box-shadow: inset 0 0 0 0.1333vw rgba(190, 155, 60, 0.3);
 }
 .drop-item:active { background: rgba(35, 38, 45, 0.07); }
-
-/* 面板底部那条「重开一局」：跨满三列，用一条细线和上面的数字格隔开。
-   打了一半想重来、或者中途退出回来想重新开局，总得有个看得见的入口 ——
-   点同一档人数是不重开的，光靠那几个数字等于没有「新开一把」。 */
-.drop-redo {
-  grid-column: 1 / -1;
-  margin-top: 1.0667vw;
-  padding: 2.6667vw 0;
-  border-radius: 2.4vw;
-  font-size: 3.2vw;
-  line-height: 1.15;
-  color: #c0392b;
-  text-align: center;
-  background: rgba(192, 57, 43, 0.07);
-  box-shadow: inset 0 0.2667vw 0 rgba(35, 38, 45, 0.07);
-}
-.drop-redo:active { background: rgba(192, 57, 43, 0.15); }
 
 /* 透明遮罩只负责「点别处收起」，本身不可见 */
 .drop-shade {
@@ -1463,6 +1531,83 @@ body.tap-edit .die-slot:active .die {
   font-size: 2.9333vw;
   letter-spacing: 0.1333vw;
   color: rgba(35, 38, 45, 0.46);
+}
+
+/* 「让浏览器直接装」：这一页唯一能真正调起系统的动作。
+   做成整块的主按钮（标题 + 一句解释），因为它是首选路径：走 WebAPK，
+   图标由系统放，不碰「桌面快捷方式」权限。 */
+.a2hs-install {
+  display: block;
+  width: 100%;
+  margin-top: 3.2vw;
+  padding: 3.7333vw 4.2667vw 4vw;
+  border-radius: 4.2667vw;
+  text-align: left;
+  color: #f4f0e9;
+  background: #23262d;
+}
+.a2hs-install b {
+  display: block;
+  font-size: 4vw;
+  font-weight: 600;
+  letter-spacing: 0.5333vw;
+}
+.a2hs-install span {
+  display: block;
+  margin-top: 1.0667vw;
+  font-size: 2.6667vw;
+  line-height: 1.5;
+  color: rgba(244, 240, 233, 0.6);
+}
+.a2hs-install:active { opacity: 0.86; }
+/* 用户点了系统框又取消：按钮不能还写着「直接装」，否则以为没点上 */
+.a2hs-install.done {
+  color: rgba(35, 38, 45, 0.5);
+  background: rgba(35, 38, 45, 0.07);
+}
+.a2hs-install.done span { color: rgba(35, 38, 45, 0.4); }
+
+/* 安卓上「加了桌面没图标」这件事要说，但不是警告 ——
+   原因是浏览器没被允许「创建桌面快捷方式」，给个权限就好的事。
+   所以用中性的暖色（跟玩法里那条入口一个色系），别用红的吓人。 */
+.a2hs-warn {
+  margin-top: 3.2vw;
+  padding: 3.2vw 3.7333vw;
+  border-radius: 3.2vw;
+  border-left: 0.5333vw solid rgba(190, 155, 60, 0.66);
+  background: rgba(190, 155, 60, 0.11);
+}
+.a2hs-warn b {
+  display: block;
+  font-size: 3.2vw;
+  font-weight: 600;
+  letter-spacing: 0.2667vw;
+  color: #8a6a1f;
+}
+.a2hs-warn span {
+  display: block;
+  margin-top: 1.3333vw;
+  font-size: 2.9333vw;
+  line-height: 1.62;
+  color: rgba(35, 38, 45, 0.62);
+}
+
+/* 「复制网址」：换浏览器的门槛就是这条链接，手打不现实，给一颗按钮 */
+.a2hs-copy {
+  display: block;
+  width: 100%;
+  margin-top: 2.6667vw;
+  padding: 3.2vw;
+  border-radius: 3.2vw;
+  font-size: 3.2vw;
+  letter-spacing: 0.4vw;
+  color: #f4f0e9;
+  background: #23262d;
+}
+.a2hs-copy:active { opacity: 0.86; }
+.a2hs-copy.done {
+  color: rgba(35, 38, 45, 0.5);
+  background: rgba(35, 38, 45, 0.07);
 }
 
 /* 「不用了」放最底下，别做成和上面步骤一样的按钮，免得误点 */
@@ -1695,6 +1840,30 @@ body.tap-edit .die-slot:active .die {
   font-size: 4.2667vw;
   color: rgba(35, 38, 45, 0.42);
 }
+/* 弹窗里重摆这一手 7 颗：卡片一压，桌面上那排被遮得七七八八，
+   玩家只看得见分数、看不见自己摸的是什么牌。骰子用同一套 .die / .pip 画，
+   尺寸靠 --ds 缩到一排放得下 —— 卡片可用宽度 74.4vw，
+   7 颗 × 8.8 + 6 个 gap × 1.2 = 68.8vw，左右还留着余量。 */
+.lion-dice {
+  --ds: 8.8vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2vw;
+  margin-top: 3.7333vw;
+  /* 骰子底下那道投影很重，上下各留一点，别被后面那行小字压住 */
+  padding: 0.8vw 0;
+}
+.lion-dice .lion-die {
+  width: var(--ds);
+  height: var(--ds);
+  flex: 0 0 auto;
+}
+/* .die 默认 opacity:0，等发牌动画 dieIn 进场；这里不是发牌，直接显出来 */
+.lion-dice .die { opacity: 1; }
+/* 一排齐平太板正，左右错开半点，像刚撒下来的样子 */
+.lion-dice .lion-die:nth-child(odd) { transform: translateY(-0.4vw); }
+.lion-dice .lion-die:nth-child(even) { transform: translateY(0.8vw); }
 .lion-n {
   margin-top: 3.2vw;
   font-size: 2.9333vw;
@@ -1710,16 +1879,31 @@ body.tap-edit .die-slot:active .die {
 }
 .lion-b {
   width: 100%;
-  padding: 4vw 0;
+  padding: 3.2vw 3.2vw 3.4667vw;
   border-radius: 6.4vw;
-  font-size: 4vw;
-  letter-spacing: 0.8vw;
+  /* 两行：上面写按下去做什么，下面一行小字写代价（分怎么走、换不换人） */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8vw;
   text-align: center;
 }
+.lb-main {
+  font-size: 4vw;
+  font-weight: 600;
+  letter-spacing: 0.8vw;
+}
+.lb-sub {
+  font-size: 2.6667vw;
+  letter-spacing: 0.2667vw;
+  line-height: 1.3;
+}
 .lion-b.primary { background: #23262d; color: #f4f0e9; }
+.lion-b.primary .lb-sub { color: rgba(244, 240, 233, 0.58); }
 .lion-b.primary:active { opacity: 0.86; }
 .lion-b.ghost {
   background: rgba(35, 38, 45, 0.06);
   color: rgba(35, 38, 45, 0.62);
 }
+.lion-b.ghost .lb-sub { color: rgba(35, 38, 45, 0.42); }
 .lion-b.ghost:active { background: rgba(35, 38, 45, 0.12); }

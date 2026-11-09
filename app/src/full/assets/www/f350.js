@@ -232,6 +232,8 @@
 
   function newGame(n) {
     clearTimeout(S.timer);
+    /* 重开完了，顶栏那颗按钮要从「确定重开？」退回「重开」 */
+    redoIdle();
     G.players = [];
     for (var i = 0; i < n; i++) {
       G.players.push({ name: (i + 1) + ' 号', score: 0, lion: 0, locked: false });
@@ -757,6 +759,26 @@
      点空白处不关 —— 这不是提示，是要拿主意。 */
   var lionEl = null;
 
+  /* 弹窗里也要再摆一遍这 7 颗：整张卡片压下去，桌上那排被遮得七七八八，
+     玩家这时候只看得见一个分数，看不见自己摸的到底是什么牌 ——
+     想确认「这真是豹子吗」「到底是正豹还是 15 豹」，还得把手机歪着从缝里看。
+     点数用同一套 PIPS / CELL / RED 画（跟桌面、跟「已收下」那排一模一样），
+     不会出现弹窗画 5 点、桌上是 4 点这种对不上的事。 */
+  function lionDiceHtml(values) {
+    var h = '';
+    for (var i = 0; i < values.length; i++) {
+      var v = values[i];
+      h += '<div class="lion-die"><div class="die">';
+      var cells = PIPS[v] || [];
+      for (var c = 0; c < cells.length; c++) {
+        h += '<div class="pip' + (RED[v] ? ' red' : '') + '" style="left:' +
+          CELL[cells[c] % 3] + '%;top:' + CELL[Math.floor(cells[c] / 3)] + '%"></div>';
+      }
+      h += '</div></div>';
+    }
+    return h;
+  }
+
   function lionNode() {
     if (lionEl) return lionEl;
     var m = document.createElement('div');
@@ -768,10 +790,21 @@
         '<div class="lion-t">豹子！</div>' +
         '<div class="lion-s" id="lionSub"></div>' +
         '<div class="lion-v"><b id="lionGain">0</b><span>分</span></div>' +
-        '<div class="lion-n">收下 = 这一把的 1 和 5 全算分，然后锁分换人</div>' +
+        /* 这一手到底是哪 7 颗：画在分数下面，省得回头看桌子 */
+        '<div class="lion-dice" id="lionDice"></div>' +
+        /* 两个按钮各写一句「按下去会发生什么」：分数怎么走、要不要换人。
+           喝酒那条不写在按钮上 —— 豹子的酒跟选哪个无关，写在这容易被读成
+           「清零才有人喝」，所以单独一句话放在按钮上面。 */
+        '<div class="lion-n">喝酒跟选哪个无关：豹子的酒照喝，选完继续</div>' +
         '<div class="lion-btns">' +
-          '<button class="lion-b primary" data-lion="take" id="lionTake">收下</button>' +
-          '<button class="lion-b ghost" data-lion="bust" id="lionBust">清零重摇</button>' +
+          '<button class="lion-b primary" data-lion="take" id="lionTake">' +
+            '<b class="lb-main">收下 0 分</b>' +
+            '<span class="lb-sub">分数进账 · 锁分换下一位</span>' +
+          '</button>' +
+          '<button class="lion-b ghost" data-lion="bust" id="lionBust">' +
+            '<b class="lb-main">清零重摇</b>' +
+            '<span class="lb-sub">这一手的分不要了 · 还是你摇</span>' +
+          '</button>' +
         '</div>' +
       '</div>';
     document.body.appendChild(m);
@@ -787,7 +820,12 @@
   }
 
   function closeLion() {
-    if (lionEl) lionEl.style.display = 'none';
+    if (!lionEl) return;
+    lionEl.style.display = 'none';
+    /* 关掉就把骰子的缓存标记清掉：下一把豹子哪怕是同样 7 颗，
+       也要重新建一次，进场动画才跟着卡片一起出来 */
+    var dz = lionEl.querySelector('#lionDice');
+    if (dz) dz.removeAttribute('data-k');
   }
 
   function syncLion() {
@@ -807,7 +845,20 @@
     var take = m.querySelector('#lionTake');
     if (sub) sub.textContent = who;
     if (gain) gain.textContent = g;
-    if (take) take.textContent = '收下 ' + g + ' 分';
+    if (take) {
+      var t = take.querySelector('.lb-main');
+      if (t) t.textContent = '收下 ' + g + ' 分';
+    }
+    /* 骰子按点数串缓存：没换牌就别重建，否则每次 render 都把进场动画重放一遍 */
+    var dz = m.querySelector('#lionDice');
+    if (dz) {
+      var shown = fromTable ? vals : (G.taken || []);
+      var dk = shown.join('-');
+      if (dz.getAttribute('data-k') !== dk) {
+        dz.innerHTML = lionDiceHtml(shown);
+        dz.setAttribute('data-k', dk);
+      }
+    }
     m.style.display = 'flex';
   }
 
@@ -836,7 +887,9 @@
     el.pop.style.display = 'flex';
   }
 
-  /* 人数下拉：原地展开，选一个就生效，不用再按「开始」 */
+  /* 人数下拉：原地展开，选一个就生效，不用再按「开始」。
+     「重开一局」以前挂在这块最下面，现在搬到顶栏了（见 nav-right 那段注释）——
+     两处都能重开只会让人以为「重开」分两种，而且这边当年是一点就清分，没有二次确认。 */
   function buildPDrop() {
     var box = $('pDrop');
     if (!box) return;
@@ -845,12 +898,6 @@
     for (var n = MIN_P; n <= MAX_P; n++) {
       h += '<button class="drop-item' + (n === cur ? ' on' : '') + '" type="button"'
         + ' data-n="' + n + '">' + n + '</button>';
-    }
-    /* 打到一半想重来（或者中途退出、回来想重新开局），总得有个入口。
-       点同一档人数是不重开的，光靠它等于没有「新开一把」。 */
-    if (cur) {
-      h += '<button class="drop-redo" type="button" data-redo="1">'
-        + '重开一局 · 分数清零</button>';
     }
     box.innerHTML = h;
   }
@@ -990,6 +1037,16 @@
     hint('拿回 ' + DICE + ' 颗 · 摇一摇继续');
   }
 
+  /* 顶栏「重开」的二次确认状态：3 秒没人点就自己退回 */
+  var redoAsk = 0;
+  function redoIdle() {
+    clearTimeout(redoAsk);
+    var rb = $('redoBtn');
+    if (!rb) return;
+    rb.classList.remove('ask');
+    rb.textContent = '重开';
+  }
+
   function restart() {
     closeMask();
     S.timer && clearTimeout(S.timer);
@@ -1035,22 +1092,31 @@
     if (pc) pc.addEventListener('click', function () {
       if (pDropOpen()) closePDrop(); else openPDrop();
     });
-    var shade = $('pShade');
-    if (shade) shade.addEventListener('click', closePDrop);
-    var drop = $('pDrop');
-    if (drop) drop.addEventListener('click', function (e) {
-      var t = e.target;
-      while (t && t !== drop && !t.getAttribute('data-n') && !t.getAttribute('data-redo')) {
-        t = t.parentNode;
-      }
-      if (!t || t === drop) return;
-      if (t.getAttribute('data-redo')) {
-        closePDrop();
+
+    /* 顶栏那颗「重开」：点第一下只把按钮换成「确定重开？」，
+       3 秒内再点一下才真清分 —— 清分不可逆，手指在顶栏滑一下不该把一桌人的分抹了。
+       超时没点、或者离开 350 页，都自动恢复成「重开」。 */
+    var rb = $('redoBtn');
+    if (rb) rb.addEventListener('click', function () {
+      if (rb.classList.contains('ask')) {
         var n = G.players.length || loadPlayerCount();
         newGame(n);
         toast('已重开 · ' + n + ' 人');
         return;
       }
+      rb.classList.add('ask');
+      rb.textContent = '确定重开？';
+      redoAsk = setTimeout(redoIdle, 3000);
+    });
+    var shade = $('pShade');
+    if (shade) shade.addEventListener('click', closePDrop);
+    var drop = $('pDrop');
+    if (drop) drop.addEventListener('click', function (e) {
+      var t = e.target;
+      while (t && t !== drop && !t.getAttribute('data-n')) {
+        t = t.parentNode;
+      }
+      if (!t || t === drop) return;
       setPlayers(parseInt(t.getAttribute('data-n'), 10));
     });
 
@@ -1141,6 +1207,8 @@
     if (mode !== 'f350' && el.pop && el.pop.style.display === 'flex') closeMask();
     /* 豹子弹窗同理，它也是挂在 body 上的 */
     if (mode !== 'f350') closeLion();
+    /* 离开 350 就把「确定重开？」的状态收掉：下次进来别一进来就是待确认 */
+    if (mode !== 'f350') redoIdle();
 
     /* 第一次进 350（或存档被清掉）：先把桌子摆上，再把人数下拉摊开让人确认。
        以前这里等人去点右上角的人数按钮才建玩家，新装的人进来是一张 0 人的空桌：
@@ -1284,7 +1352,25 @@
         '轮到你时信不过上家，就喊「开」。全场亮盅一起数：够数，开的人喝；不够，喊的人喝。',
         '一局结束重新摇，接着来。'
       ],
-      note: 'App 只管摇和盖，输赢在桌上算。斋、豹子、顺子这些讲究各地不一样，开打前先说好规矩。'
+      note: 'App 只管摇和盖，输赢在桌上算。斋、豹子、顺子这些讲究各地不一样，开打前先说好规矩。',
+      /* 概率写在玩法里：骰子公不公平是桌上最容易吵的一句。
+         这里只列能算出来的数（六面等概率 + 每把独立推出来的），
+         不写「大概/通常」这种没法核对的措辞。 */
+      odds: {
+        hint: '六面各 16.7% · 豹子 1/2187 · 爆掉 5.85%',
+        face: '每颗骰子都是 6 面等概率：1~6 点各 <strong>1/6 ≈ 16.7%</strong>，' +
+          '不存在「容易出的点」和「难出的点」。摇的每一把都互相独立 —— ' +
+          '刚摇过的点数不会因此变少或变多。',
+        items: [
+          '5 颗骰子里，某一面正好出现 0 / 1 / 2 / 3 / 4 / 5 颗的概率分别是 ' +
+            '<strong>40.2% / 40.2% / 16.1% / 3.2% / 0.3% / 0.01%</strong>（二项分布）—— ' +
+            '所以喊到「4 个」以上，多半是在诈。',
+          '连开三把没见 1，下一把出 1 的概率还是 16.7%。没有「该出了」，也没有任何补偿机制。',
+          '1 是万能点，但概率上它并不比别的点多：5 颗里出现 1 的期望只有 5/6 颗。'
+        ],
+        note: '骰子数量可以调（2~10 颗），概率按同样的方法变：n 颗时某一面正好出现 k 颗 = ' +
+          'C(n,k) × (1/6)<sup>k</sup> × (5/6)<sup>n-k</sup>。'
+      }
     },
     f350: {
       title: '潮汕 350 · 怎么玩',
@@ -1314,7 +1400,31 @@
         '所以有人会专门去拼豹子：自己一分不涨、还不用喝，一桌人都得端杯。',
         '<strong>整局打完</strong>：分数最低的喝 <strong>2 杯</strong>。'
       ],
-      note: '上面这些杯数是默认值，开局前按自己的量定，能加能减。App 只管算分和记豹子，喝不喝、喝多少在桌上说好。想改人数点右上角「N 人」（2~12），换人数会重开一局。'
+      /* 概率这一段是专门为「你这骰子是不是偏」写的：
+         先把「六面等概率 + 每把独立」这两句立住，剩下的数字都能自己推出来。
+         数字都是按代码里的实际判定算的（7 颗、记分只认 1 和 5），
+         换规则的话这里要跟着改，别留一句对不上的旧概率。 */
+      odds: {
+        hint: '六面各 16.7% · 豹子 1/2187 · 爆掉 5.85%',
+        face: '每颗骰子都是 6 面等概率：1~6 点各 <strong>1/6 ≈ 16.7%</strong>，' +
+          '没有「好点数」「差点数」之分，也不存在被调高调低的某一面。',
+        items: [
+          '每一把都<strong>独立重摇</strong>：上一把摇出什么，不影响下一把。连开三把没见 1，' +
+            '下一把出 1 还是 16.7% —— 没有「该出了」，也没有任何补偿机制。',
+          '一颗骰子能收走（1 点或 5 点）的概率：<strong>2/6 = 33.3%</strong>，' +
+            '所以 7 颗里平均能收 2.3 颗。',
+          '一把 7 颗全是 1 和 5（豹子）：<strong>1/3 连乘 7 次 = 1/2187 ≈ 0.046%</strong>，约两千把一次。',
+          '其中<strong>正豹</strong>（清一色 1111111 或 5555555）：<strong>2/6<sup>7</sup> = 1/139968 ≈ 0.0007%</strong>，' +
+            '十三四万把才碰上一回 —— 所以平时摇到的几乎都是 15 豹，不是你看错了。',
+          '一把 7 颗里一个 1、一个 5 都没有（爆掉）：<strong>(2/3)<sup>7</sup> = 128/2187 ≈ 5.85%</strong>，约十七把一次。',
+          '骰子就是这台手机的随机数（<strong>Math.random</strong>），每次摇重新取一遍：' +
+            '不看分数、不看人、不记仇，落后的人不会因此手气变好。'
+        ],
+        note: '上面的数按本作的判定算：7 颗明骰、只认 1 和 5。封顶 700 只影响分数怎么攒，' +
+          '不影响怎么摇 —— 到顶那一把该出什么还是什么。'
+      },
+      note: '上面这些杯数是默认值，开局前按自己的量定，能加能减。App 只管算分和记豹子，喝不喝、喝多少在桌上说好。' +
+        '想改人数点右上角「N 人」（2~12），重开一局点它左边的「重开」（点两下才真清分，防手滑）。'
     }
   };
 
@@ -1335,6 +1445,16 @@
       h += '<div class="rule-li"><em></em><span>' + r.rules[j] + '</span></div>';
     }
     h += '</div>';
+    /* 概率不铺在这一页：整段数字塞进玩法，想查规则的人得先翻过一屏百分比。
+       这里只留一行入口（一句结论 + 箭头），点进去单独看一页 —— 见 openOdds。 */
+    if (r.odds) {
+      h += '<div class="rule-sec">' +
+        '<div class="rule-sec-t">点数概率</div>' +
+        '<button class="rule-link" type="button" data-odds="' + key + '">' +
+          '<span class="rl-main">' + r.odds.hint + '</span>' +
+          '<i class="rl-arw">›</i>' +
+        '</button></div>';
+    }
     /* 「喝多少」单独一段：这是桌上真正分酒的地方，混在规则里容易被当成可选事项划过去 */
     if (r.drinks) {
       h += '<div class="rule-sec"><div class="rule-sec-t">输赢 · 喝多少</div>';
@@ -1346,8 +1466,62 @@
     h += '<div class="rule-note">' + r.note + '</div>';
 
     $('ruleBody').innerHTML = h;
+    bindRuleBody();
     mask.style.display = 'flex';
     /* 每次重开都从头滚：上一次翻到最底，下次进来还停在最底很怪 */
+    var sheet = mask.querySelector('.rule-sheet');
+    if (sheet) sheet.scrollTop = 0;
+  }
+
+  /* 玩法 / 概率两页共用一个弹层，正文会被整块换掉，所以点击得挂在外层（事件委托），
+     不能挂在里面的按钮上 —— 换一次内容，那些按钮就都是新的了。 */
+  var ruleBodyBound = false;
+  function bindRuleBody() {
+    var rb = $('ruleBody');
+    if (!rb || ruleBodyBound) return;
+    ruleBodyBound = true;
+    rb.addEventListener('click', function (e) {
+      var t = e.target;
+      while (t && t !== rb && !t.getAttribute('data-odds') && !t.getAttribute('data-back')) {
+        t = t.parentNode;
+      }
+      if (!t || t === rb) return;
+      if (t.getAttribute('data-back')) openRules(oddsFrom);
+      else openOdds(t.getAttribute('data-odds'));
+    });
+  }
+
+  /* 「点数概率」单独一页：从玩法点进来，标题换成「点数概率」，顶部给一条返回到玩法。
+     不另开一层弹层 —— 同一个 sheet 换掉标题和正文，视觉上就是翻了一页，
+     也不会出现「两层叠着、返回到底关哪层」的麻烦。 */
+  var oddsFrom = 'f350';
+
+  function openOdds(key) {
+    var r = RULES[key];
+    var mask = $('ruleMask');
+    if (!r || !r.odds || !mask) return;
+    oddsFrom = key;
+    var o = r.odds;
+    $('ruleTitle').textContent = '点数概率';
+
+    var h = '<button class="rule-back" type="button" data-back="1">‹ 返回玩法</button>';
+    h += '<div class="rule-lead">' + o.face + '</div>';
+    /* 六个面各 16.7% 摆成六格：光写一句「六面等概率」容易被当成敷衍，
+       六格一样高摆出来，谁也不好再说「你这点数偏」 */
+    h += '<div class="rule-odds">';
+    for (var f = 1; f <= 6; f++) {
+      h += '<div class="ro-face' + (f === 1 || f === 5 ? ' ro-score' : '') + '">' +
+        '<b>' + f + '</b><span>16.7%</span></div>';
+    }
+    h += '</div>';
+    for (var m = 0; m < o.items.length; m++) {
+      h += '<div class="rule-li"><em></em><span>' + o.items[m] + '</span></div>';
+    }
+    if (o.note) h += '<div class="rule-note">' + o.note + '</div>';
+
+    $('ruleBody').innerHTML = h;
+    bindRuleBody();
+    mask.style.display = 'flex';
     var sheet = mask.querySelector('.rule-sheet');
     if (sheet) sheet.scrollTop = 0;
   }
