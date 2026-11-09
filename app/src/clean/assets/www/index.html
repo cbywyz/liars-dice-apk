@@ -63,7 +63,60 @@
 
     <div class="home-tip" id="homeTip"></div>
 
-    <div class="home-foot" id="homeVer">v1.10.1 · 仅供朋友聚会娱乐</div>
+    <div class="home-foot" id="homeVer">v1.10.2 · 仅供朋友聚会娱乐</div>
+  </div>
+</div>
+
+<!-- ==================== 单人模式：选玩法 ==================== -->
+<div class="page page-solo" id="pageSolo" hidden>
+
+  <div class="home">
+    <!-- 标题 + 卡片包一层：让这一组在「返回」上方居中，别都挤在顶上 -->
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">单人</div>
+        <div class="home-t2">SOLO</div>
+      </div>
+
+      <div class="home-cards">
+      <!-- 两个玩法的入口都摆在这一层，不再塞进玩法页的底栏 -->
+      <button class="play-card" id="playLiar" data-play="liar">
+        <span class="pc-top">
+          <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3.6 7.2h16.8" fill="none" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+            <circle cx="12" cy="4.4" r="1.3" fill="currentColor"/>
+            <path d="M6.1 10.4h11.8c0 5-2.5 8.6-5.9 8.6s-5.9-3.6-5.9-8.6z"
+                  fill="none" stroke="currentColor" stroke-width="1.7"
+                  stroke-linejoin="round"/>
+          </svg>
+          <span class="pc-title">吹牛骰子</span>
+          <span class="pc-badge" id="badgeLiar" hidden>上次玩的</span>
+        </span>
+        <span class="pc-sub">有盖子 · 摇完掀盖看点数，靠嘴吹</span>
+      </button>
+
+      <button class="play-card" id="playF350" data-play="f350">
+        <span class="pc-top">
+          <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <ellipse cx="12" cy="6.2" rx="7" ry="2.5" fill="none"
+                     stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5 6.2v4.4c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6.2"
+                  fill="none" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5 10.6v4.4c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-4.4"
+                  fill="none" stroke="currentColor" stroke-width="1.7"/>
+          </svg>
+          <span class="pc-title">潮汕 350</span>
+          <span class="pc-badge" id="badgeF350" hidden>上次玩的</span>
+        </span>
+        <span class="pc-sub">明骰 · 1 点 100、5 点 50，满 350 才能收</span>
+      </button>
+      </div>
+    </div>
+
+    <div class="home-foot">
+      <button class="mode-link" id="soloBack">返回首页</button>
+    </div>
   </div>
 </div>
 
@@ -117,9 +170,9 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span>v1.10.0 · 仅供朋友聚会娱乐</span>
-      <button class="mode-link" id="toF350">350 玩法</button>
-      <button class="mode-link" id="toHome">首页</button>
+      <span>v1.10.2 · 仅供朋友娱乐</span>
+      <button class="mode-link" id="ruleBtn">玩法说明</button>
+      <button class="mode-link" id="toSolo">换玩法</button>
     </div>
   </div>
 
@@ -133,6 +186,10 @@
     <div class="nav-title">
       <span class="t1">350</span>
       <span class="t2">THREE FIFTY</span>
+    </div>
+    <!-- 人数：开局选过也能改，点了重开一局 -->
+    <div class="count-btn" id="pCountBtn">
+      <span id="pCountTxt">2 人</span><i class="count-caret"></i>
     </div>
   </div>
 
@@ -158,12 +215,23 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <button class="mode-link" id="toLiar">吹牛骰子</button>
-    <button class="mode-link" id="toHome2">首页</button>
+    <button class="mode-link" id="ruleBtn2">玩法说明</button>
+    <button class="mode-link" id="toSolo2">换玩法</button>
   </div>
 </div>
 
 <div class="f3-mask" id="f3Mask" style="display:none"></div>
+
+<!-- ==================== 玩法说明（两个玩法共用，内容按玩法填） ==================== -->
+<div class="rule-mask" id="ruleMask" style="display:none">
+  <div class="rule-sheet">
+    <div class="rule-head">
+      <span class="rule-title" id="ruleTitle">玩法说明</span>
+      <button class="rule-x" id="ruleClose">关闭</button>
+    </div>
+    <div class="rule-body" id="ruleBody"></div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 

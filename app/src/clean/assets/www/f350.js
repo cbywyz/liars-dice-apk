@@ -102,7 +102,8 @@
     shakeAt: 0
   };
 
-  var S = { timer: null, toastTimer: null, lastTapIdx: -1, lastTapAt: 0, shake: null };
+  var S = { timer: null, toastTimer: null, lastTapIdx: -1, lastTapAt: 0,
+            shake: null, editing: false };
 
   var el = {};
 
@@ -363,6 +364,16 @@
 
   /* ================= 渲染 ================= */
 
+  /* 350 自己的 toast：app.js 里那个在它自己的闭包里，跨文件拿不到 */
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(S.toastTimer);
+    S.toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1500);
+  }
+
   function hint(text, cls) {
     if (!el.hint) return;
     el.hint.textContent = text;
@@ -504,6 +515,8 @@
     renderDice();
     renderScore();
     renderBtns();
+    /* 顶栏那个「N 人」：还没开局时显示上次选的人数 */
+    if (el.pCount) el.pCount.textContent = (G.players.length || loadPlayerCount()) + ' 人';
     if (G.phase === 'ready' && !liveHand().length) {
       hint('满 ' + BASE + ' 才能收手 · 封顶 ' + CAP);
     }
@@ -521,17 +534,22 @@
     el.pop.style.display = 'flex';
   }
 
-  function showSetup() {
+  /* editing=true 表示局已经开着、是从顶栏「N 人」进来的：
+     这时候换人数等于重开一局，得先把话说在前面。 */
+  function showSetup(editing) {
     var cur = G.players.length || loadPlayerCount();
+    S.editing = !!editing && G.players.length > 0;
     var nums = '';
     for (var n = MIN_P; n <= MAX_P; n++) {
       nums += '<div class="f3-num' + (n === cur ? ' on' : '') + '" data-n="' + n + '">' + n + ' 人</div>';
     }
     openMask(
-      '<span class="f3-sheet-title">几个人玩</span>' +
-      '<span class="f3-sheet-sub">轮流摇，每人一把 · 满 ' + BASE + ' 才能收手</span>' +
+      '<span class="f3-sheet-title">' + (S.editing ? '改人数' : '几个人玩') + '</span>' +
+      '<span class="f3-sheet-sub">' + (S.editing
+        ? '换人数就重开一局，现在的分数清零'
+        : '轮流摇，每人一把 · 满 ' + BASE + ' 才能收手') + '</span>' +
       '<div class="f3-nums">' + nums + '</div>' +
-      '<button class="btn primary" data-act="start">开始</button>'
+      '<button class="btn primary" data-act="start">' + (S.editing ? '重新开局' : '开始') + '</button>'
     );
   }
 
@@ -623,8 +641,14 @@
       if (t.getAttribute('data-act') === 'restart') { restart(); return; }
       var pick = el.pop.querySelector('.f3-num.on');
       var n = pick ? parseInt(pick.getAttribute('data-n'), 10) : loadPlayerCount();
+      var was = G.players.length;
+      var editing = S.editing;
+      S.editing = false;
       closeMask();
+      /* 人数没变就别动局面：只点开看一眼再把分清了，太亏 */
+      if (editing && was === n) { toast('还是 ' + n + ' 人，没动'); return; }
       newGame(n);
+      if (editing) toast('已改成 ' + n + ' 人 · 重新开局');
       return;
     }
     if (t.classList && t.classList.contains('f3-num')) {
@@ -646,28 +670,52 @@
     el.hint = $('f3Hint');
     el.btns = $('f3Btns');
     el.pop = $('f3Mask');
+    el.pCount = $('pCountTxt');
     if (!el.dice) return;
+
+    var pc = $('pCountBtn');
+    if (pc) pc.addEventListener('click', function () { showSetup(true); });
 
     el.dice.addEventListener('click', onDieTap);
     el.btns.addEventListener('click', onBtn);
     el.pop.addEventListener('click', onMaskTap);
 
-    var btn = $('toF350');
-    if (btn) btn.addEventListener('click', function () { switchTo('f350'); });
-    var back = $('toLiar');
-    if (back) back.addEventListener('click', function () { switchTo('liar'); });
-
-    /* 首页两个入口 + 两个玩法页各自的「首页」返回 */
+    /* 三层导航，各管各的：首页选模式、单人页选玩法、玩法页只负责玩。
+       以前把「350 玩法」塞在玩法页底栏，等于让玩家在玩法之间横跳，
+       现在统一退回上一层去挑，结构才立得住。 */
     var solo = $('modeSolo');
-    if (solo) solo.addEventListener('click', enterSolo);
+    if (solo) solo.addEventListener('click', function () { switchTo('solo'); });
     var net = $('modeNet');
     if (net) net.addEventListener('click', function () {
       showHomeTip('联机还在做 · 一台手机当主机，其他人连同一个网');
     });
-    var h1 = $('toHome');
-    if (h1) h1.addEventListener('click', function () { switchTo('home'); });
-    var h2 = $('toHome2');
-    if (h2) h2.addEventListener('click', function () { switchTo('home'); });
+
+    var backHome = $('soloBack');
+    if (backHome) backHome.addEventListener('click', function () { switchTo('home'); });
+
+    var pLiar = $('playLiar');
+    if (pLiar) pLiar.addEventListener('click', function () { switchTo('liar'); });
+    var pF350 = $('playF350');
+    if (pF350) pF350.addEventListener('click', function () { switchTo('f350'); });
+
+    /* 两个玩法页底栏都只有一个「换玩法」，回到选玩法那一层 */
+    var b1 = $('toSolo');
+    if (b1) b1.addEventListener('click', function () { switchTo('solo'); });
+    var b2 = $('toSolo2');
+    if (b2) b2.addEventListener('click', function () { switchTo('solo'); });
+
+    /* 玩法说明：底栏进去，点空白 / 关闭出来 */
+    var r1 = $('ruleBtn');
+    if (r1) r1.addEventListener('click', function () { openRules('liar'); });
+    var r2 = $('ruleBtn2');
+    if (r2) r2.addEventListener('click', function () { openRules('f350'); });
+    var rc = $('ruleClose');
+    if (rc) rc.addEventListener('click', function () { closeRules(); });
+    var rm = $('ruleMask');
+    if (rm) rm.addEventListener('click', function (e) {
+      /* 只有点在遮罩本身（卡片外面）才关，点卡片内部不关 */
+      if (e.target === rm) closeRules();
+    });
 
     if (load()) {
       render();
@@ -687,29 +735,40 @@
   function switchTo(mode) {
     document.body.setAttribute('data-mode', mode);
 
-    var home = document.querySelector('.page-home');
-    var liar = document.querySelector('.page-liar');
-    var f3 = document.querySelector('.page-f350');
-    if (home) home.hidden = mode !== 'home';
-    if (liar) liar.hidden = mode !== 'liar';
-    if (f3) f3.hidden = mode !== 'f350';
+    var pages = {
+      home: document.querySelector('.page-home'),
+      solo: document.querySelector('.page-solo'),
+      liar: document.querySelector('.page-liar'),
+      f350: document.querySelector('.page-f350')
+    };
+    for (var k in pages) {
+      if (pages[k]) pages[k].hidden = (k !== mode);
+    }
 
-    /* ld_mode 记住"当前在哪"，ld_last_play 只记"上次玩哪个玩法"：
-       从首页进单人时要回到上次那个玩法，但从首页本身不该被当成玩法记下来。 */
+    /* ld_mode 记"当前在哪一页"，ld_last_play 只记"上次玩哪个玩法"。
+       两个混用就会出现「从首页进来被跳过首页」那种 bug，别合。 */
     try { localStorage.setItem('ld_mode', mode); } catch (e) {}
     if (mode === 'liar' || mode === 'f350') {
       try { localStorage.setItem('ld_last_play', mode); } catch (e) {}
     }
+
+    /* 选玩法那一页给上次玩的挂个角标：只是提示，不自动跳。
+       一自动跳，中间这一层就又成了摆设，等于回到改之前。 */
+    if (mode === 'solo') markLastPlay();
 
     if (mode === 'f350' && !G.players.length && el.pop.style.display !== 'flex') {
       showSetup();
     }
   }
 
-  function enterSolo() {
-    var last = 'liar';
-    try { last = localStorage.getItem('ld_last_play') || 'liar'; } catch (e) {}
-    switchTo(last);
+  function markLastPlay() {
+    var last = null;
+    try { last = localStorage.getItem('ld_last_play'); } catch (e) {}
+    var badges = { liar: $('badgeLiar'), f350: $('badgeF350') };
+    for (var k in badges) {
+      /* 一次都没玩过时一个都不显示：默认给吹牛挂「上次玩的」是撒谎 */
+      if (badges[k]) badges[k].hidden = (k !== last);
+    }
   }
 
   /* 联机先占位：真做的时候主机必须是安卓端（它能监听端口），
@@ -722,6 +781,77 @@
     t.classList.add('on');
     clearTimeout(tipTimer);
     tipTimer = setTimeout(function () { t.classList.remove('on'); }, 2600);
+  }
+
+  /* ================= 玩法说明 =================
+     规则写在 App 里，省得每次开局都要口头讲一遍。
+     措辞跟代码对齐：350 的爆掉/豹子/封顶都按 f350.js 里的实际判定写，
+     吹牛这边 App 只负责摇和盖，胜负在桌上算，所以只写通用打法。 */
+  var RULES = {
+    liar: {
+      title: '吹牛骰子 · 怎么玩',
+      lead: '一台手机当骰盅，摇完盖着，谁也没看见点数 —— 接下来全靠嘴。',
+      steps: [
+        ['摇一摇', '骰盅抖一下，点数这时候就定好了，盖子仍然合着。'],
+        ['掀盖', '捏住盖子往上滑，跟手停，可以只开一条缝当挡板偷偷看一眼。合回去点数不丢，能反复开合。'],
+        ['锁定', '本局定板，盅口亮金边、出现「已锁定」，这一把不能再摇。']
+      ],
+      rules: [
+        '每人一副骰子（本机默认 5 颗，可调 2~10 颗），各看各的，别让旁边人瞄到。',
+        '1 点是万能点，可以当任何点数用。除非这局喊了「斋」，斋了 1 就只是 1。',
+        '从「2 个 3」这类叫法开始，轮流往上叫，一次比一次大：个数更多，或者个数相同、点数更大。',
+        '轮到你时信不过上家，就喊「开」。全场亮盅一起数：够数，开的人喝；不够，喊的人喝。',
+        '一局结束重新摇，接着来。'
+      ],
+      note: 'App 只管摇和盖，输赢在桌上算。斋、豹子、顺子这些讲究各地不一样，开打前先说好规矩。'
+    },
+    f350: {
+      title: '潮汕 350 · 怎么玩',
+      lead: '不要盖子，7 颗明骰摊在桌上，谁都看得见 —— 比的是敢不敢继续摇。',
+      steps: [
+        ['摇', '7 颗一起摇出来，明着摊开。'],
+        ['点要拿的', '1 点算 100 分、5 点算 50 分，其余不计分。点哪颗才拿走哪颗，不点就留在桌上继续摇。'],
+        ['收下 / 锁分', '分数实时累加，满 350 才能锁，锁了就轮到下一位。连点两下同一颗可以直接收。']
+      ],
+      rules: [
+        '拿一颗就少一颗。所以经常会放着 50 分不拿，把 5 留在桌上凑数量，继续搏 1 点。',
+        '一把里一个 1、一个 5 都没有 = 爆掉：本回合分数清零，拿回 7 颗重摇，还是你摇，不换人。',
+        '7 颗全是 1 和 5 = 豹子：记一次豹子（只做记录，不影响输赢），分数清零，继续摇。',
+        '封顶 700 分，到顶自动锁，不用手动点。',
+        '比锁定的最终分数，高者赢；同分时先收手的排前面。'
+      ],
+      note: '人数 2~6 人，开局时选；想改点右上角的「N 人」，换了人数会重开一局。点错了再点一次取消要隔开一下 —— 连点两下会被当成「直接收」。'
+    }
+  };
+
+  function openRules(key) {
+    var r = RULES[key];
+    var mask = $('ruleMask');
+    if (!r || !mask) return;
+    $('ruleTitle').textContent = r.title;
+
+    var h = '<div class="rule-lead">' + r.lead + '</div>';
+    h += '<div class="rule-sec"><div class="rule-sec-t">操作</div>';
+    for (var i = 0; i < r.steps.length; i++) {
+      h += '<div class="rule-li"><i>' + (i + 1) + '</i><span><b>' + r.steps[i][0] +
+           '</b>' + r.steps[i][1] + '</span></div>';
+    }
+    h += '</div><div class="rule-sec"><div class="rule-sec-t">规则</div>';
+    for (var j = 0; j < r.rules.length; j++) {
+      h += '<div class="rule-li"><em></em><span>' + r.rules[j] + '</span></div>';
+    }
+    h += '</div><div class="rule-note">' + r.note + '</div>';
+
+    $('ruleBody').innerHTML = h;
+    mask.style.display = 'flex';
+    /* 每次重开都从头滚：上一次翻到最底，下次进来还停在最底很怪 */
+    var sheet = mask.querySelector('.rule-sheet');
+    if (sheet) sheet.scrollTop = 0;
+  }
+
+  function closeRules() {
+    var mask = $('ruleMask');
+    if (mask) mask.style.display = 'none';
   }
 
   if (document.readyState === 'loading') {

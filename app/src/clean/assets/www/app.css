@@ -705,6 +705,7 @@ button[disabled] { opacity: 1; }
 /* ==================== 首页（单机 / 联机） ==================== */
 /* .page 是 display:flex，会盖掉 [hidden] 的 display:none，必须自己声明 */
 .page-home[hidden] { display: none; }
+.page-solo[hidden] { display: none; }
 
 .home {
   height: 100%;
@@ -821,4 +822,180 @@ button[disabled] { opacity: 1; }
   font-size: 2.6667vw;
   letter-spacing: 0.1333vw;
   color: rgba(35, 38, 45, 0.26);
+}
+
+/* ---------------- 单人模式里的玩法卡 ---------------- */
+/* 和首页的 .mode-card 同一套底子，但多一行规则说明，进去之前就知道怎么玩 */
+.play-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2.1333vw;
+  width: 100%;
+  padding: 8vw 7.4667vw;
+  border-radius: 5.3333vw;
+  text-align: left;
+  background: linear-gradient(180deg, #ffffff, #fbf7ef);
+  box-shadow: 0 2.1333vw 4.8vw rgba(35, 38, 45, 0.10),
+              inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06);
+}
+.play-card:active { transform: scale(0.985); opacity: 0.94; }
+
+.pc-top {
+  display: flex;
+  align-items: center;
+  gap: 2.6667vw;
+  width: 100%;
+}
+.pc-ic {
+  width: 7.4667vw;
+  height: 7.4667vw;
+  flex: 0 0 auto;
+  color: #23262d;
+}
+.pc-title {
+  font-size: 5.0667vw;
+  font-weight: 600;
+  letter-spacing: 0.5333vw;
+  color: #23262d;
+}
+.pc-sub {
+  font-size: 3.2vw;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.42);
+}
+.pc-badge {
+  margin-left: auto;
+  padding: 0.8vw 2.1333vw;
+  border-radius: 2.6667vw;
+  font-size: 2.6667vw;
+  letter-spacing: 0.2667vw;
+  color: #8a6a1f;
+  background: rgba(190, 155, 60, 0.14);
+  box-shadow: inset 0 0 0 0.1333vw rgba(190, 155, 60, 0.28);
+}
+/* span 上的 [hidden] 会被 .pc-badge 的 display 盖掉 */
+.pc-badge[hidden] { display: none; }
+
+/* 二级页：标题收小一号，让人一眼看出这是"从首页进来的下一层" */
+.page-solo .home-t1 { font-size: 8.8vw; letter-spacing: 1.6vw; text-indent: 1.6vw; }
+/* 标题和卡片这一组在「返回首页」上方垂直居中：
+   多个 auto 外边距会互相抢空位，所以用一个 flex 容器统一居中 */
+.solo-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.page-solo .home-head { padding-top: 0; }
+.page-solo .home-cards { margin-top: 13.3333vw; }
+
+/* ==================== 玩法说明 ==================== */
+/* 层级压在 350 人数弹层（40）之上：说明是从玩法页里点开的，不能被别的遮罩盖住 */
+.rule-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(20, 22, 26, 0.46);
+  animation: ruleFade 0.18s ease both;
+}
+@keyframes ruleFade { from { opacity: 0; } to { opacity: 1; } }
+
+.rule-sheet {
+  width: 100%;
+  max-height: 82vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 5.3333vw 5.8667vw calc(5.3333vw + env(safe-area-inset-bottom));
+  border-radius: 5.3333vw 5.3333vw 0 0;
+  background: #fbf8f3;
+  animation: sheetUp 0.28s cubic-bezier(0.2, 0.86, 0.24, 1) both;
+}
+
+.rule-head {
+  display: flex;
+  align-items: center;
+  gap: 3.2vw;
+}
+.rule-title {
+  font-size: 4.5333vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+  color: #23262d;
+}
+.rule-x {
+  margin-left: auto;
+  flex: 0 0 auto;
+  padding: 1.0667vw 3.2vw;
+  border-radius: 3.2vw;
+  font-size: 2.9333vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.5);
+  background: rgba(35, 38, 45, 0.06);
+}
+.rule-x:active { background: rgba(35, 38, 45, 0.12); }
+
+.rule-lead {
+  margin-top: 2.4vw;
+  font-size: 3.2vw;
+  line-height: 1.6;
+  color: rgba(35, 38, 45, 0.5);
+}
+
+.rule-sec { margin-top: 5.3333vw; }
+.rule-sec-t {
+  font-size: 2.6667vw;
+  letter-spacing: 0.8vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+.rule-li {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.6667vw;
+  margin-top: 2.6667vw;
+  font-size: 3.3333vw;
+  line-height: 1.62;
+  color: #2c3038;
+}
+.rule-li i {
+  flex: 0 0 auto;
+  width: 5.8667vw;
+  height: 5.8667vw;
+  margin-top: 0.2667vw;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 2.9333vw;
+  line-height: 5.8667vw;
+  text-align: center;
+  color: #8a6a1f;
+  background: rgba(190, 155, 60, 0.16);
+}
+.rule-li em {
+  flex: 0 0 auto;
+  width: 1.6vw;
+  height: 1.6vw;
+  margin-top: 2.4vw;
+  border-radius: 50%;
+  background: rgba(35, 38, 45, 0.26);
+}
+.rule-li b {
+  display: block;
+  margin-bottom: 0.5333vw;
+  font-weight: 600;
+  color: #23262d;
+}
+
+.rule-note {
+  margin-top: 5.3333vw;
+  padding-top: 3.2vw;
+  border-top: 0.1333vw solid rgba(35, 38, 45, 0.08);
+  font-size: 2.9333vw;
+  line-height: 1.6;
+  color: rgba(35, 38, 45, 0.4);
 }
