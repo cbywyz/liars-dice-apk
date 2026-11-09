@@ -498,18 +498,52 @@
     var key = list.length + '/' + G.round;
     if (box.getAttribute('data-key') === key) return;
 
-    /* 大小跟着颗数走：平时 8.4vw（比贴在分数下面时大一半），
-       颗数多到一行放不下就等比缩 —— 反正就是要一行排完，
-       掉一颗去第二行最难看。88vw 是面板可用宽度（左右各 6vw 内边距），
-       0.7 是下面 CSS 里的 gap。 */
+    /* 目标：和桌面上那副一样大（layout() 算出来 16vw 上下）。
+       但一排 14 颗、两排各 7 颗都要地方，小屏（375×667）+ 12 人时会把桌面挤没，
+       所以先量「这一排不占地方时舞台有多高」，再挑一个放得下的方案：
+
+         方案 A：全塞一排 —— 颗数多时每颗会变窄
+         方案 B：均分两排 —— 每颗更大，但要多占一行高度
+
+       两个都算出来，取骰子更大的那个；高度实在不够就按高度让步（最小 6vw），
+       宁可小一点，也不让桌面被压到分数区上。
+       88vw 是面板可用宽度（左右各 6vw 内边距），0.7 是下面 CSS 里的 gap。 */
     var n = list.length;
-    var ds = n ? (88 - (n - 1) * 0.7) / n : 8.4;
-    ds = Math.min(8.4, Math.max(5.4, ds));
+    var vw = window.innerWidth / 100;
+    var room = 0;
+    if (n && el.stage) {
+      var wasHidden = box.hidden;
+      box.hidden = true;                       // 这排不占地方，量个基线
+      var stageH = el.stage.clientHeight;
+      box.hidden = wasHidden;
+      /* 桌子固定 50vw 高，上下再各留 4vw 余量 */
+      room = Math.max(0, stageH - window.innerWidth * 0.5 - window.innerWidth * 0.08) / vw;
+    }
+    var fit = null;
+    for (var ri = 1; ri <= 2; ri++) {
+      var perRow = Math.ceil(n / ri);
+      var byW = (88 - (perRow - 1) * 0.7) / perRow;
+      var byH = room > 0 ? (room - (ri - 1) * 0.7) / ri : 16;
+      var cand = Math.min(16, byW, byH);
+      if (!fit || cand > fit.ds) fit = { ds: cand, rows: ri, perRow: perRow };
+    }
+    var ds = n ? Math.max(6, fit.ds) : 16;
+    var rows = fit ? fit.rows : 1;
+    var perRow = fit ? fit.perRow : n;
     box.style.setProperty('--ds', ds.toFixed(3) + 'vw');
 
     var prev = parseInt(box.getAttribute('data-n') || '0', 10);
     box.innerHTML = '';
+    box.setAttribute('data-rows', String(rows));
+    /* gap 和每行几颗都由 JS 排好，不能靠 flex-wrap 自己折 ——
+       折出来每行颗数不均，第二行容易只剩一颗孤零零的 */
+    var row = null;
     for (var i = 0; i < list.length; i++) {
+      if (i % perRow === 0) {
+        row = document.createElement('div');
+        row.className = 'tk-row';
+        box.appendChild(row);
+      }
       var v = list[i];
       var w = document.createElement('div');
       /* 只有新收的那颗弹一下，前面几颗保持不动 */
@@ -525,7 +559,7 @@
         d.appendChild(p);
       }
       w.appendChild(d);
-      box.appendChild(w);
+      row.appendChild(w);
     }
     box.hidden = !list.length;
     box.setAttribute('data-key', key);
@@ -769,6 +803,7 @@
   function boot() {
     el.strip = $('pStrip');
     el.dice = $('f3Dice');
+    el.stage = document.querySelector('.f3-stage');
     el.score = $('f3ScoreBox');
     el.scoreNum = $('f3ScoreNum');
     el.taken = $('f3Taken');

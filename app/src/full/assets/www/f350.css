@@ -239,14 +239,22 @@
    那块本来就是空当（stage 是 flex:1，桌子固定 50vw 居中），摆这儿不占额外地方，
    骰子还能比贴在分数下面时大一号；尺寸由 f350.js 按颗数算（--ds）。 */
 .f3-taken {
-  --ds: 8.4vw;
+  /* 和桌面上那副骰子同尺寸：f350.js 的 layout() 算出来是 16vw 上下 */
+  --ds: 16vw;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 0.7vw;
   /* 和下面的大数字留一口气，别贴上去 */
   margin: 0 0 2.4vw;
+}
+
+/* 一行。折行由 JS 按颗数分好组，不交给 flex-wrap 自己决定 */
+.f3-taken .tk-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7vw;
 }
 /* hidden 属性得自己兜一下：上面那句 display:flex 会盖掉浏览器默认的 display:none */
 .f3-taken[hidden] { display: none; }
