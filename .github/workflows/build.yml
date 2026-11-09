@@ -1,8 +1,13 @@
 name: build
 
-# 平时的改动只发网页版（40 秒左右），在手机上用浏览器验；验完确认没问题，
-# 再手动触发一次（workflow_dispatch）才编 APK、出 Release ——
-# 编一次 APK 要好几分钟，每版都编等于拿打包时间换试错次数。
+# 2026-11-10 起：**默认只发网页版**，APK 不跟着编。
+#   网页版加到桌面之后跟 APK 没区别 —— 全屏、无地址栏、断网可玩（Service Worker），
+#   而且更新是「刷新即最新」，不用重装、不用清缓存。既然这样，每版都编一次几分钟的包
+#   没意义，等真要发新版 App 时再编。
+#
+#   push 到 main          → 只更新网页（40 秒左右）
+#   手动 dispatch（默认） → 也只更新网页
+#   手动 dispatch + 勾 with_apk → 编两份 APK + 出 Release
 on:
   push:
     branches: [ main, master ]
@@ -11,6 +16,11 @@ on:
       - 'docs/**'
       - '**.md'
   workflow_dispatch:
+    inputs:
+      with_apk:
+        description: '顺便编译两份 APK 并出 Release（只发网页版就别勾）'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -18,8 +28,8 @@ permissions:
 jobs:
   # ---------- 安卓：编译两份 APK（完整版 + 纯净版） ----------
   apk:
-    # 只认手动触发：push 只更新网页，不发版
-    if: github.event_name == 'workflow_dispatch'
+    # 两道门：手动触发 **并且** 勾了 with_apk 才编。手滑点一下 dispatch 不会把 APK 发出去。
+    if: github.event_name == 'workflow_dispatch' && inputs.with_apk
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -132,6 +142,8 @@ jobs:
   # ---------- 自动发布：每次构建完都挂一个带两个 APK 的 Release ----------
   release:
     needs: [apk, web]
+    # 跟 apk 同一个门 —— 不然只发网页时，release 会因为 apk 被 skip 而报失败
+    if: github.event_name == 'workflow_dispatch' && inputs.with_apk
     runs-on: ubuntu-latest
     permissions:
       contents: write
