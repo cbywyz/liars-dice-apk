@@ -1,7 +1,7 @@
 {
   "name": "吹牛骰子",
   "short_name": "吹牛骰子",
-  "description": "1 个骰盅 + 5 颗骰子的聚会小工具，纯本地运行",
+  "description": "聚会用的小骰子：吹牛骰子 + 潮汕 350，纯本地运行，不联网",
   "lang": "zh-CN",
   "start_url": "./index.html",
   "scope": "./",

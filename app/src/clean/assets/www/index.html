@@ -63,7 +63,23 @@
 
     <div class="home-tip" id="homeTip"></div>
 
-    <div class="home-foot" id="homeVer">v1.10.10 · 仅供朋友聚会娱乐</div>
+    <!-- 添加到桌面：网页版没有安装包，但加完图标点开就是全屏，跟 App 一样。
+         已经装过（standalone）或用户说过「不用了」就不显示，逻辑在 app.js 末尾 -->
+    <button class="a2hs" id="addHome" hidden>
+      <img class="a2hs-ic" src="apple-touch-icon.png" alt="" width="56" height="56">
+      <span class="a2hs-tx">
+        <span class="a2hs-t1">把骰子放到桌面</span>
+        <span class="a2hs-t2">点图标就开 · 全屏没地址栏</span>
+      </span>
+      <svg class="a2hs-ar" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9.4 5.4 16.2 12l-6.8 6.6"/>
+      </svg>
+    </button>
+
+    <div class="home-foot">
+      <span class="home-ver" id="homeVer">v1.10.12 · 仅供朋友聚会娱乐</span>
+      <button class="home-legal" id="termsBtn">免责声明</button>
+    </div>
   </div>
 </div>
 
@@ -179,7 +195,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span>v1.10.10</span>
+      <span>v1.10.12</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -246,6 +262,28 @@
       <button class="rule-x" id="ruleClose">关闭</button>
     </div>
     <div class="rule-body" id="ruleBody"></div>
+  </div>
+</div>
+
+<!-- ==================== 免责声明：首次打开自动弹一次，之后首页底部随时能看 ==================== -->
+<div class="rule-mask" id="termsMask" style="display:none">
+  <div class="rule-sheet">
+    <div class="rule-head">
+      <span class="rule-title">免责声明</span>
+      <button class="rule-x" id="termsClose">关闭</button>
+    </div>
+    <div class="rule-body" id="termsBody"></div>
+  </div>
+</div>
+
+<!-- ==================== 添加到桌面：步骤按机型生成（内容在 app.js） ==================== -->
+<div class="rule-mask" id="a2hsMask" style="display:none">
+  <div class="rule-sheet">
+    <div class="rule-head">
+      <span class="rule-title">把骰子放到桌面</span>
+      <button class="rule-x" id="a2hsClose">关闭</button>
+    </div>
+    <div class="rule-body" id="a2hsBody"></div>
   </div>
 </div>
 

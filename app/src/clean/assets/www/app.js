@@ -929,3 +929,232 @@
     boot();
   }
 })();
+
+/* ================= 添加到桌面 =================
+
+   网页版没有安装包，但可以「添加到主屏幕」：加完从桌面点开是全屏、没有地址栏，
+   图标也是同一个，用起来跟 APK 差别很小。装机率一直是网页版最难的一步，所以首页
+   直接给一条入口，点开按机型给步骤（iOS 和安卓的路径完全不一样，混着讲没人看得懂）。
+
+   什么时候不出现：
+     · 已经是从桌面图标打开的（standalone / fullscreen）—— 已经在桌面上了，别啰嗦
+     · 用户点过「不用了，以后别再提醒」—— 存在 localStorage，下次不再问
+   安卓 Chrome 会把系统安装框交给我们（beforeinstallprompt），能弹就直接弹，
+   比讲三步清楚；iOS 没有这个事件，只能手把手教。 */
+
+(function () {
+  'use strict';
+
+  var KEY = 'ld.a2hs.off';
+  var bar = document.getElementById('addHome');
+  if (!bar) return;
+
+  var UA = navigator.userAgent || '';
+  var mq = window.matchMedia ? window.matchMedia.bind(window) : null;
+
+  function matches(q) { return !!(mq && mq(q).matches); }
+
+  var standalone = window.navigator.standalone === true ||
+    matches('(display-mode: standalone)') || matches('(display-mode: fullscreen)');
+
+  function seen() {
+    try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+  }
+  function mark() {
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+  }
+
+  if (standalone || seen()) return;
+
+  var isIOS = /iPad|iPhone|iPod/.test(UA) ||
+    (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);
+  var isAndroid = /Android/i.test(UA);
+  /* 微信 / QQ / 微博这些内置浏览器加不了桌面图标，得先跳出去 */
+  var inApp = /MicroMessenger|QQ\/|Weibo|AlipayClient|DingTalk|Lark|aweme|baiduboxapp/i.test(UA);
+
+  var mask = document.getElementById('a2hsMask');
+  var body = document.getElementById('a2hsBody');
+  var defer = null;
+
+  function steps(title, arr, note) {
+    var h = '<div class="rule-sec"><div class="rule-sec-t">' + title + '</div>';
+    for (var i = 0; i < arr.length; i++) {
+      h += '<div class="rule-li"><i>' + (i + 1) + '</i><span>' + arr[i] + '</span></div>';
+    }
+    h += '</div>';
+    if (note) h += '<div class="rule-note">' + note + '</div>';
+    return h;
+  }
+
+  function build() {
+    var h = '<div class="a2hs-prev">' +
+      '<img src="apple-touch-icon.png" alt="">' +
+      '<div class="a2hs-prev-tx"><strong>骰子</strong><span>加完桌面就多这个图标</span></div>' +
+      '</div>' +
+      '<div class="rule-lead">从桌面点开是全屏的，没有地址栏，跟装的 App 一样。</div>';
+
+    if (inApp) {
+      h += steps('先跳出微信 / QQ 的内置浏览器', [
+        '点右上角「<strong>…</strong>」',
+        '选「<strong>在浏览器打开</strong>」（有的写「用 Safari 打开」）',
+        '跳到浏览器后，再按下面的步骤加'
+      ], '内置浏览器里没有「添加到主屏幕」这一项，不跳出去加不了。');
+    }
+
+    if (isIOS) {
+      h += steps('iPhone / iPad', [
+        '点屏幕<strong>底部中间</strong>的「分享」—— 一个方框加一支向上的箭头（Safari 才有）',
+        '在弹出来的列表里往下滑，找到「<strong>添加到主屏幕</strong>」',
+        '右上角点「<strong>添加</strong>」'
+      ], 'iOS 只允许 Safari 加桌面图标。用 Chrome 或别的浏览器打开时，那个列表里没有这一项。');
+    } else if (isAndroid) {
+      h += steps('安卓', [
+        '点右上角「<strong>⋮</strong>」菜单',
+        '选「<strong>安装应用</strong>」或「<strong>添加到主屏幕</strong>」',
+        '确认「安装」/「添加」'
+      ], '一加、小米、华为自带浏览器的菜单名不太一样，认「添加到桌面」「添加到主屏幕」「安装」这几个词就行。');
+    } else {
+      h += steps('电脑 / 其它设备', [
+        'Chrome 地址栏右边点「安装」小图标（一个屏幕加箭头）',
+        '或者右上角菜单里选「安装」/「添加到主屏幕」'
+      ]);
+    }
+
+    h += '<div class="a2hs-off" id="a2hsOff">不用了，以后别再提醒</div>';
+    body.innerHTML = h;
+
+    var off = document.getElementById('a2hsOff');
+    if (off) {
+      off.addEventListener('click', function () {
+        mark();
+        bar.hidden = true;
+        close();
+      });
+    }
+  }
+
+  function open() {
+    if (!mask) return;
+    build();
+    mask.style.display = 'flex';
+    var sheet = mask.querySelector('.rule-sheet');
+    if (sheet) sheet.scrollTop = 0;
+  }
+
+  function close() {
+    if (mask) mask.style.display = 'none';
+  }
+
+  bar.addEventListener('click', function () {
+    /* 系统能给安装框就弹系统的，弹过就不再重复 */
+    if (defer) {
+      var d = defer;
+      defer = null;
+      d.prompt();
+      if (d.userChoice && d.userChoice.then) {
+        d.userChoice.then(function (r) { if (r && r.outcome === 'accepted') mark(); });
+      }
+      return;
+    }
+    open();
+  });
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    defer = e;
+    bar.hidden = false;
+  });
+
+  window.addEventListener('appinstalled', function () {
+    mark();
+    bar.hidden = true;
+  });
+
+  var x = document.getElementById('a2hsClose');
+  if (x) x.addEventListener('click', close);
+  if (mask) {
+    mask.addEventListener('click', function (e) {
+      if (e.target === mask) close();
+    });
+  }
+
+  bar.hidden = false;
+})();
+
+/* ================= 免责声明 =================
+
+   第一次打开自动弹一次，点过「我知道了」就不再弹，之后从首页底部那颗「免责声明」看。
+   首屏就压一层弹层确实有点烦，但这几条（不涉赌、喝酒自愿、未成年人、数据只在本地）
+   真出事时是唯一的说明，宁可开头烦一次。
+
+   点空白处关掉不算看过 —— 下次还会弹，直到真的点了「我知道了」。 */
+
+(function () {
+  'use strict';
+
+  var KEY = 'ld.terms.ok';
+  var mask = document.getElementById('termsMask');
+  var body = document.getElementById('termsBody');
+  var btn = document.getElementById('termsBtn');
+  if (!mask || !body) return;
+
+  var ITEMS = [
+    '<strong>只当娱乐</strong>：没有下注、结算、兑换，也不建议拿它给真钱的局记账。',
+    '<strong>喝多少自己定</strong>：爆掉几杯、豹子几杯都是桌上的默认值，随时能改；' +
+      '别劝酒、别拼酒，开车不喝酒。',
+    '<strong>未成年人禁止饮酒</strong>，也别在有未成年人的场合用罚酒规则。',
+    '<strong>分数只存在这台手机上</strong>：没有账号、不上传服务器；清缓存或删掉图标，记录跟着一起没。',
+    '<strong>按自己的风险使用</strong>：规则看错、玩过火、手机丢了，后果自己担。'
+  ];
+
+  function read() {
+    try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
+  }
+  function mark() {
+    try { localStorage.setItem(KEY, '1'); } catch (e) {}
+  }
+
+  function build() {
+    var h = '<div class="rule-lead">这是个聚会用的小骰子，开玩之前先把下面几条看完。</div>' +
+      '<div class="rule-sec">';
+    for (var i = 0; i < ITEMS.length; i++) {
+      h += '<div class="rule-li"><em></em><span>' + ITEMS[i] + '</span></div>';
+    }
+    h += '</div>' +
+      '<div class="rule-note">点「我知道了」之后不再自动弹，' +
+      '首页底部那颗「免责声明」随时能再看。</div>' +
+      '<button class="terms-ok" id="termsOk">我知道了</button>';
+    body.innerHTML = h;
+
+    var okBtn = document.getElementById('termsOk');
+    if (okBtn) {
+      okBtn.addEventListener('click', function () {
+        mark();
+        close();
+      });
+    }
+  }
+
+  function open() {
+    build();
+    mask.style.display = 'flex';
+    var sheet = mask.querySelector('.rule-sheet');
+    if (sheet) sheet.scrollTop = 0;
+  }
+  function close() { mask.style.display = 'none'; }
+
+  if (btn) btn.addEventListener('click', open);
+
+  var x = document.getElementById('termsClose');
+  if (x) x.addEventListener('click', close);
+
+  /* 点空白处只收起来，不算「看过」—— 手滑点掉的那次不该把说明吞掉 */
+  mask.addEventListener('click', function (e) {
+    if (e.target === mask) close();
+  });
+
+  if (!read()) {
+    /* 等首页画完再压上去，别让人看见一层没内容的灰 */
+    setTimeout(open, 420);
+  }
+})();

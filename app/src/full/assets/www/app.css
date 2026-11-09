@@ -1359,3 +1359,136 @@ body.tap-edit .die-slot:active .die {
   z-index: 21;
 }
 .drop-shade[hidden] { display: none; }
+
+/* ---------------- 添加到桌面（网页版专属，装在 APK 里不会显示） ---------------- */
+
+.a2hs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3.2vw;
+  width: 100%;
+  margin-top: 6.4vw;
+  padding: 3.2vw 3.7333vw;
+  border-radius: 4.8vw;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07),
+              0 1.0667vw 2.6667vw rgba(35, 38, 45, 0.05);
+  text-align: left;
+  color: #23262d;
+}
+.a2hs[hidden] { display: none; }
+.a2hs:active { background: rgba(255, 255, 255, 0.98); }
+
+.a2hs-ic {
+  flex: 0 0 auto;
+  display: block;
+  width: 11.2vw;
+  height: 11.2vw;
+  border-radius: 2.88vw;
+  box-shadow: 0 0.2667vw 0.8vw rgba(35, 38, 45, 0.16);
+}
+
+.a2hs-tx { flex: 1 1 auto; min-width: 0; display: block; }
+.a2hs-t1 {
+  display: block;
+  font-size: 3.7333vw;
+  font-weight: 600;
+  letter-spacing: 0.2667vw;
+}
+.a2hs-t2 {
+  display: block;
+  margin-top: 0.8vw;
+  font-size: 2.9333vw;
+  letter-spacing: 0.1333vw;
+  color: rgba(35, 38, 45, 0.46);
+}
+
+.a2hs-ar {
+  flex: 0 0 auto;
+  width: 4.2667vw;
+  height: 4.2667vw;
+  fill: none;
+  stroke: rgba(35, 38, 45, 0.28);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 弹层顶部的图标预览：加完桌面就是这个样子，先让人看一眼 */
+.a2hs-prev {
+  display: flex;
+  align-items: center;
+  gap: 3.7333vw;
+  margin: 0 0 4.5333vw;
+  padding: 3.4667vw 3.7333vw;
+  border-radius: 4.2667vw;
+  background: rgba(35, 38, 45, 0.035);
+}
+.a2hs-prev img {
+  display: block;
+  width: 13.3333vw;
+  height: 13.3333vw;
+  border-radius: 3.4667vw;
+  box-shadow: 0 0.2667vw 0.8vw rgba(35, 38, 45, 0.16);
+}
+.a2hs-prev-tx { display: block; }
+.a2hs-prev-tx b {
+  display: block;
+  font-size: 3.7333vw;
+  font-weight: 600;
+  letter-spacing: 0.2667vw;
+}
+.a2hs-prev-tx span {
+  display: block;
+  margin-top: 0.8vw;
+  font-size: 2.9333vw;
+  letter-spacing: 0.1333vw;
+  color: rgba(35, 38, 45, 0.46);
+}
+
+/* 「不用了」放最底下，别做成和上面步骤一样的按钮，免得误点 */
+.a2hs-off {
+  margin-top: 5.3333vw;
+  padding: 2.9333vw 0 0.5333vw;
+  text-align: center;
+  font-size: 3.2vw;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.34);
+  text-decoration: underline;
+  text-underline-offset: 0.8vw;
+}
+.a2hs-off:active { color: rgba(35, 38, 45, 0.6); }
+
+/* ---------------- 免责声明 ---------------- */
+
+.home-ver { display: block; }
+
+/* 首页底部那颗「免责声明」：字比版权行大一点，但不做成按钮块，别抢主入口 */
+.home-legal {
+  display: inline-block;
+  margin-top: 2.1333vw;
+  padding: 1.0667vw 3.2vw;
+  border-radius: 3.2vw;
+  font-size: 2.9333vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.42);
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07);
+}
+.home-legal:active { background: rgba(255, 255, 255, 0.95); color: rgba(35, 38, 45, 0.66); }
+
+/* 弹层最后那颗「我知道了」——首次进来唯一的出口，做得实一点 */
+.terms-ok {
+  display: block;
+  width: 100%;
+  margin-top: 6.4vw;
+  padding: 3.7333vw 0;
+  border-radius: 6.4vw;
+  background: #23262d;
+  color: #f4f0e9;
+  font-size: 4vw;
+  letter-spacing: 0.8vw;
+  text-align: center;
+}
+.terms-ok:active { opacity: 0.86; }
