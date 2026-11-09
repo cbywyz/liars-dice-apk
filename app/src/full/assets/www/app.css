@@ -1492,3 +1492,41 @@ body.tap-edit .die-slot:active .die {
   text-align: center;
 }
 .terms-ok:active { opacity: 0.86; }
+
+/* 免责声明是「进来先看一眼」的东西，不是玩法说明：
+   默认情况下它自己盖在首页上，铺满一屏等于今天别玩了。所以这块单开一套更紧的排版，
+   字号收一档、行距收到 1.5、段间距减半，三条内容整体压在六成屏以内。
+   真遇到超大字号（系统无障碍）时它最多 76vh，再多就自己滚，绝不截断。 */
+.terms-sheet {
+  max-height: 76vh;
+  padding: 4.5333vw 5.8667vw calc(4.5333vw + env(safe-area-inset-bottom));
+}
+.terms-sheet .rule-title { font-size: 4.2667vw; }
+.terms-sheet .rule-lead {
+  margin-top: 1.8667vw;
+  font-size: 3.0667vw;
+  line-height: 1.5;
+}
+.terms-sheet .rule-li {
+  margin-top: 2.4vw;
+  font-size: 3.0667vw;
+  line-height: 1.5;
+}
+/* 中文随处可断行，四个字的词被劈成「只当玩 / 笑」看着像错字：整词不让断 */
+.terms-sheet .rule-li .nb { white-space: nowrap; }
+
+.terms-sheet .rule-li i {
+  width: 5.3333vw;
+  height: 5.3333vw;
+  margin-top: 0.4vw;
+}
+.terms-sheet .rule-note {
+  margin-top: 3.7333vw;
+  font-size: 2.6667vw;
+  line-height: 1.5;
+}
+.terms-sheet .terms-ok {
+  margin-top: 4.2667vw;
+  padding: 3.2vw 0;
+  font-size: 3.7333vw;
+}
