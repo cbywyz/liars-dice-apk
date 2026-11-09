@@ -1200,9 +1200,6 @@ button[disabled] { opacity: 1; }
   font-size: 3.0667vw;
   line-height: 1.5;
 }
-/* 中文随处可断行，四个字的词被劈成「只当玩 / 笑」看着像错字：整词不让断 */
-.terms-sheet .rule-li .nb { white-space: nowrap; }
-
 .terms-sheet .rule-li i {
   width: 5.3333vw;
   height: 5.3333vw;
