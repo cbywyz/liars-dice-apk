@@ -93,37 +93,47 @@ jobs:
           echo "--- /clean/（纯净版）"
           ls site/clean/
 
-      # 给 css/js 的 URL 挂上提交号：每次部署 URL 都不一样。
-      # 之前出过「页面版本号是新的、豹子玩法还是旧的」—— Service Worker 和手机浏览器把
-      # 旧 JS 缓存住了，清浏览器缓存也没用（清的是 HTTP 缓存，Cache Storage 还在）。
-      # 换了 URL 之后旧缓存永远匹配不上，只能去网络上拿。
+      # 给 css/js 的 URL 挂版本号：URL 变了旧缓存就匹配不上。
+      # 之前出过「页面版本号是新的、豹子玩法还是旧的」—— 手机浏览器把旧 JS 记在 HTTP 缓存里，
+      # 清浏览器缓存也没用（清的是 HTTP 缓存，Cache Storage 还在）。
       # APK 那边不受影响：它读的是 file:///android_asset，本来就没有缓存问题。
-      - name: Cache-bust css/js with commit sha
+      #
+      # 这里用的是**网页内容**的哈希，不是提交号：`git rev-parse HEAD:<目录>` 拿的是目录树的
+      # 哈希，只有 www 里的文件真变了才会变。只改 README / workflow 时它一动不动，
+      # 已装到桌面的用户不会白重下 200KB，开着的老页签也不会被刷一次。
+      - name: Cache-bust css/js (hash of the www tree)
         run: |
-          V="${GITHUB_SHA:0:7}"
-          echo "commit $V"
-          for f in site/index.html site/clean/index.html; do
-            sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$V\"#g" "$f"
-            echo "== $f =="
-            grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' "$f"
-          done
+          VF=$(git rev-parse HEAD:app/src/full/assets/www  2>/dev/null | cut -c1-7)
+          VC=$(git rev-parse HEAD:app/src/clean/assets/www 2>/dev/null | cut -c1-7)
+          [ -n "$VF" ] || VF="${GITHUB_SHA:0:7}"
+          [ -n "$VC" ] || VC="${GITHUB_SHA:0:7}"
+          echo "full=$VF  clean=$VC"
+          sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$VF\"#g" site/index.html
+          sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$VC\"#g" site/clean/index.html
+          echo "== 根目录（完整版）"
+          grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' site/index.html
+          echo "== /clean/（纯净版）"
+          grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' site/clean/index.html
           # 页签开太久时的版本对照：页面里那段自检脚本会来拿这个文件
-          echo "{\"v\":\"$V\"}" > site/build.json
-          echo "{\"v\":\"$V\"}" > site/clean/build.json
+          echo "{\"v\":\"$VF\"}" > site/build.json
+          echo "{\"v\":\"$VC\"}" > site/clean/build.json
           cat site/build.json
 
       # Service Worker 的缓存名跟着提交号走：名字一变浏览器就认成「新 SW」，
       # 重新 install 时把整套文件重新拉一遍，activate 再删掉上一版 —— 不用手动清缓存。
       # 两版（根目录 / clean/）各有一份 sw.js，都要换。
+      # 缓存名跟上面同一个哈希：内容没变就不换名字，SW 不重装，用户不白下 200KB。
       - name: Stamp service worker cache name
         run: |
-          V="${GITHUB_SHA:0:7}"
-          for f in site/sw.js site/clean/sw.js; do
-            [ -f "$f" ] || { echo "缺少 $f"; exit 1; }
-            sed -i "s/__BUILD__/$V/g" "$f"
-            echo "== $f =="
-            grep -n "var CACHE" "$f"
-          done
+          VF=$(git rev-parse HEAD:app/src/full/assets/www  2>/dev/null | cut -c1-7)
+          VC=$(git rev-parse HEAD:app/src/clean/assets/www 2>/dev/null | cut -c1-7)
+          [ -n "$VF" ] || VF="${GITHUB_SHA:0:7}"
+          [ -n "$VC" ] || VC="${GITHUB_SHA:0:7}"
+          [ -f site/sw.js ]       || { echo "缺少 site/sw.js"; exit 1; }
+          [ -f site/clean/sw.js ] || { echo "缺少 site/clean/sw.js"; exit 1; }
+          sed -i "s/__BUILD__/$VF/g" site/sw.js
+          sed -i "s/__BUILD__/$VC/g" site/clean/sw.js
+          grep -n "var CACHE" site/sw.js site/clean/sw.js
 
       - uses: actions/configure-pages@v5
 
