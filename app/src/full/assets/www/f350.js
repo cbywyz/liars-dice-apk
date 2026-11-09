@@ -101,6 +101,7 @@
     hand: [],           // [{ v: 0..6, sel: bool }]  v=0 是还没摇，sel 是被点中要拿走的
     round: 0,
     taken: [],          // 本回合已经收下的点数，按收的先后排（分数下面那排小骰子）
+    took: false,        // 这一把是否已经收过骰子：收过之后剩下的还能接着收，不用重摇
     phase: 'ready',     // ready | rolled | bust | over
     shakeAt: 0
   };
@@ -152,6 +153,7 @@
       G.hand = blankHand();
       // 同理，收下的那串骰子也不恢复 —— 它配的是「刚才那一摇」，留着只会对不上
       G.taken = [];
+      G.took = false;
       return true;
     } catch (e) { return false; }
   }
@@ -182,6 +184,7 @@
     G.turn = 0;
     G.round = 0;
     G.taken = [];
+    G.took = false;
     G.phase = 'ready';
     G.hand = blankHand();
     savePlayerCount(n);
@@ -193,6 +196,7 @@
     clearTimeout(S.timer);
     G.round = 0;
     G.taken = [];
+    G.took = false;
     G.hand = blankHand();
     G.phase = 'ready';
     save();
@@ -233,6 +237,7 @@
 
     vibrate(18);
     playShake();
+    G.took = false;
     G.phase = 'rolled';
     save();
     render();
@@ -249,6 +254,7 @@
       current().lion = (current().lion || 0) + 1;
       G.round = 0;
       G.taken = [];
+      G.took = false;
       G.hand = blankHand();
       G.phase = 'ready';
       save();
@@ -268,6 +274,7 @@
          现在结果留在桌上，等玩家自己按「清零重摇」—— 看够再走。 */
       G.round = 0;
       G.taken = [];
+      G.took = false;
       G.phase = 'bust';
       save();
       render();
@@ -311,12 +318,18 @@
     if (!rest.length) {
       // 一颗不剩：下一把重新从 7 颗开始
       G.hand = blankHand();
+      G.phase = 'ready';
+      G.took = false;
       hint('收完了 · 拿回 7 颗继续摇', 'good');
     } else {
+      /* 留在「待选」相位而不是 ready：这一把桌上往往还有别的 1 和 5，
+         收走一颗就把剩下的路堵死太别扭 —— 双击一颗、再点另一颗，照样能收。
+         不想收了就按主按钮，它会变成「摇剩下 N 颗」。 */
       G.hand = rest;
-      hint('还剩 ' + rest.length + ' 颗 · 继续摇');
+      G.phase = 'rolled';
+      G.took = true;
+      hint('还剩 ' + rest.length + ' 颗 · 还能接着收，或者摇一摇');
     }
-    G.phase = 'ready';
     vibrate(22);
     save();
     render();
@@ -519,11 +532,20 @@
       list.push({ t: '再来一局', cls: 'primary', act: 'restart' });
     } else if (G.phase === 'rolled') {
       var gain = pickedSum();
-      list.push({
-        t: gain ? '收下 ' + gain + ' 分' : '点骰子收分',
-        cls: 'primary' + (gain ? '' : ' is-off'),
-        act: 'pick'
-      });
+      var left = liveHand().length;
+      if (gain) {
+        list.push({ t: '收下 ' + gain + ' 分', cls: 'primary', act: 'pick' });
+      } else if (G.took) {
+        /* 这一把已经收过了、现在一颗没选：主按钮直接给「继续摇」，
+           否则玩家盯着一个灰的「点骰子收分」不知道下一步该干嘛 */
+        list.push({
+          t: left && left < DICE ? '摇剩下 ' + left + ' 颗' : '摇一摇',
+          cls: 'primary',
+          act: 'roll'
+        });
+      } else {
+        list.push({ t: '点骰子收分', cls: 'primary is-off', act: 'pick' });
+      }
     } else if (G.phase === 'bust') {
       list.push({ t: '清零重摇', cls: 'primary', act: 'bust' });
     } else {
@@ -699,6 +721,7 @@
       /* 玩家自己按的：拿回 7 颗、清掉桌上结果，还是他摇 */
       G.hand = blankHand();
       G.phase = 'ready';
+      G.took = false;
       save();
       render();
       hint('拿回 ' + DICE + ' 颗 · 摇一摇继续');
@@ -711,6 +734,7 @@
     S.timer && clearTimeout(S.timer);
     G.round = 0;
     G.taken = [];
+    G.took = false;
     G.phase = 'ready';
     G.turn = 0;
     G.hand = blankHand();
@@ -1050,6 +1074,7 @@
       G: G,
       setHand: function (vals) {
         G.hand = vals.map(function (v) { return { v: v, sel: false }; });
+        G.took = false;
         G.phase = 'rolled';
         // 提示文字必须跟着改：只换手牌不改提示的话，
         // 截图/截图检查会看到「剩 5 颗」配 6 颗骰子，看起来像 bug，其实是钩子自己的错。
