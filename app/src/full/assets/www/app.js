@@ -1481,7 +1481,8 @@
       '<img src="apple-touch-icon.png" alt="">' +
       '<div class="a2hs-prev-tx"><strong>骰子</strong><span>加完桌面就多这个图标</span></div>' +
       '</div>' +
-      '<div class="rule-lead">从桌面点开是全屏的，没有地址栏，跟装的 App 一样。</div>';
+      '<div class="rule-lead">从桌面点开是全屏的，没有地址栏，跟装的 App 一样；' +
+        '联网打开过一次之后，<strong>断网也能摇</strong>。</div>';
 
     if (inApp) {
       h += steps('先跳出微信 / QQ 的内置浏览器', [

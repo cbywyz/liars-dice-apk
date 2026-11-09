@@ -102,6 +102,19 @@ jobs:
           echo "{\"v\":\"$V\"}" > site/clean/build.json
           cat site/build.json
 
+      # Service Worker 的缓存名跟着提交号走：名字一变浏览器就认成「新 SW」，
+      # 重新 install 时把整套文件重新拉一遍，activate 再删掉上一版 —— 不用手动清缓存。
+      # 两版（根目录 / clean/）各有一份 sw.js，都要换。
+      - name: Stamp service worker cache name
+        run: |
+          V="${GITHUB_SHA:0:7}"
+          for f in site/sw.js site/clean/sw.js; do
+            [ -f "$f" ] || { echo "缺少 $f"; exit 1; }
+            sed -i "s/__BUILD__/$V/g" "$f"
+            echo "== $f =="
+            grep -n "var CACHE" "$f"
+          done
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
@@ -349,12 +362,30 @@ jobs:
             - iPhone 依旧是 Safari（iOS 的系统限制，别的浏览器的分享列表里没有「添加到主屏幕」）
             - 入口点开一律先给这一页说明，不再直接甩一个没有上下文的系统安装框
 
+            **⑲ 网页版现在真的能断网玩了（以前只是写在文档里）**
+
+            - 网页版加到桌面之后「图标、全屏、跟 App 没区别」这句是真的，但**离线一直是空的**：
+              `sw.js` 写在目录里却从来没人注册，页面全靠现下 —— 飞行模式打开就是白屏。
+              这恰好是 APK 唯一还赢的地方
+            - 现在页面底部会注册 Service Worker：第一次联网打开时把页面、两个玩法脚本、样式、音效
+              一起存进本机（约 200 KB），之后断网打开直接读本机那份
+            - **更新照旧是最新的**：策略是网络优先，联网时每次都去拿最新部署；只有慢网（1.5 秒没响应）
+              和断网才用缓存。不会出现「更新了刷新还是旧的」—— 那是缓存优先才有的毛病
+            - 缓存名里带提交号（`liars-dice:full:<commit>`），每次部署名字都变，浏览器当成新 SW 重装一遍，
+              `activate` 里删掉上一版，不用手动清缓存
+            - 完整版和纯净版同一个域名共用 `Cache Storage`，所以缓存名分了 `full` / `clean` 两组，
+              `activate` **只删自己这一组** —— 两个都装着、来回切，也不会互相把对方缓存清掉
+            - APK 是 `file://` 加载，浏览器不给 `file://` 注册 SW，所以那段在 App 里什么都不做，两边不打架
+            - 实测（`_real/test_pwa.py`，真断网、真刷新）：SW 激活 / 缓存键不带 query / 断网 reload 出画面 /
+              断网进 350 摇出 7 颗 / 改文件再刷新拿到新版 / 两版缓存并存 —— 16 条全过
+
             **顺手修的两件事（都在网页版）**
 
             - 之前出过「页面版本号是新的、豹子玩法还是旧的」：手机浏览器把旧 JS 记在 HTTP 缓存里，
               **清浏览器缓存也没用**（很多国产浏览器「清理缓存」只清一部分）。现在发布时给 css/js 的
               URL 挂上提交号，每次部署 URL 都不一样，旧缓存永远匹配不上
-            - 断网时这些带参数的 URL 在缓存里找不到，回退那一步加了 `ignoreSearch`，不至于拿一份 HTML 当 JS 用
+            - 断网时这些带参数的 URL 在缓存里找不到，回退那一步加了 `ignoreSearch`（Service Worker 里也是同一套判断），
+              不至于拿一份 HTML 当 JS 用
 
             **上一版就有、这版照旧**
 

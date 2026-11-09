@@ -25,16 +25,16 @@ android {
         full {
             dimension "edition"
             applicationId "com.cbywyz.liarsdice"
-            versionCode 50
-            versionName "1.10.20"
+            versionCode 51
+            versionName "1.10.21"
             resValue "string", "app_name", "吹牛骰子"
         }
         // 纯净版：只有摇骰 / 掀盖 / 锁定这些基本玩法，页面上和完整版长得一样
         clean {
             dimension "edition"
             applicationId "com.cbywyz.liarsdice.clean"
-            versionCode 24
-            versionName "1.10.20"
+            versionCode 25
+            versionName "1.10.21"
             resValue "string", "app_name", "吹牛骰子"
         }
     }
