@@ -1,5 +1,8 @@
 name: build
 
+# 平时的改动只发网页版（40 秒左右），在手机上用浏览器验；验完确认没问题，
+# 再手动触发一次（workflow_dispatch）才编 APK、出 Release ——
+# 编一次 APK 要好几分钟，每版都编等于拿打包时间换试错次数。
 on:
   push:
     branches: [ main, master ]
@@ -15,6 +18,8 @@ permissions:
 jobs:
   # ---------- 安卓：编译两份 APK（完整版 + 纯净版） ----------
   apk:
+    # 只认手动触发：push 只更新网页，不发版
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
