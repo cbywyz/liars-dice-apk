@@ -1450,7 +1450,11 @@
     try { localStorage.setItem(KEY, '1'); } catch (e) {}
   }
 
-  if (standalone || seen()) return;
+  /* APK 里读的是 file:///android_asset/www/index.html —— 它本身就是装好的 App，
+     再劝人「添加到桌面」纯属添乱。网页版走 http(s)，这条自然不会命中。 */
+  var hostApp = location.protocol === 'file:';
+
+  if (standalone || hostApp || seen()) return;
 
   var isIOS = /iPad|iPhone|iPod/.test(UA) ||
     (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1);

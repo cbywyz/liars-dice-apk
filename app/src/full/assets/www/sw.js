@@ -10,7 +10,7 @@
  * 都不一样，旧缓存永远匹配不上。代价是断网时这些带参数的 URL 在缓存里找不到，
  * 所以回退那一步必须 ignoreSearch —— 否则断网会拿到一份 HTML 当 JS 用，整个包挂掉。
  */
-var CACHE = 'liars-dice-v38';
+var CACHE = 'liars-dice-v39';
 var FILES = [
   './',
   './index.html',
