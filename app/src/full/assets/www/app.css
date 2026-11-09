@@ -88,9 +88,48 @@ button[disabled] { opacity: 1; }
   text-indent: 0.5333vw;
 }
 
-.sound-btn {
+/* 左上角的返回箭头：二级页面统一用它。
+   比在底部摆一条「← 返回」省地方，也更符合「往后退」的直觉 */
+.nav-back {
   position: absolute;
   left: 3.2vw;
+  top: 50%;
+  width: 8.8vw;
+  height: 8.8vw;
+  margin: -4.4vw 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.09),
+              0 0.5333vw 1.3333vw rgba(35, 38, 45, 0.06);
+  color: #23262d;
+  z-index: 7;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+.nav-back:active { transform: scale(0.9); opacity: 0.86; }
+.nav-back svg {
+  width: 4.8vw;
+  height: 4.8vw;
+  display: block;
+  /* 描边不随缩放变形：跟着 viewBox 走，箭头任何尺寸都一个粗细观感 */
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* 选玩法页没有顶栏，箭头直接贴在标题上方 */
+.page-solo .nav-back { top: 3.2vw; margin-top: 0; }
+
+.sound-btn {
+  position: absolute;
+  /* 往右挪一格，把左上角让给返回箭头 */
+  left: 13.6vw;
   top: 50%;
   width: 8.8vw;
   height: 8.8vw;

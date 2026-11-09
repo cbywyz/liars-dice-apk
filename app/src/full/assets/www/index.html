@@ -63,7 +63,7 @@
 
     <div class="home-tip" id="homeTip"></div>
 
-    <div class="home-foot" id="homeVer">v1.10.3 · 仅供朋友聚会娱乐</div>
+    <div class="home-foot" id="homeVer">v1.10.4 · 仅供朋友聚会娱乐</div>
   </div>
 </div>
 
@@ -71,7 +71,13 @@
 <div class="page page-solo" id="pageSolo" hidden>
 
   <div class="home">
-    <!-- 标题 + 卡片包一层：让这一组在「返回」上方居中，别都挤在顶上 -->
+    <button class="nav-back" id="soloBack" aria-label="返回首页">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+
+    <!-- 标题 + 卡片包一层：让这一组在整页里垂直居中，别都挤在顶上 -->
     <div class="solo-body">
       <div class="home-head">
         <div class="home-t1">单人</div>
@@ -113,10 +119,6 @@
       </button>
       </div>
     </div>
-
-    <div class="home-foot">
-      <button class="mode-link" id="soloBack">← 返回首页</button>
-    </div>
   </div>
 </div>
 
@@ -124,6 +126,11 @@
 
   <!-- 顶部：标题（长按 1.2 秒 = 隐藏入口） -->
   <div class="nav">
+    <button class="nav-back" id="toSolo" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
     <div class="sound-btn" id="soundBtn"><span class="sound-ic" id="soundIc">🔊</span></div>
     <div class="nav-title" id="titleBtn">
       <span class="t1">吹牛骰子</span>
@@ -172,9 +179,8 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span>v1.10.3</span>
+      <span>v1.10.4</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
-      <button class="mode-link" id="toSolo">← 返回</button>
     </div>
   </div>
 
@@ -234,6 +240,11 @@
 <div class="page page-f350" id="pageF350" hidden>
 
   <div class="nav">
+    <button class="nav-back" id="toSolo2" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
     <div class="nav-title">
       <span class="t1">350</span>
       <span class="t2">THREE FIFTY</span>
@@ -262,6 +273,8 @@
       <span class="f3-score-num" id="f3ScoreNum">0</span>
       <span class="f3-score-unit">本回合</span>
     </div>
+    <!-- 这一回合已经收下的骰子：分数是它们加起来的结果 -->
+    <div class="f3-taken" id="f3Taken" hidden></div>
     <div class="f3-hint" id="f3Hint">满 350 才能收手 · 封顶 700</div>
   </div>
 
@@ -269,7 +282,6 @@
 
   <div class="foot">
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
-    <button class="mode-link" id="toSolo2">← 返回</button>
   </div>
 </div>
 

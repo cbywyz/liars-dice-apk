@@ -100,6 +100,7 @@
     turn: 0,
     hand: [],           // [{ v: 0..6, sel: bool }]  v=0 是还没摇，sel 是被点中要拿走的
     round: 0,
+    taken: [],          // 本回合已经收下的点数，按收的先后排（分数下面那排小骰子）
     phase: 'ready',     // ready | rolled | bust | over
     shakeAt: 0
   };
@@ -149,6 +150,8 @@
       G.phase = o.phase === 'over' ? 'over' : 'ready';
       // 手牌不恢复：刷新回来就在「等他摇」的状态，避免摇到一半的尴尬
       G.hand = blankHand();
+      // 同理，收下的那串骰子也不恢复 —— 它配的是「刚才那一摇」，留着只会对不上
+      G.taken = [];
       return true;
     } catch (e) { return false; }
   }
@@ -178,6 +181,7 @@
     G.order = [];
     G.turn = 0;
     G.round = 0;
+    G.taken = [];
     G.phase = 'ready';
     G.hand = blankHand();
     savePlayerCount(n);
@@ -188,6 +192,7 @@
   function newTurn() {
     clearTimeout(S.timer);
     G.round = 0;
+    G.taken = [];
     G.hand = blankHand();
     G.phase = 'ready';
     save();
@@ -243,6 +248,7 @@
     if (isLion(list)) {
       current().lion = (current().lion || 0) + 1;
       G.round = 0;
+      G.taken = [];
       G.hand = blankHand();
       G.phase = 'ready';
       save();
@@ -261,6 +267,7 @@
       /* 爆掉不自动收：1.6 秒就清零的话，桌上好几个人还没看清点数就没了。
          现在结果留在桌上，等玩家自己按「清零重摇」—— 看够再走。 */
       G.round = 0;
+      G.taken = [];
       G.phase = 'bust';
       save();
       render();
@@ -295,7 +302,7 @@
 
     var rest = [];
     for (var i = 0; i < G.hand.length; i++) {
-      if (G.hand[i].v && G.hand[i].sel) { /* 被收走 */ }
+      if (G.hand[i].v && G.hand[i].sel) G.taken.push(G.hand[i].v);  /* 被收走，摆到分数下面 */
       else rest.push({ v: G.hand[i].v, sel: false });
     }
 
@@ -465,6 +472,44 @@
       + (v >= CAP ? ' max' : v >= BASE ? ' ok' : '');
   }
 
+  /* 分数下面那排小骰子：本回合已经被收走的 1 和 5。
+     分数只是个数字，「350」和「2 个 1 + 3 个 5」是两回事，
+     把骰子摆出来才知道分是怎么攒起来的。
+     封顶 700、每颗最少 50，所以一回合最多 14 颗，一行排得下。 */
+  function renderTaken() {
+    var box = el.taken;
+    if (!box) return;
+    var list = G.taken || [];
+    /* 分数和颗数就能唯一确定这串骰子（100×1 的数 + 50×5 的数），
+       没变就别重建 —— 否则每次 render 都会把动画重放一遍 */
+    var key = list.length + '/' + G.round;
+    if (box.getAttribute('data-key') === key) return;
+
+    var prev = parseInt(box.getAttribute('data-n') || '0', 10);
+    box.innerHTML = '';
+    for (var i = 0; i < list.length; i++) {
+      var v = list[i];
+      var w = document.createElement('div');
+      /* 只有新收的那颗弹一下，前面几颗保持不动 */
+      w.className = 'tk-die' + (i >= prev ? ' new' : '');
+      var d = document.createElement('div');
+      d.className = 'die';
+      var cells = PIPS[v] || [];
+      for (var c = 0; c < cells.length; c++) {
+        var p = document.createElement('div');
+        p.className = 'pip' + (RED[v] ? ' red' : '');
+        p.style.left = CELL[cells[c] % 3] + '%';
+        p.style.top = CELL[Math.floor(cells[c] / 3)] + '%';
+        d.appendChild(p);
+      }
+      w.appendChild(d);
+      box.appendChild(w);
+    }
+    box.hidden = !list.length;
+    box.setAttribute('data-key', key);
+    box.setAttribute('data-n', String(list.length));
+  }
+
   function renderBtns() {
     if (!el.btns) return;
     el.btns.innerHTML = '';
@@ -514,6 +559,7 @@
     renderPlayers();
     renderDice();
     renderScore();
+    renderTaken();
     renderBtns();
     /* 顶栏那个「N 人」：还没开局时显示上次选的人数 */
     if (el.pCount) el.pCount.textContent = (G.players.length || loadPlayerCount()) + ' 人';
@@ -664,6 +710,7 @@
     closeMask();
     S.timer && clearTimeout(S.timer);
     G.round = 0;
+    G.taken = [];
     G.phase = 'ready';
     G.turn = 0;
     G.hand = blankHand();
@@ -691,6 +738,7 @@
     el.dice = $('f3Dice');
     el.score = $('f3ScoreBox');
     el.scoreNum = $('f3ScoreNum');
+    el.taken = $('f3Taken');
     el.hint = $('f3Hint');
     el.btns = $('f3Btns');
     el.pop = $('f3Mask');
@@ -1014,6 +1062,7 @@
       state: function () {
         return {
           phase: G.phase, round: G.round, turn: G.turn,
+          taken: (G.taken || []).slice(),
           hand: G.hand.map(function (x) { return x.v; }),
           sel: G.hand.map(function (x) { return !!x.sel; }),
           players: G.players.map(function (p) {

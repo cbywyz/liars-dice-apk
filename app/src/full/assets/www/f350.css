@@ -12,21 +12,18 @@
 
 /* ---------------- 玩家记分条 ---------------- */
 
+/* 一排 4 个，多了往下折行：12 个人正好 3 行，一屏全看得见。
+   早先是横向滚动条，12 个人只能看见前 4 个，还得划半天才对得上号。 */
 .p-strip {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 1.6vw;
   padding: 1.6vw 4vw 2.6667vw;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
   flex: 0 0 auto;
 }
-.p-strip::-webkit-scrollbar { display: none; }
 
 .p-card {
-  flex: 0 0 auto;
-  min-width: 20.8vw;
+  min-width: 0;
   padding: 1.8667vw 2.9333vw;
   border-radius: 3.2vw;
   background: rgba(255, 255, 255, 0.72);
@@ -235,6 +232,43 @@
   42% { transform: scale(1.12); }
   100% { transform: scale(1); }
 }
+
+/* ---------------- 收下的骰子 ---------------- */
+
+/* 分数下面那一排：这一回合已经被拿走的 1 和 5，按收的先后排 */
+.f3-taken {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  /* 0.55 而不是 0.8：封顶那一下最多 14 颗（700 / 每颗最少 50），
+     间距小一点才能在 88vw 里排成一整行，不至于孤零零掉下来一颗 */
+  gap: 0.55vw;
+  margin-top: 1.3333vw;
+}
+/* hidden 属性得自己兜一下：上面那句 display:flex 会盖掉浏览器默认的 display:none */
+.f3-taken[hidden] { display: none; }
+
+.f3-taken .tk-die {
+  --ds: 5.6vw;
+  flex: 0 0 auto;
+  width: var(--ds);
+  height: var(--ds);
+  border-radius: calc(var(--ds) * 0.29);
+}
+
+/* 收下来的那一颗轻轻落进队尾，一眼看出刚才是哪颗进的分 */
+.f3-taken .tk-die.new {
+  animation: tkIn 0.28s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+@keyframes tkIn {
+  from { opacity: 0; transform: translateY(-26%) scale(0.7); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 桌面那套 .die 默认 opacity:0（等 .f3-dice 里的动画点亮），
+   这里的小骰子是静态的，直接给回透明度 */
+.f3-taken .die { opacity: 1; }
 
 .f3-hint {
   margin-top: 2.4vw;
