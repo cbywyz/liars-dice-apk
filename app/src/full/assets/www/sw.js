@@ -1,10 +1,12 @@
 /* 离线缓存：装到桌面后断网也能玩 */
-var CACHE = 'liars-dice-v25';
+var CACHE = 'liars-dice-v26';
 var FILES = [
   './',
   './index.html',
   './app.css',
   './app.js',
+  './f350.css',
+  './f350.js',
   './manifest.webmanifest',
   './assets/audio/shake.mp3',
   './apple-touch-icon.png',

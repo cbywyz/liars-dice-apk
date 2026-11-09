@@ -15,18 +15,23 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="f350.css">
 </head>
 <body>
 
-<div class="page">
+<div class="page page-liar">
 
   <!-- 顶部：标题 -->
   <div class="nav">
+    <div class="sound-btn" id="soundBtn"><span class="sound-ic" id="soundIc">🔊</span></div>
     <div class="nav-title" id="titleBtn">
       <span class="t1">吹牛骰子</span>
       <span class="t2">LIAR'S DICE</span>
     </div>
-    <div class="sound-btn" id="soundBtn"><span class="sound-ic" id="soundIc">🔊</span></div>
+    <!-- 骰子数量：公开功能，点了从底部弹一条 2~10 的选择 -->
+    <div class="count-btn" id="countBtn">
+      <span id="countTxt">5 颗</span><i class="count-caret"></i>
+    </div>
   </div>
 
   <!-- 骰盅舞台 -->
@@ -63,14 +68,67 @@
   <div class="controls">
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
-    <div class="foot">v1.9.2 · 仅供朋友聚会娱乐</div>
+    <div class="foot">
+      <span>v1.10.0 · 仅供朋友聚会娱乐</span>
+      <button class="mode-link" id="toF350">350 玩法</button>
+    </div>
   </div>
 
 
 </div>
 
+<!-- ==================== 350 玩法（第二种玩法，无盖 · 明骰） ==================== -->
+<div class="page page-f350" id="pageF350" hidden>
+
+  <div class="nav">
+    <div class="nav-title">
+      <span class="t1">350</span>
+      <span class="t2">THREE FIFTY</span>
+    </div>
+  </div>
+
+  <!-- 玩家记分条：当前回合的人反色高亮 -->
+  <div class="p-strip" id="pStrip"></div>
+
+  <!-- 桌面：骰子直接摊开，没有盖 -->
+  <div class="f3-stage">
+    <div class="f3-table">
+      <div class="f3-dice" id="f3Dice"></div>
+    </div>
+  </div>
+
+  <!-- 本回合分数 -->
+  <div class="f3-panel">
+    <div class="f3-score" id="f3ScoreBox">
+      <span class="f3-score-num" id="f3ScoreNum">0</span>
+      <span class="f3-score-unit">本回合</span>
+    </div>
+    <div class="f3-hint" id="f3Hint">满 350 才能收手 · 封顶 700</div>
+  </div>
+
+  <div class="f3-btns" id="f3Btns"></div>
+
+  <div class="foot">
+    <button class="mode-link" id="toLiar">吹牛骰子</button>
+  </div>
+</div>
+
+<div class="f3-mask" id="f3Mask" style="display:none"></div>
+
 <div class="toast" id="toast"></div>
 
+<!-- 骰子数量选择：从底部升起的一条，点空白关掉 -->
+<div class="count-mask" id="countMask" style="display:none">
+  <div class="count-bar">
+    <div class="count-head">
+      <span class="count-name">骰子数量</span>
+      <span class="count-sub">改数量会重新开一局</span>
+    </div>
+    <div class="count-list" id="countList"></div>
+  </div>
+</div>
+
 <script src="app.js"></script>
+<script src="f350.js"></script>
 </body>
 </html>

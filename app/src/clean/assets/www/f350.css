@@ -1,0 +1,440 @@
+/* ==========================================================================
+   350 玩法（1 = 100 分，5 = 50 分，摇到 350 才能收手）
+   独立于吹牛骰子的第二套界面。骰子本身复用 app.css 的 .die / .die-slot，
+   尺寸靠槽位上的 --ds 派生，所以这里的骰子长得和主玩法一模一样。
+   1rpx = 100/750vw = 0.1333vw
+   ========================================================================== */
+
+/* .page 本身是 display:flex，会盖过 [hidden] 的默认 display:none，
+   两个页面得各自声明一次才真的能藏起来 */
+.page-liar[hidden],
+.page-f350[hidden] { display: none; }
+
+/* ---------------- 玩家记分条 ---------------- */
+
+.p-strip {
+  display: flex;
+  gap: 1.6vw;
+  padding: 1.6vw 4vw 2.6667vw;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex: 0 0 auto;
+}
+.p-strip::-webkit-scrollbar { display: none; }
+
+.p-card {
+  flex: 0 0 auto;
+  min-width: 20.8vw;
+  padding: 1.8667vw 2.9333vw;
+  border-radius: 3.2vw;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5333vw;
+  transition: background 0.22s ease, box-shadow 0.22s ease;
+}
+
+.p-card.on {
+  background: #23262d;
+  box-shadow: 0 0.8vw 2vw rgba(35, 38, 45, 0.22);
+}
+.p-card.on .p-name { color: rgba(255, 255, 255, 0.66); }
+.p-card.on .p-score { color: #fff; }
+
+.p-card.done { background: rgba(255, 255, 255, 0.42); }
+.p-card.done .p-score { color: rgba(35, 38, 45, 0.42); }
+
+.p-name {
+  font-size: 2.6667vw;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.5);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.8vw;
+}
+
+.p-score {
+  font-size: 4.8vw;
+  font-weight: 600;
+  color: #23262d;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 豹子记录：只做展示，不参与胜负 */
+.p-lion {
+  font-size: 2.2667vw;
+  color: #c9922a;
+  letter-spacing: 0.2667vw;
+  line-height: 1;
+}
+.p-card.on .p-lion { color: #e8b653; }
+
+/* ---------------- 桌面 ---------------- */
+
+.f3-stage {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4vw;
+  min-height: 0;
+}
+
+.f3-table {
+  position: relative;
+  width: 81.3333vw;
+  height: 50vw;
+  border-radius: 5.3333vw;
+  background:
+    radial-gradient(72% 66% at 50% 34%, #2f6344 0%, #224c36 42%, #16301f 100%);
+  box-shadow:
+    inset 0 1.6vw 5.3333vw rgba(0, 0, 0, 0.55),
+    inset 0 -1.6vw 3.2vw rgba(46, 96, 64, 0.22),
+    0 1.6vw 4vw rgba(46, 34, 20, 0.16);
+}
+
+/* 毡面纹理：两层极淡的斜纹，让大块绿色不至于太平 */
+.f3-table::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 2px, rgba(0, 0, 0, 0) 2px 5px);
+  pointer-events: none;
+}
+
+.f3-dice {
+  position: absolute;
+  inset: 0;
+}
+
+/* ---------------- 骰子（尺寸由 --ds 派生，其余规则在 app.css） ---------------- */
+
+.f3-dice .die-slot {
+  --ds: 15vw;                   /* 初始值，真正的边长由 f350.js 按颗数算 */
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.f3-dice .die {
+  opacity: 1;
+  animation: f3drop 0.32s cubic-bezier(0.16, 1.1, 0.3, 1) both;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.3, 1),
+    box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+@keyframes f3drop {
+  from { transform: translateY(-22%) scale(0.9); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* 还没摇的骰位：只留一个淡影，表示「这儿待会儿有 7 颗」 */
+.f3-dice .die.blank {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 0.2vw rgba(255, 255, 255, 0.1);
+}
+
+/* 能计分的骰子（还没点）：只给一点暖光和角标，不描边 ——
+   描边留给「已经点了」的那种，不然两颗看起来一样，分不清拿了没 */
+.f3-dice .die-slot.countable .die {
+  box-shadow: 0 calc(var(--ds) * 0.05) 0 #cdbb9a,
+    0 calc(var(--ds) * 0.07) calc(var(--ds) * 0.03) rgba(90, 70, 45, 0.35),
+    0 calc(var(--ds) * 0.15) calc(var(--ds) * 0.2) rgba(0, 0, 0, 0.52),
+    0 calc(var(--ds) * 0.1) calc(var(--ds) * 0.2) rgba(201, 146, 42, 0.42),
+    inset 0 calc(var(--ds) * 0.04) calc(var(--ds) * 0.06) rgba(255, 255, 255, 0.95),
+    inset 0 calc(var(--ds) * -0.05) calc(var(--ds) * 0.08) rgba(158, 136, 102, 0.3);
+}
+
+.f3-dice .die-slot.countable .f3-val {
+  background: rgba(201, 146, 42, 0.55);
+  box-shadow: 0 0.3vw 0.8vw rgba(120, 84, 20, 0.18);
+}
+
+/* 点了 = 这颗要拿走：抬起来、金边、角标实心、整体提亮 */
+.f3-dice .die-slot.sel .die {
+  animation: none;
+  transform: translateY(-8%) scale(1.03);
+  filter: brightness(1.05);
+  box-shadow: 0 calc(var(--ds) * 0.05) 0 #cdbb9a,
+    0 calc(var(--ds) * 0.1) calc(var(--ds) * 0.05) rgba(90, 70, 45, 0.42),
+    0 calc(var(--ds) * 0.22) calc(var(--ds) * 0.28) rgba(0, 0, 0, 0.6),
+    0 0 0 calc(var(--ds) * 0.055) #c9922a,
+    inset 0 calc(var(--ds) * 0.04) calc(var(--ds) * 0.06) rgba(255, 255, 255, 0.95),
+    inset 0 calc(var(--ds) * -0.05) calc(var(--ds) * 0.08) rgba(158, 136, 102, 0.3);
+}
+
+.f3-dice .die-slot.sel .f3-val {
+  background: #c9922a;
+  transform: translateY(-14%) scale(1.08);
+  box-shadow: 0 0.7vw 1.8vw rgba(120, 84, 20, 0.5);
+}
+
+/* 角标：100 / 50 */
+.f3-val {
+  position: absolute;
+  right: -1.6vw;
+  top: -1.8667vw;
+  padding: 0.4vw 1.2vw;
+  border-radius: 2.1333vw;
+  font-size: 2.2667vw;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1.35;
+  color: #fff;
+  background: #c9922a;
+  box-shadow: 0 0.4vw 1.0667vw rgba(120, 84, 20, 0.35);
+  pointer-events: none;
+  z-index: 2;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* ---------------- 分数 ---------------- */
+
+.f3-panel {
+  flex: 0 0 auto;
+  padding: 2.1333vw 6vw 1.6vw;
+  text-align: center;
+}
+
+.f3-score {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.6vw;
+}
+
+.f3-score-num {
+  font-size: 11.2vw;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.4vw;
+  color: #23262d;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.24s ease;
+}
+
+/* 到线了：变色，让人一眼看到可以收手了 */
+.f3-score.ok .f3-score-num { color: #1a7a45; }
+.f3-score.max .f3-score-num { color: #c9922a; }
+
+.f3-score-unit {
+  font-size: 3.2vw;
+  color: rgba(35, 38, 45, 0.36);
+  letter-spacing: 0.4vw;
+}
+
+/* 分数跳动 */
+.f3-score-num.bump { animation: f3bump 0.36s cubic-bezier(0.2, 1.4, 0.4, 1); }
+@keyframes f3bump {
+  0% { transform: scale(1); }
+  42% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.f3-hint {
+  margin-top: 2.4vw;
+  font-size: 3.2vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.44);
+  min-height: 4.8vw;
+  transition: color 0.2s ease;
+}
+.f3-hint.warn { color: #c0392b; }
+.f3-hint.good { color: #1a7a45; }
+.f3-hint.gold { color: #c9922a; }
+
+/* ---------------- 按钮 ---------------- */
+
+.f3-btns {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 3.2vw;
+  padding: 1.0667vw 6.6667vw 0;
+}
+
+.f3-btns .btn {
+  flex: 1 1 0;
+  height: 12.8vw;
+  border-radius: 6.4vw;
+  font-size: 4.2667vw;
+  letter-spacing: 0.5333vw;
+}
+
+/* 主按钮（深色）沿用 .btn.primary，副按钮是白底 */
+.f3-btns .btn.ghost {
+  background: rgba(255, 255, 255, 0.9);
+  color: #23262d;
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1), 0 0.8vw 2vw rgba(35, 38, 45, 0.07);
+}
+
+.f3-btns .btn.is-off { opacity: 0.42; }
+
+/* ---------------- 底部 ---------------- */
+
+.page-f350 .foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.1333vw;
+  padding: 2.6667vw 0 3.2vw;
+  font-size: 2.6667vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.3);
+}
+
+.mode-link {
+  font-size: 2.6667vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.46);
+  padding: 1.0667vw 2.6667vw;
+  border-radius: 3.2vw;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.08);
+}
+.mode-link:active { background: rgba(255, 255, 255, 0.95); }
+
+/* 主玩法的 foot 也要能放下左右两块 */
+.page-liar .foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.1333vw;
+}
+
+/* ---------------- 人数 / 结算 弹层 ---------------- */
+
+.f3-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8vw;
+  background: rgba(24, 22, 19, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: f3fade 0.2s ease both;
+}
+@keyframes f3fade { from { opacity: 0; } to { opacity: 1; } }
+
+.f3-sheet {
+  width: 100%;
+  max-width: 84vw;
+  padding: 6vw 5.3333vw 5.3333vw;
+  border-radius: 6.4vw;
+  background: #fdfbf7;
+  box-shadow: 0 4vw 10vw rgba(22, 20, 17, 0.3);
+  animation: f3pop 0.26s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+}
+@keyframes f3pop {
+  from { transform: scale(0.92) translateY(3%); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.f3-sheet-title {
+  display: block;
+  font-size: 4.8vw;
+  font-weight: 600;
+  letter-spacing: 0.5333vw;
+  color: #23262d;
+  text-align: center;
+}
+
+.f3-sheet-sub {
+  display: block;
+  margin-top: 1.3333vw;
+  font-size: 2.9333vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.42);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* 人数：两行胶囊 */
+.f3-nums {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.4vw;
+  justify-content: center;
+  margin: 5.3333vw 0 1.0667vw;
+}
+
+.f3-num {
+  width: 17.6vw;
+  height: 12vw;
+  border-radius: 3.7333vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4.2667vw;
+  font-weight: 600;
+  color: #23262d;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1);
+}
+.f3-num.on {
+  background: #23262d;
+  color: #fff;
+  box-shadow: 0 0.8vw 2vw rgba(35, 38, 45, 0.24);
+}
+
+.f3-sheet .btn {
+  width: 100%;
+  height: 12.8vw;
+  border-radius: 6.4vw;
+  font-size: 4.2667vw;
+  letter-spacing: 0.5333vw;
+  margin-top: 5.3333vw;
+}
+
+/* 结算名次 */
+.f3-rank {
+  margin: 4.2667vw 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vw;
+}
+
+.f3-row {
+  display: flex;
+  align-items: center;
+  gap: 2.6667vw;
+  padding: 2.1333vw 3.2vw;
+  border-radius: 3.2vw;
+  background: rgba(35, 38, 45, 0.045);
+}
+
+.f3-row.win {
+  background: rgba(201, 146, 42, 0.14);
+  box-shadow: inset 0 0 0 0.1333vw rgba(201, 146, 42, 0.4);
+}
+
+.f3-row-no {
+  width: 6.4vw;
+  font-size: 3.7333vw;
+  font-weight: 700;
+  color: rgba(35, 38, 45, 0.34);
+  font-variant-numeric: tabular-nums;
+}
+.f3-row.win .f3-row-no { color: #c9922a; }
+
+.f3-row-name {
+  flex: 1 1 auto;
+  font-size: 3.7333vw;
+  color: #23262d;
+  letter-spacing: 0.4vw;
+}
+
+.f3-row-score {
+  font-size: 4.8vw;
+  font-weight: 700;
+  color: #23262d;
+  font-variant-numeric: tabular-nums;
+}

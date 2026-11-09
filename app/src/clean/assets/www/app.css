@@ -87,7 +87,7 @@ button[disabled] { opacity: 1; }
 
 .sound-btn {
   position: absolute;
-  right: 3.2vw;
+  left: 3.2vw;
   top: 50%;
   width: 8.8vw;
   height: 8.8vw;
@@ -114,6 +114,41 @@ button[disabled] { opacity: 1; }
 .sound-ic {
   font-size: 4vw;
   line-height: 1;
+}
+
+/* 骰子数量：标题右侧的小胶囊，和左边的音效按钮对称 */
+.count-btn {
+  position: absolute;
+  right: 3.2vw;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 8.8vw;
+  padding: 0 3.2vw 0 3.4vw;
+  border-radius: 4.4vw;
+  display: flex;
+  align-items: center;
+  gap: 1.4vw;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.09), 0 0.5333vw 1.3333vw rgba(35, 38, 45, 0.06);
+  font-size: 2.9333vw;
+  font-weight: 500;
+  letter-spacing: 0.4vw;
+  color: #23262d;
+  z-index: 7;
+  transition: transform 0.16s ease;
+}
+
+.count-btn:active {
+  transform: translateY(-50%) scale(0.94);
+}
+
+.count-caret {
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 1.1vw solid transparent;
+  border-right: 1.1vw solid transparent;
+  border-top: 1.2vw solid rgba(35, 38, 45, 0.42);
 }
 
 /* ---------------- 桌面 / 骰盅舞台 ---------------- */
@@ -231,21 +266,26 @@ button[disabled] { opacity: 1; }
 
 .die-slot {
   position: absolute;
-  width: 13.3333vw;
-  height: 13.3333vw;
+  /* 骰子边长。5 颗时是 13.3333vw（=100rpx，原来写死的大小），
+     数量多了由 app.js 按档位改小，骰子上的圆角、投影、点数全部按它派生。 */
+  --ds: 13.3333vw;
+  width: var(--ds);
+  height: var(--ds);
 }
 
 .die {
   width: 100%;
   height: 100%;
-  border-radius: 3.8667vw;
+  border-radius: calc(var(--ds) * 0.29);
   position: relative;
   opacity: 0;
   background: linear-gradient(152deg, #ffffff 0%, #fdfcf8 42%, #f6f0e4 82%, #efe6d4 100%);
-  /* 0.6667vw 实心偏移 = 骰子侧面厚度；后两条是投影与内倒角 */
-  box-shadow: 0 0.6667vw 0 #cdbb9a, 0 0.9333vw 0.4vw rgba(90, 70, 45, 0.35),
-    0 2vw 2.6667vw rgba(0, 0, 0, 0.52),
-    inset 0 0.5333vw 0.8vw rgba(255, 255, 255, 0.95), inset 0 -0.6667vw 1.0667vw rgba(158, 136, 102, 0.3);
+  /* 0.05 倍边长实心偏移 = 骰子侧面厚度；后两条是投影与内倒角 */
+  box-shadow: 0 calc(var(--ds) * 0.05) 0 #cdbb9a,
+    0 calc(var(--ds) * 0.07) calc(var(--ds) * 0.03) rgba(90, 70, 45, 0.35),
+    0 calc(var(--ds) * 0.15) calc(var(--ds) * 0.2) rgba(0, 0, 0, 0.52),
+    inset 0 calc(var(--ds) * 0.04) calc(var(--ds) * 0.06) rgba(255, 255, 255, 0.95),
+    inset 0 calc(var(--ds) * -0.05) calc(var(--ds) * 0.08) rgba(158, 136, 102, 0.3);
 }
 
 .die.in {
@@ -265,27 +305,29 @@ button[disabled] { opacity: 1; }
 
 .pip {
   position: absolute;
-  width: 2.4vw;
-  height: 2.4vw;
-  margin: -1.2vw 0 0 -1.2vw;
+  width: calc(var(--ds) * 0.18);
+  height: calc(var(--ds) * 0.18);
+  margin: calc(var(--ds) * -0.09) 0 0 calc(var(--ds) * -0.09);
   border-radius: 50%;
   background: radial-gradient(circle at 42% 32%, #3a7ddd 0%, #1a56c4 62%, #0f3f96 100%);
-  box-shadow: inset 0 0.2667vw 0.4vw rgba(0, 20, 70, 0.55), inset 0 -0.1333vw 0.1333vw rgba(255, 255, 255, 0.3),
-    0 0.1333vw 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 calc(var(--ds) * 0.02) calc(var(--ds) * 0.03) rgba(0, 20, 70, 0.55),
+    inset 0 calc(var(--ds) * -0.01) calc(var(--ds) * 0.01) rgba(255, 255, 255, 0.3),
+    0 calc(var(--ds) * 0.01) 0 rgba(255, 255, 255, 0.55);
 }
 
 /* 传统骰子：一点、四点是红点 */
 .pip.red {
   background: radial-gradient(circle at 42% 32%, #f0574a 0%, #d5312a 62%, #a8201c 100%);
-  box-shadow: inset 0 0.2667vw 0.4vw rgba(80, 8, 4, 0.5), inset 0 -0.1333vw 0.1333vw rgba(255, 255, 255, 0.3),
-    0 0.1333vw 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 calc(var(--ds) * 0.02) calc(var(--ds) * 0.03) rgba(80, 8, 4, 0.5),
+    inset 0 calc(var(--ds) * -0.01) calc(var(--ds) * 0.01) rgba(255, 255, 255, 0.3),
+    0 calc(var(--ds) * 0.01) 0 rgba(255, 255, 255, 0.55);
 }
 
 /* 一点单独放大 */
 .pip.big {
-  width: 3.7333vw;
-  height: 3.7333vw;
-  margin: -1.8667vw 0 0 -1.8667vw;
+  width: calc(var(--ds) * 0.28);
+  height: calc(var(--ds) * 0.28);
+  margin: calc(var(--ds) * -0.14) 0 0 calc(var(--ds) * -0.14);
 }
 
 .cup-rim {
@@ -460,6 +502,19 @@ button[disabled] { opacity: 1; }
   color: rgba(35, 38, 45, 0.44);
 }
 
+/* 开盖摇出豹子 / 顺子：这一行变色加粗，其余时候是普通灰字 */
+.hint.face-lion {
+  color: #c9922a;
+  font-weight: 700;
+  letter-spacing: 0.5333vw;
+}
+
+.hint.face-straight {
+  color: #1a56c4;
+  font-weight: 700;
+  letter-spacing: 0.5333vw;
+}
+
 .btn-row {
   display: flex;
   justify-content: flex-end;
@@ -563,4 +618,86 @@ button[disabled] { opacity: 1; }
   z-index: 4;
   background: transparent;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------------- 骰子数量选择 ----------------
+   从底部升起的一条，点空白处关掉。 */
+.count-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(28, 26, 22, 0.44);
+  animation: fadeIn 0.2s ease both;
+}
+
+.count-bar {
+  width: 100%;
+  box-sizing: border-box;
+  background: #fbf8f2;
+  border-radius: 5.3333vw 5.3333vw 0 0;
+  padding: 4.2667vw 4vw calc(4.5333vw + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -1.0667vw 3.2vw rgba(40, 32, 20, 0.18);
+  animation: sheetUp 0.26s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.count-head {
+  display: flex;
+  align-items: baseline;
+  gap: 2.4vw;
+  margin-bottom: 3.4667vw;
+  padding-left: 0.8vw;
+}
+
+.count-name {
+  font-size: 3.7333vw;
+  font-weight: 600;
+  color: #23262d;
+  letter-spacing: 0.4vw;
+}
+
+.count-sub {
+  font-size: 2.6667vw;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+.count-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2.6667vw;
+}
+
+.count-item {
+  width: calc((100% - 4 * 2.6667vw) / 5);
+  height: 13.0667vw;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3.2vw;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1);
+  font-family: inherit;
+  font-size: 3.7333vw;
+  font-weight: 600;
+  color: #23262d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.count-item:active {
+  transform: scale(0.93);
+}
+
+.count-item.on {
+  background: #23262d;
+  color: #fdfaf4;
+  box-shadow: inset 0 0 0 0.1333vw #23262d, 0 0.8vw 1.6vw rgba(35, 38, 45, 0.22);
 }

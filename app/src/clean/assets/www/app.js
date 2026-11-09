@@ -21,13 +21,57 @@
   };
   var CELL = [20, 50, 80];
 
-  var SLOTS = [
-    { l: 134, t: 52, r: -9 },
-    { l: 250, t: 44, r: 6 },
-    { l: 366, t: 54, r: -4 },
-    { l: 188, t: 158, r: 8 },
-    { l: 312, t: 164, r: -7 }
-  ];
+  /* 骰子散落布局：按数量排成 1~2 行，行内居中，每颗给一点倾斜，看着像随手撒的。
+     坐标全部是 750 基准的 rpx，和骰盅盅口那块椭圆（600 × 310，圆心 300,155）对得上。
+     数量不是 5 的时候，骰子按档缩小，保证 10 颗也塞得进盅口。 */
+  var LAYOUT = {
+    2:  { cols: 2, size: 132, gx: 26, gy: 0 },
+    3:  { cols: 3, size: 126, gx: 22, gy: 0 },
+    4:  { cols: 2, size: 116, gx: 30, gy: 24 },
+    5:  { cols: 3, size: 110, gx: 20, gy: 14 },
+    6:  { cols: 3, size: 104, gx: 19, gy: 19 },
+    7:  { cols: 4, size: 92,  gx: 16, gy: 21 },
+    8:  { cols: 4, size: 92,  gx: 16, gy: 21 },
+    9:  { cols: 5, size: 82,  gx: 14, gy: 20 },
+    10: { cols: 5, size: 82,  gx: 14, gy: 20 }
+  };
+  var TILT = [-9, 6, -4, 8, -7, 5, -6, 9, -3, 7];
+  var MIN_DICE = 2;
+  var MAX_DICE = 10;
+  var DICE_KEY = 'ld_dice_count';
+
+  var SLOT_CACHE = {};
+  function slotsOf(n) {
+    if (SLOT_CACHE[n]) return SLOT_CACHE[n];
+    var cfg = LAYOUT[n] || LAYOUT[5];
+    var cols = cfg.cols;
+    var size = cfg.size;
+    var gapX = cfg.gx;
+    var gapY = cfg.gy;
+    var rows = Math.ceil(n / cols);
+    var CX = 300;              // 盅口椭圆圆心
+    var CY = 158;
+
+    var totalH = rows * size + (rows - 1) * gapY;
+    var y0 = CY - totalH / 2;
+    var out = [];
+    for (var r = 0; r < rows; r++) {
+      var cnt = Math.min(cols, n - r * cols);
+      var totalW = cnt * size + (cnt - 1) * gapX;
+      var x0 = CX - totalW / 2;
+      for (var c = 0; c < cnt; c++) {
+        var i = r * cols + c;
+        out.push({
+          l: x0 + c * (size + gapX),
+          t: y0 + r * (size + gapY),
+          r: TILT[i % TILT.length],
+          s: size
+        });
+      }
+    }
+    SLOT_CACHE[n] = out;
+    return out;
+  }
 
   var RED_FACES = { 1: true, 4: true };
 
@@ -59,6 +103,38 @@
     return list;
   }
 
+  /* 摇完自动认牌：豹子（1 是万能牌）和顺子（全不同）。
+     纯识别，不改任何点数，两版都有。
+     顺子只在 5~6 颗时成立 —— 超过 6 颗不可能全不同，硬判就是假的。 */
+  function faceOf(values) {
+    var n = values.length;
+    if (!n) return { kind: '' };
+
+    var rest = [];
+    for (var i = 0; i < n; i++) {
+      if (values[i] !== 1) rest.push(values[i]);
+    }
+    var lion = 0;
+    if (!rest.length) {
+      lion = 1;                       // 全是 1
+    } else {
+      var same = true;
+      for (var j = 1; j < rest.length; j++) {
+        if (rest[j] !== rest[0]) { same = false; break; }
+      }
+      if (same) lion = rest[0];
+    }
+    if (lion) return { kind: 'lion', lion: lion, n: n };
+
+    var uniq = [];
+    for (var k = 0; k < n; k++) {
+      if (uniq.indexOf(values[k]) < 0) uniq.push(values[k]);
+    }
+    if (n >= 5 && n <= 6 && uniq.length === n) return { kind: 'straight', n: n };
+
+    return { kind: '' };
+  }
+
   function jitter(base, range) {
     return Math.round(base + (Math.random() * 2 - 1) * range);
   }
@@ -72,6 +148,20 @@
   }
 
   /* ================= 本地存储 / 音效 / 震动 / 提示 ================= */
+
+  /* 骰子数量是公开功能（两版都有），存本地，下次打开还是上次那个数。
+     注意别把这段挪到 STORE_KEY 后面 —— 纯净版是从这里往后剪的。 */
+  function loadDiceCount() {
+    try {
+      var n = parseInt(localStorage.getItem(DICE_KEY) || '', 10);
+      return (n >= MIN_DICE && n <= MAX_DICE) ? n : 5;
+    } catch (e) {
+      return 5;
+    }
+  }
+  function saveDiceCount(n) {
+    try { localStorage.setItem(DICE_KEY, String(n)); } catch (e) {}
+  }
 
   var audio = null;
   function initAudio() {
@@ -129,6 +219,8 @@
       revealed: false,
       lidStyle: '',
       dice: [],
+      diceCount: 5,
+      diceFace: '',            // 'lion' | 'straight' | ''，摇完自动识别用
       hint: '点「摇一摇」开始这一局',
       soundOn: true,
       hasLast: false
@@ -163,6 +255,10 @@
     btnRow: document.getElementById('btnRow'),
     soundBtn: document.getElementById('soundBtn'),
     soundIc: document.getElementById('soundIc'),
+    countBtn: document.getElementById('countBtn'),
+    countTxt: document.getElementById('countTxt'),
+    countMask: document.getElementById('countMask'),
+    countList: document.getElementById('countList'),
     hotZone: document.getElementById('hotZone')
   };
 
@@ -202,10 +298,16 @@
     }
     if (has(keys, 'hint')) {
       el.hint.textContent = d.hint;
+      /* 只有开盖认牌那一下才带 diceFace；别处换提示语就自动把高亮撤掉 */
+      if (!has(keys, 'diceFace')) d.diceFace = '';
+      el.hint.className = 'hint' + (d.diceFace ? ' face-' + d.diceFace : '');
     }
     if (has(keys, 'soundOn')) {
       el.soundIc.textContent = d.soundOn ? '🔊' : '🔇';
       el.soundBtn.classList.toggle('off', !d.soundOn);
+    }
+    if (has(keys, 'diceCount')) {
+      el.countTxt.textContent = d.diceCount + ' 颗';
     }
     if (has(keys, 'state')) stageDirty = true;
     if (has(keys, 'shaking')) stageDirty = true;
@@ -264,6 +366,8 @@
       s.setAttribute('data-i', String(n));
       s.style.left = rpx(it.l);
       s.style.top = rpx(it.t);
+      // 骰子边长随数量变（5 颗 100rpx，10 颗 84rpx），其余尺寸都靠这个变量派生
+      s.style.setProperty('--ds', rpx(it.s || 100));
       s.style.transform = 'rotate(' + it.r + 'deg) scaleY(0.84)';
 
       var box = document.createElement('div');
@@ -350,13 +454,13 @@
   /* ================= 骰子数据 ================= */
 
   function emptyDice() {
-    return SLOTS.map(function (s, i) {
-      return { id: i, value: 0, pips: [], l: s.l, t: s.t, r: s.r };
+    return slotsOf(d.diceCount).map(function (s, i) {
+      return { id: i, value: 0, pips: [], l: s.l, t: s.t, r: s.r, s: s.s };
     });
   }
 
   function makeDice(values) {
-    return SLOTS.map(function (s, i) {
+    return slotsOf(d.diceCount).map(function (s, i) {
       var value = values[i];
       return {
         id: i,
@@ -364,9 +468,63 @@
         pips: pipsOf(value),
         l: jitter(s.l, 6),
         t: jitter(s.t, 6),
-        r: jitter(s.r, 3)
+        r: jitter(s.r, 3),
+        s: s.s
       };
     });
+  }
+
+  /* ================= 骰子数量（公开功能，两版都有） ================= */
+
+  function buildCountList() {
+    el.countList.innerHTML = '';
+    for (var n = MIN_DICE; n <= MAX_DICE; n++) {
+      var b = document.createElement('button');
+      b.className = 'count-item' + (n === d.diceCount ? ' on' : '');
+      b.setAttribute('data-n', String(n));
+      b.type = 'button';
+      b.textContent = String(n);
+      el.countList.appendChild(b);
+    }
+  }
+
+  function openCount() {
+    if (d.shaking) return;
+    buildCountList();
+    el.countMask.style.display = 'flex';
+  }
+
+  function closeCount() {
+    el.countMask.style.display = 'none';
+  }
+
+  /* 换数量就当开新的一局：骰子清空、锁定解除、上一把作废。
+     不清的话，盅里还躺着上一把的 5 颗，改成 7 颗后按「开盖」
+     会翻出一排对不上的牌 —— 数量对不上，点数就没意义了。 */
+  function setDiceCount(n) {
+    n = clamp(Math.round(n), MIN_DICE, MAX_DICE);
+    if (n === d.diceCount) { closeCount(); return; }
+
+    clearTimers();
+    S.lastValues = null;
+    S.progress = 0;
+    saveDiceCount(n);
+    d.diceCount = n;
+
+    setData({
+      diceCount: n,
+      dice: emptyDice(),
+      diceFace: '',
+      state: 'idle',
+      shaking: false,
+      revealed: false,
+      isLocked: false,
+      hasLast: false,
+      lidStyle: lidStyle(0, false),
+      hint: '已改成 ' + n + ' 颗 · 点「摇一摇」开始'
+    });
+    closeCount();
+    vibrate('light');
   }
 
   /* ================= 摇骰 ================= */
@@ -392,7 +550,7 @@
     clearTimers();
     S.shakeTimer = setTimeout(function () {
       S.shakeTimer = null;
-      var values = SLOTS.map(function () { return rollOne(); });
+      var values = slotsOf(d.diceCount).map(function () { return rollOne(); });
       S.lastValues = values.slice();
 
       var patch = {
@@ -476,6 +634,30 @@
     settleLid();
   }
 
+  /* 开盖时给一句话：是豹子还是顺子。两者都不是就照常提示。
+     用盅里此刻摆着的点数算 —— 点骰改过点再开盖，判的也是改过的牌。 */
+  function faceInfo() {
+    var list = d.dice || [];
+    var values = [];
+    for (var i = 0; i < list.length; i++) {
+      if (!list[i].value) return { kind: '', text: '看清点数 · 锁定即结束本局' };
+      values.push(list[i].value);
+    }
+    var f = faceOf(values);
+    if (f.kind === 'lion') {
+      return {
+        kind: 'lion',
+        text: f.lion === 1
+          ? '豹子 · ' + f.n + ' 颗全是 1'
+          : '豹子 · ' + f.n + ' 颗都是 ' + f.lion
+      };
+    }
+    if (f.kind === 'straight') {
+      return { kind: 'straight', text: '顺子 · ' + f.n + ' 颗全不同' };
+    }
+    return { kind: '', text: '看清点数 · 锁定即结束本局' };
+  }
+
   function settleLid() {
     var p = S.progress;
     /* 保留的改进：过了半程就吸附到全开。
@@ -483,12 +665,15 @@
        感觉就是「第一次只能开一点，得再滑一次」。 */
     if (p >= 0.5) {
       S.progress = 1;
+      var fi = faceInfo();
       setData({
         state: 'open',
         revealed: true,
         lidStyle: lidStyle(1, false),
-        hint: '看清点数 · 锁定即结束本局'
+        hint: fi.text,
+        diceFace: fi.kind
       });
+      if (fi.kind) vibrate('medium');
     } else if (p <= 0.015) {
       closeCup();
     } else {
@@ -509,13 +694,15 @@
       return;
     }
     S.progress = 1;
+    var fi = faceInfo();
     setData({
       lidStyle: lidStyle(1, false),
       state: 'open',
       revealed: true,
-      hint: '看清点数 · 锁定即结束本局'
+      hint: fi.text,
+      diceFace: fi.kind
     });
-    vibrate('light');
+    if (fi.kind) vibrate('medium'); else vibrate('light');
   }
 
   function closeCup() {
@@ -630,6 +817,18 @@
     // 音效
     on(el.soundBtn, 'click', function () { setSound(!d.soundOn); });
 
+    // 骰子数量：点标题右边那个「N 颗」拉开选择条
+    on(el.countBtn, 'click', openCount);
+    on(el.countMask, 'click', function (e) {
+      if (e.target === el.countMask) closeCount();
+    });
+    on(el.countList, 'click', function (e) {
+      var t = e.target;
+      while (t && t !== el.countList && !t.getAttribute('data-n')) t = t.parentNode;
+      if (!t || t === el.countList) return;
+      setDiceCount(parseInt(t.getAttribute('data-n'), 10));
+    });
+
     // 骰盅下方空白桌面：从这里起手也能上滑掀盖
     on(el.hotZone, 'touchstart', onHoldStart, { passive: true });
     on(el.hotZone, 'touchmove', function (e) {
@@ -685,6 +884,7 @@
     S.ratio = 750 / (window.innerWidth || 375);
     S.progress = 0;
     S.lastValues = null;
+    d.diceCount = loadDiceCount();
 
     initAudio();
     bindEvents();
@@ -693,7 +893,8 @@
       dice: emptyDice(),
       lidStyle: lidStyle(0, false),
       soundOn: true,
-      isLocked: false
+      isLocked: false,
+      diceCount: d.diceCount
     });
 
     // 首帧把按钮和音效图标补上
