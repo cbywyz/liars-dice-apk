@@ -703,6 +703,74 @@
       b.textContent = list[i].t;
       el.btns.appendChild(b);
     }
+
+    /* 底栏照旧摆着，但豹子还要另外压一层弹窗：见 syncLion 上面的说明 */
+    syncLion();
+  }
+
+  /* ================= 豹子：弹窗二选一 =================
+
+     豹子是这局最值钱、也最容易被看漏的一手。以前只在底栏换两个按钮，
+     摇完盯着桌上骰子数点的人根本不会往下看，回过神来以为「摇出豹子没得选」。
+     现在摇出豹子直接压一层：只给两条路，二选一才继续，谁也漏不掉。
+
+     底栏那两个同名按钮保留（自动化测试和老习惯都还指着它们），和弹窗走同一份实现，
+     不会出现「底栏收下 550、弹窗收下别的数」这种两张皮。
+     点空白处不关 —— 这不是提示，是要拿主意。 */
+  var lionEl = null;
+
+  function lionNode() {
+    if (lionEl) return lionEl;
+    var m = document.createElement('div');
+    m.className = 'lion-mask';
+    m.id = 'lionMask';
+    m.style.display = 'none';
+    m.innerHTML =
+      '<div class="lion-card">' +
+        '<div class="lion-t">豹子！</div>' +
+        '<div class="lion-s" id="lionSub"></div>' +
+        '<div class="lion-v"><b id="lionGain">0</b><span>分</span></div>' +
+        '<div class="lion-n">收下 = 这一把的 1 和 5 全算分，然后锁分换人</div>' +
+        '<div class="lion-btns">' +
+          '<button class="lion-b primary" data-lion="take" id="lionTake">收下</button>' +
+          '<button class="lion-b ghost" data-lion="bust" id="lionBust">清零重摇</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', function (e) {
+      var t = e.target;
+      while (t && t !== m && !t.getAttribute('data-lion')) t = t.parentNode;
+      if (!t || t === m) return;
+      if (t.getAttribute('data-lion') === 'take') lionTake();
+      else doBust();
+    });
+    lionEl = m;
+    return m;
+  }
+
+  function closeLion() {
+    if (lionEl) lionEl.style.display = 'none';
+  }
+
+  function syncLion() {
+    if (G.phase !== 'lion') { closeLion(); return; }
+    var m = lionNode();
+    var g = lionGain();
+    /* 正豹 / 15 豹 从桌上这手现算：存档里不存 lionPure，靠它判断重启后会念错 */
+    var list = liveHand(), allOne = list.length > 0, allFive = list.length > 0;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].v !== 1) allOne = false;
+      if (list[i].v !== 5) allFive = false;
+    }
+    var pure = list.length ? (allOne || allFive) : !!G.lionPure;
+    var sub = m.querySelector('#lionSub');
+    var gain = m.querySelector('#lionGain');
+    var take = m.querySelector('#lionTake');
+    if (sub) sub.textContent = pure ? '正豹 · 桌上其他人每人 2 杯'
+                                    : '15 豹 · 桌上其他人每人 1 杯';
+    if (gain) gain.textContent = g;
+    if (take) take.textContent = '收下 ' + g + ' 分';
+    m.style.display = 'flex';
   }
 
   function render() {
@@ -791,6 +859,9 @@
 
   function showRank() {
     var arr = rankList();
+    /* 没有玩家就没什么好排的。理论上走不到这儿（进 350 时已经建好桌），
+       但真到了这一步也不能让它抛异常 —— 一抛，界面就停在旧按钮上。 */
+    if (!arr.length) { if (G.players.length < 1) newGame(loadPlayerCount()); return; }
     var rows = '';
     for (var i = 0; i < arr.length; i++) {
       rows += '<div class="f3-row' + (i === 0 ? ' win' : '') + '">'
@@ -851,26 +922,33 @@
     if (act === 'roll') onRoll();
     else if (act === 'pick') onPick();
     else if (act === 'lock') lockTurn();
-    else if (act === 'liontake') {
-      /* 认这一把豹子：1 和 5 全算分，收完直接锁，换下一位 */
-      G.round = Math.min(CAP, G.round + lionGain());
-      G.took = true;
-      render();
-      lockTurn();
-    }
-    else if (act === 'bust') {
-      /* 玩家自己按的：拿回 7 颗、清掉桌上结果，还是他摇。
-         豹子走这条时分数也要一起清 —— 按钮上写的就是「清零重摇」。 */
-      G.hand = blankHand();
-      G.round = 0;
-      G.taken = [];
-      G.phase = 'ready';
-      G.took = false;
-      save();
-      render();
-      hint('拿回 ' + DICE + ' 颗 · 摇一摇继续');
-    }
+    else if (act === 'liontake') lionTake();
+    else if (act === 'bust') doBust();
     else if (act === 'restart') restart();
+  }
+
+  /* 豹子的两条路，弹窗和底栏按钮共用同一份实现，免得两边行为悄悄跑偏 */
+  function lionTake() {
+    /* 认这一把豹子：1 和 5 全算分，收完直接锁，换下一位 */
+    G.round = Math.min(CAP, G.round + lionGain());
+    G.took = true;
+    closeLion();
+    render();
+    lockTurn();
+  }
+
+  function doBust() {
+    /* 玩家自己按的：拿回 7 颗、清掉桌上结果，还是他摇。
+       豹子走这条时分数也要一起清 —— 按钮上写的就是「清零重摇」。 */
+    G.hand = blankHand();
+    G.round = 0;
+    G.taken = [];
+    G.phase = 'ready';
+    G.took = false;
+    closeLion();
+    save();
+    render();
+    hint('拿回 ' + DICE + ' 颗 · 摇一摇继续');
   }
 
   function restart() {
@@ -1022,6 +1100,17 @@
 
     /* 离开 350 就把人数弹层收掉：它挂在 body 上，页面藏了它还会浮着 */
     if (mode !== 'f350' && el.pop && el.pop.style.display === 'flex') closeMask();
+    /* 豹子弹窗同理，它也是挂在 body 上的 */
+    if (mode !== 'f350') closeLion();
+
+    /* 第一次进 350（或存档被清掉）：先把桌子摆上，再把人数下拉摊开让人确认。
+       以前这里等人去点右上角的人数按钮才建玩家，新装的人进来是一张 0 人的空桌：
+       摇出豹子点「收下」→ 找不到玩家 → showRank 抛异常 → 界面卡在旧按钮上，
+       看起来就跟「摇出豹子没得选」一样。摆好默认人数、下拉照旧问一遍。 */
+    if (mode === 'f350' && !G.players.length) {
+      newGame(loadPlayerCount());
+      openPDrop();
+    }
 
     /* ld_mode 记"当前在哪一页"，ld_last_play 只记"上次玩哪个玩法"。
        两个混用就会出现「从首页进来被跳过首页」那种 bug，别合。 */

@@ -1215,3 +1215,93 @@ button[disabled] { opacity: 1; }
   padding: 3.2vw 0;
   font-size: 3.7333vw;
 }
+
+/* ==================== 豹子：二选一弹窗 ==================== */
+/* 350 摇出豹子时压这层。豹子最值钱也最容易看漏，只靠底栏换两个按钮，
+   盯着桌上数点的人不会往下看。这里只给两条路，点了才继续。
+   层级压过玩法说明（70）和人数弹层（60）：它是这一步唯一该看的东西。 */
+.lion-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 78;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6.4vw;
+  background: rgba(20, 22, 26, 0.5);
+  animation: ruleFade 0.16s ease both;
+}
+
+.lion-card {
+  width: 100%;
+  max-width: 100%;
+  padding: 7.4667vw 6.4vw 6.4vw;
+  border-radius: 6.4vw;
+  background: #fbf8f3;
+  text-align: center;
+  animation: lionIn 0.24s cubic-bezier(0.2, 0.86, 0.24, 1) both;
+}
+@keyframes lionIn {
+  from { opacity: 0; transform: scale(0.92) translateY(2.6667vw); }
+  to { opacity: 1; transform: none; }
+}
+
+.lion-t {
+  font-size: 6.4vw;
+  font-weight: 600;
+  letter-spacing: 0.8vw;
+  color: #23262d;
+}
+.lion-s {
+  margin-top: 1.6vw;
+  font-size: 3.2vw;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.5);
+}
+/* 这一把值多少分：整张卡里最大的一行，隔着桌子也看得见 */
+.lion-v {
+  margin-top: 4.2667vw;
+  color: #a8842f;
+  line-height: 1;
+}
+.lion-v b {
+  font-size: 14.9333vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+}
+.lion-v span {
+  margin-left: 1.6vw;
+  font-size: 4.2667vw;
+  color: rgba(35, 38, 45, 0.42);
+}
+.lion-n {
+  margin-top: 3.2vw;
+  font-size: 2.9333vw;
+  line-height: 1.5;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+.lion-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2.6667vw;
+  margin-top: 5.8667vw;
+}
+.lion-b {
+  width: 100%;
+  padding: 4vw 0;
+  border-radius: 6.4vw;
+  font-size: 4vw;
+  letter-spacing: 0.8vw;
+  text-align: center;
+}
+.lion-b.primary { background: #23262d; color: #f4f0e9; }
+.lion-b.primary:active { opacity: 0.86; }
+.lion-b.ghost {
+  background: rgba(35, 38, 45, 0.06);
+  color: rgba(35, 38, 45, 0.62);
+}
+.lion-b.ghost:active { background: rgba(35, 38, 45, 0.12); }
