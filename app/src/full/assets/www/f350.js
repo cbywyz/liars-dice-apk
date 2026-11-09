@@ -200,8 +200,8 @@
         G.phase = 'ready';
       }
       if (G.phase === 'lion') {
-        hint(o.lionPure ? '正豹！其他每人喝 2 杯 · 点「清零重摇」继续'
-                        : '15 豹！其他每人喝 1 杯 · 点「清零重摇」继续', 'gold');
+        hint(o.lionPure ? '正豹！其他每人喝 2 杯 · 收下换人，或清零重摇'
+                        : '15 豹！其他每人喝 1 杯 · 收下换人，或清零重摇', 'gold');
       } else if (G.phase === 'bust') {
         hint(bustText(liveHand().length), 'warn');
       } else if (G.phase === 'rolled') {
@@ -315,16 +315,16 @@
       var pure = allOne || allFive;
       G.lionPure = pure;
       current().lion = (current().lion || 0) + 1;
-      G.round = 0;
-      G.taken = [];
       G.took = false;
-      /* 豹子跟爆掉一样，结果留在桌上等人看 —— 一桌人都得看清是正豹还是 15 豹才认账，
-         骰子瞬间变空位等于什么都没发生。按钮只剩「清零重摇」，谁看够了谁按。 */
+      /* 豹子停在桌上，给人两个选择：
+           ① 认账 -> 「收下 X 分 · 换人」，这一把的 1 和 5 全算分（7 颗最少 350、最多 700），收完直接锁
+           ② 不认 -> 「清零重摇」，分数归零、拿回 7 颗，还是他摇
+         以前这里一律清零，等于替玩家做了决定：明明摇出全桌最大的牌，分数却没了。 */
       G.phase = 'lion';
       save();
       render();
-      hint(pure ? '正豹！其他每人喝 2 杯 · 点「清零重摇」继续'
-                : '15 豹！其他每人喝 1 杯 · 点「清零重摇」继续', 'gold');
+      hint(pure ? '正豹！其他每人喝 2 杯 · 收下换人，或清零重摇'
+                : '15 豹！其他每人喝 1 杯 · 收下换人，或清零重摇', 'gold');
       vibrate([16, 60, 16, 60, 26]);
       return;
     }
@@ -349,6 +349,14 @@
     }
 
     hint('点要拿走的 1 和 5 · 不点的留在桌上继续摇');
+  }
+
+  /* 豹子这一把值多少分：7 颗全是 1 和 5，全都计分，所以就是全桌的总和（350~700）。
+     「收下换人」按这个数收，不点收就是清零重摇。 */
+  function lionGain() {
+    var list = liveHand(), g = 0;
+    for (var i = 0; i < list.length; i++) g += pointsOf(list[i].v);
+    return Math.min(CAP, g);
   }
 
   /* 爆掉的文案：一把里一个 1 一个 5 都没有就喝 1 杯；
@@ -663,7 +671,10 @@
       } else {
         list.push({ t: '点骰子收分', cls: 'primary is-off', act: 'pick' });
       }
-    } else if (G.phase === 'bust' || G.phase === 'lion') {
+    } else if (G.phase === 'lion') {
+      list.push({ t: '收下 ' + lionGain() + ' 分', cls: 'primary', act: 'liontake' });
+      list.push({ t: '清零重摇', cls: 'ghost', act: 'bust' });
+    } else if (G.phase === 'bust') {
       list.push({ t: '清零重摇', cls: 'primary', act: 'bust' });
     } else {
       var left = liveHand().length;
@@ -840,9 +851,19 @@
     if (act === 'roll') onRoll();
     else if (act === 'pick') onPick();
     else if (act === 'lock') lockTurn();
+    else if (act === 'liontake') {
+      /* 认这一把豹子：1 和 5 全算分，收完直接锁，换下一位 */
+      G.round = Math.min(CAP, G.round + lionGain());
+      G.took = true;
+      render();
+      lockTurn();
+    }
     else if (act === 'bust') {
-      /* 玩家自己按的：拿回 7 颗、清掉桌上结果，还是他摇 */
+      /* 玩家自己按的：拿回 7 颗、清掉桌上结果，还是他摇。
+         豹子走这条时分数也要一起清 —— 按钮上写的就是「清零重摇」。 */
       G.hand = blankHand();
+      G.round = 0;
+      G.taken = [];
       G.phase = 'ready';
       G.took = false;
       save();
@@ -1148,7 +1169,8 @@
       rules: [
         '拿一颗就少一颗。所以经常会放着 50 分不拿，把 5 留在桌上凑数量，继续搏 1 点。',
         '一把里一个 1、一个 5 都没有 = 爆掉：本回合分数清零，结果留在桌上，点「清零重摇」才拿回 7 颗，还是你摇，不换人。',
-        '7 颗全是 1 和 5 = 豹子：记一次豹子，分数清零，同样点「清零重摇」再继续。',
+        '7 颗全是 1 和 5 = 豹子：记一次豹子。这一步给两个选择 —— 认账就「收下换人」，' +
+        '这一把的 1 和 5 全算分、封顶 700，收完直接锁；不认就「清零重摇」，分数归零、拿回 7 颗还是你摇。',
         '封顶 700 分，到顶自动锁，不用手动点。',
         '比锁定的最终分数，高者赢；同分时先收手的排前面。'
       ],
