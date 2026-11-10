@@ -1488,6 +1488,7 @@
   var body = document.getElementById('a2hsBody');
   var defer = null;        // 浏览器交给我们的安装事件，只能 prompt 一次
   var cancelled = false;   // 用户点了系统框的「取消」，说明页要提一句
+  var noPrompt = false;    // 浏览器发了事件但 prompt() 没反应（华为浏览器就是这样）
 
   function steps(title, arr, note) {
     var h = '<div class="rule-sec"><div class="rule-sec-t">' + title + '</div>';
@@ -1518,6 +1519,9 @@
       h += '<div class="rule-note">刚才那个安装框点了「取消」。想走系统安装就' +
         '<strong>刷新一下本页再点上面那条</strong>（浏览器一个页面只让弹一次）；' +
         '不想刷新就照下面的步骤手动加，加完效果一样。</div>';
+    } else if (noPrompt && !oem) {
+      h += '<div class="rule-note">这个浏览器<strong>没有真的弹出安装框</strong>（它支持一半：' +
+        '会发安装事件，但不给你那个系统框）。照下面的步骤手动加，一样能上桌面。</div>';
     }
 
     if (inApp) {
@@ -1542,9 +1546,9 @@
          **压根不需要「桌面快捷方式」权限**。能拿到 beforeinstallprompt 的浏览器，
          点首页那条就直接弹系统框了，不会走到这一页；走到这里说明只能手动加。 */
       if (oem) {
-        h += '<div class="rule-note">这类手机自带的浏览器<strong>没有一键安装</strong>（系统框不会弹），' +
-          '只能照下面手动加 —— 华为浏览器的「添加到桌面」一直在菜单里，加出来的是快捷方式。' +
-          '想全屏无地址栏，就<strong>用 Edge 或 Chrome 打开同一地址</strong>，菜单里选「安装应用」。</div>';
+        h += '<div class="rule-note">手机自带浏览器<strong>不会弹系统安装框</strong> —— ' +
+          '点了像没反应就是这个原因，不是没点上。照下面手动加就行；' +
+          '想要全屏无地址栏，用 <strong>Edge 或 Chrome</strong> 打开同一地址，菜单里选「安装应用」。</div>';
         h += steps('安卓 · 手机自带浏览器', [
           '点浏览器底部「<strong>≡</strong>」或右上角「<strong>⋮</strong>」把菜单拉出来',
           '找「<strong>添加到桌面 / 添加到主屏幕</strong>」' +
@@ -1641,18 +1645,41 @@
   /* 真正「调起系统安装框」的那一下：把浏览器交过来的事件 prompt 出去，
      用户看到的就是系统的「安装应用」框，点「安装」图标自己上桌面。
      接受 → 收摊、记一下；取消 → 打开说明页兜底（同一个事件只能用一次，
-     所以说明页里写的是「刷新再点」而不是「再点一次」）。 */
-  function promptNow() {
+     所以说明页里写的是「刷新再点」而不是「再点一次」）。
+
+     fallbackMs：等多久还没有任何反应就当「弹不出来」，直接开说明页。
+     为什么需要它：有的浏览器（**实测华为浏览器**）会照发 beforeinstallprompt，
+     但 prompt() 打出去什么都不弹、userChoice 也永远不 resolve —— 页面上就是
+     「点一下完全没反应」，比不给弹框还糟。手机自带浏览器统一挂这个兜底。 */
+  function promptNow(fallbackMs) {
     var d = defer;
     defer = null;
+    if (typeof d.prompt !== 'function') {
+      open();
+      return;
+    }
+    var settled = false;
+    var timer = 0;
     try {
       d.prompt();
     } catch (e) {
       open();
       return;
     }
+    if (fallbackMs) {
+      timer = setTimeout(function () {
+        if (settled) return;
+        /* 系统框真弹出来的话，用户迟早会点一下，userChoice 一定会 settle；
+           这么久没动静，就是这家浏览器没实现 —— 别让人对着没反应的按钮点第二下。 */
+        noPrompt = true;
+        open();
+      }, fallbackMs);
+    }
     if (d.userChoice && d.userChoice.then) {
       d.userChoice.then(function (r) {
+        settled = true;
+        if (timer) clearTimeout(timer);
+        if (noPrompt) return;          // 已经按「弹不出来」处理过了，别再改口成「点了取消」
         if (r && r.outcome === 'accepted') {
           mark();
           bar.hidden = true;
@@ -1662,6 +1689,9 @@
         cancelled = true;
         open();
       }, function () {
+        settled = true;
+        if (timer) clearTimeout(timer);
+        if (noPrompt) return;
         cancelled = true;
         open();
       });
@@ -1669,11 +1699,10 @@
   }
 
   /* 点首页那一条：能直接装就直接弹系统框（一步到位），不能装才给说明页。
-     系统框弹出来之前那句「装了会怎样」也没丢 —— 这条入口的副标题在拿到安装事件时
-     就换成了「点一下直接装」，点下去立刻是系统框，中间不多一层。 */
+     手机自带浏览器额外挂 0.7 秒兜底 —— 它们经常「有事件、没反应」。 */
   bar.addEventListener('click', function () {
     if (defer) {
-      promptNow();
+      promptNow(oem ? 700 : 0);
       return;
     }
     open();
@@ -1684,7 +1713,8 @@
     defer = e;
     bar.hidden = false;
     var t2 = bar.querySelector('.a2hs-t2');
-    if (t2) t2.textContent = '点一下直接装 · 系统会问一次「安装」';
+    if (t2) t2.textContent = oem ? '点一下试试 · 弹不出来会给步骤'
+                                 : '点一下直接装 · 系统会问一次「安装」';
   });
 
   window.addEventListener('appinstalled', function () {
@@ -1704,7 +1734,7 @@
      说得到做不到，比不说更让人失望。 */
   if (isAndroid && oem) {
     var t2o = bar.querySelector('.a2hs-t2');
-    if (t2o) t2o.textContent = '点开看怎么加 · 这个浏览器没有一键装';
+    if (t2o) t2o.textContent = '点一下试试 · 弹不出来会给步骤';
   }
 
   bar.hidden = false;
