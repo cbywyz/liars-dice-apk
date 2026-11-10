@@ -53,7 +53,7 @@ APK 里的 `assets/www` 是从仓库外的两个源码目录同步来的（`liar
 1. **版本号对齐**：`app/build.gradle` 里两个 flavor 的 `versionName` 改成网页版当前的版本号
    （就是 `index.html` 里 `page-ver` 那个），`versionCode` 各 +1。
    网页版会一直往上涨，APK 停在最后一版，不对齐的话 Release 里的包和线上网页号对不上。
-   目前网页版 `1.10.27`，APK 停在 `1.10.22`。
+   目前网页版 `1.10.28`，APK 停在 `1.10.22`。
 2. **先定联机怎么办**：`assets/www` 里已经有联机那两块（`net.js` / `net.css`），但
    `AndroidManifest.xml` **没有 `INTERNET` 权限** —— 编出来的包装上，点「联机模式」会连不上。
    两条路：① 给 APK 加 `INTERNET` 权限（那就得把「不含网络权限」这个说法从文档里改掉）；

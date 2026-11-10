@@ -109,24 +109,43 @@
   /* 摇完自动认牌：豹子（1 是万能牌）和顺子（全不同）。
      纯识别，不改任何点数，两版都有。
      顺子只在 5~6 颗时成立 —— 超过 6 颗不可能全不同，硬判就是假的。 */
+
+  /* 「1 是万能牌」这条只在 5 颗及以上成立。
+     少于 5 颗时只认**正豹**：每一颗点数都相同才算，不许拿 1 顶替。
+     2026-11-11 用户报的 bug：2 颗时 1+2 被判成「两个 2」、1+3 判成「两个 3」，
+     等于两颗牌只要摇出一个 1 就有 1/3 的局报豹子，全错。 */
+  var LION_WILD_MIN = 5;
+
+  /* 这几颗算「几点的豹子」；不是豹子返回 0。
+     · n >= 5：1 是万能牌 —— 去掉所有 1，剩下全部相同即可
+               （11111 / 11333 / 14444 / 11122 / 6 颗 1111112 都算）
+     · n <  5：只认正豹 —— 全部同点才算（1111 / 222 / 33）
+     单颗（n = 1）不算豹子，那是「一颗骰子」，不是牌型。 */
+  function lionOf(values) {
+    var n = values.length, i;
+    if (n < 2) return 0;
+    if (n < LION_WILD_MIN) {
+      for (i = 1; i < n; i++) {
+        if (values[i] !== values[0]) return 0;
+      }
+      return values[0];
+    }
+    var rest = [];
+    for (i = 0; i < n; i++) {
+      if (values[i] !== 1) rest.push(values[i]);
+    }
+    if (!rest.length) return 1;            // 全是 1
+    for (i = 1; i < rest.length; i++) {
+      if (rest[i] !== rest[0]) return 0;
+    }
+    return rest[0];
+  }
+
   function faceOf(values) {
     var n = values.length;
     if (!n) return { kind: '' };
 
-    var rest = [];
-    for (var i = 0; i < n; i++) {
-      if (values[i] !== 1) rest.push(values[i]);
-    }
-    var lion = 0;
-    if (!rest.length) {
-      lion = 1;                       // 全是 1
-    } else {
-      var same = true;
-      for (var j = 1; j < rest.length; j++) {
-        if (rest[j] !== rest[0]) { same = false; break; }
-      }
-      if (same) lion = rest[0];
-    }
+    var lion = lionOf(values);
     if (lion) return { kind: 'lion', lion: lion, n: n };
 
     var uniq = [];
@@ -150,24 +169,12 @@
     return v < min ? min : v > max ? max : v;
   }
 
-  /* 豹子：1 是万能牌 —— 去掉所有 1 之后，剩下的必须全部相同。
-     所以 11111 / 11333 / 14444 / 11114 / 11122 都算豹子。
-     顺子：5 个数互不重复（12345 / 13456 都算）。 */
+  /* 豹子：见上面的 lionOf —— 5 颗起 1 是万能牌，2~4 颗只认正豹。
+     顺子：5 个数互不重复（12345 / 13456 都算）。
+     注意 2~4 颗「互不重复」不算顺子，只有 5~6 颗才可能真有顺子，
+     跟 faceOf 保持一致，免得开盖说「不是顺子」而面板上顺子 chip 亮着。 */
   function quickState(values) {
-    var rest = [];
-    for (var i = 0; i < values.length; i++) {
-      if (values[i] !== 1) rest.push(values[i]);
-    }
-    var lion = 0;
-    if (!rest.length) {
-      lion = 1;                       // 全是 1
-    } else {
-      var same = true;
-      for (var j = 1; j < rest.length; j++) {
-        if (rest[j] !== rest[0]) { same = false; break; }
-      }
-      if (same) lion = rest[0];
-    }
+    var lion = lionOf(values);
 
     var uniq = [];
     for (var k = 0; k < values.length; k++) {
@@ -176,7 +183,8 @@
     var key = values.join('');
     return {
       quickLion: lion,
-      quickStraight: uniq.length === values.length ? 1 : 0,
+      quickStraight: (values.length >= 5 && values.length <= 6 &&
+        uniq.length === values.length) ? 1 : 0,
       quickFixed: key === '12345' ? 1 : key === '23456' ? 2 : 0
     };
   }
@@ -1145,15 +1153,21 @@
 
 
   /* 随机一个豹子：点数随机 × 形态随机。
-     1 是万能牌，所以点「随机豹子」会得到各种样子：
+     5 颗起 1 是万能牌，所以点「随机豹子」会得到各种样子：
        44444 / 14444 / 11444 / 11144 / 11114 / 14144 / 41144 …
      组合数 = 5 个点数 × 31 种排列 = 155 种，不会老是那几个。
      至少保留一个真正的点数，否则就成了「全 1」而不是这个点数的豹子。
-     骰子数量改了就以当前数量为准，凑出来的仍是合法的 N 颗豹子。 */
+     骰子数量改了就以当前数量为准，凑出来的仍是合法的 N 颗豹子。
+     2~4 颗是例外：那时 1 不算万能，只能凑正豹（见 lionOf），带 1 反而不算豹子。 */
   function randomLion() {
     var n = d.diceCount;
     // 点数取 2~6：1 只能组成「1111…」，那是全豹，不是万能
     var v = 2 + Math.floor(Math.random() * 5);
+    if (n < LION_WILD_MIN) {
+      var pure = [];
+      for (var q = 0; q < n; q++) pure.push(v);
+      return pure;                 // n 个一样的点数，正豹
+    }
     // 真点数个数取 1~4 —— 至少留一个 1 才算「万能」。数量少时不能超过 n
     var r = Math.random();
     var k = Math.min(r < 0.15 ? 1 : r < 0.45 ? 2 : r < 0.75 ? 3 : 4, Math.max(1, n - 1));

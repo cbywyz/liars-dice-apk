@@ -106,24 +106,43 @@
   /* 摇完自动认牌：豹子（1 是万能牌）和顺子（全不同）。
      纯识别，不改任何点数，两版都有。
      顺子只在 5~6 颗时成立 —— 超过 6 颗不可能全不同，硬判就是假的。 */
+
+  /* 「1 是万能牌」这条只在 5 颗及以上成立。
+     少于 5 颗时只认**正豹**：每一颗点数都相同才算，不许拿 1 顶替。
+     2026-11-11 用户报的 bug：2 颗时 1+2 被判成「两个 2」、1+3 判成「两个 3」，
+     等于两颗牌只要摇出一个 1 就有 1/3 的局报豹子，全错。 */
+  var LION_WILD_MIN = 5;
+
+  /* 这几颗算「几点的豹子」；不是豹子返回 0。
+     · n >= 5：1 是万能牌 —— 去掉所有 1，剩下全部相同即可
+               （11111 / 11333 / 14444 / 11122 / 6 颗 1111112 都算）
+     · n <  5：只认正豹 —— 全部同点才算（1111 / 222 / 33）
+     单颗（n = 1）不算豹子，那是「一颗骰子」，不是牌型。 */
+  function lionOf(values) {
+    var n = values.length, i;
+    if (n < 2) return 0;
+    if (n < LION_WILD_MIN) {
+      for (i = 1; i < n; i++) {
+        if (values[i] !== values[0]) return 0;
+      }
+      return values[0];
+    }
+    var rest = [];
+    for (i = 0; i < n; i++) {
+      if (values[i] !== 1) rest.push(values[i]);
+    }
+    if (!rest.length) return 1;            // 全是 1
+    for (i = 1; i < rest.length; i++) {
+      if (rest[i] !== rest[0]) return 0;
+    }
+    return rest[0];
+  }
+
   function faceOf(values) {
     var n = values.length;
     if (!n) return { kind: '' };
 
-    var rest = [];
-    for (var i = 0; i < n; i++) {
-      if (values[i] !== 1) rest.push(values[i]);
-    }
-    var lion = 0;
-    if (!rest.length) {
-      lion = 1;                       // 全是 1
-    } else {
-      var same = true;
-      for (var j = 1; j < rest.length; j++) {
-        if (rest[j] !== rest[0]) { same = false; break; }
-      }
-      if (same) lion = rest[0];
-    }
+    var lion = lionOf(values);
     if (lion) return { kind: 'lion', lion: lion, n: n };
 
     var uniq = [];
