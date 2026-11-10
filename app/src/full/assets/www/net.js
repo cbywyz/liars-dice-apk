@@ -358,7 +358,55 @@
     el.kickSub = $('ngKickSub');
     el.kickOk = $('ngKickOk');
     el.kickNo = $('ngKickNo');
+    /* 本局记录：服务端一直在记（state.log），这里只是把它摊开给人翻 */
+    el.logMask = $('ngLog');
+    el.logList = $('ngLogList');
+    el.logBtn = $('ngLogBtn');
+    el.logX = $('ngLogX');
     el.off = null;            // 断线提示条，第一次需要时再插
+  }
+
+  /* ================= 本局记录 =================
+     以前只有「跳一下就没了」的吐司：低头回个消息，抬头只看到牌已经换了。
+     现在能翻回去看 —— 谁摇出豹子、谁被跳过、谁被请出去，全在 log 里。 */
+  function renderLog() {
+    var box = el.logList;
+    if (!box) return;
+    var list = (S.state && S.state.log) || [];
+    box.textContent = '';
+    if (!list.length) {
+      var em = document.createElement('div');
+      em.className = 'lg-empty';
+      em.textContent = '还没有记录 · 打一手就有了';
+      box.appendChild(em);
+      return;
+    }
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i] || {};
+      var row = document.createElement('div');
+      row.className = 'lg-row';
+      row.setAttribute('data-k', it.k || '');
+      var dot = document.createElement('i');
+      dot.className = 'lg-dot';
+      row.appendChild(dot);
+      var tx = document.createElement('span');
+      /* textContent：名字是别人起的，别当成 HTML 拼进去 */
+      tx.textContent = it.text || '';
+      row.appendChild(tx);
+      box.appendChild(row);
+    }
+    /* 最新的一条在最下面，打开时直接看尾巴 */
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function openLog() {
+    if (!el.logMask) return;
+    renderLog();
+    el.logMask.hidden = false;
+  }
+
+  function closeLog() {
+    if (el.logMask) el.logMask.hidden = true;
   }
 
   /* ================= 本地记住的东西 ================= */
@@ -532,6 +580,10 @@
       }
       render();
 
+      /* 面板开着的时候来了新状态：跟着刷一遍。
+         不刷的话别人摇完一手，你手上这份记录还停在打开那一刻。 */
+      if (el.logMask && !el.logMask.hidden) renderLog();
+
       /* 震动只做「该你动了」和「出事了」两种，响太多就变成骚扰。
          手机搁在桌上，靠这一下把人从聊天里叫回来就够了。 */
       if (S.state && S.state.started) {
@@ -645,6 +697,8 @@
     S.handSig = '';
     S.pending = '';
     S.code = '';
+    /* 记录弹层跟着这一桌一起收：换到别的房间还挂着上一桌的战报最容易被误读 */
+    if (el.logMask) el.logMask.hidden = true;
     if (el.dice) el.dice.classList.remove('shaking');
   }
 
@@ -1501,6 +1555,13 @@
     if (el.kickNo) el.kickNo.addEventListener('click', closeKick);
     if (el.kick) el.kick.addEventListener('click', function (ev) {
       if (ev.target === el.kick) closeKick();     // 点背板 = 算了
+    });
+
+    /* 本局记录：页脚那颗 + 弹层本身 */
+    if (el.logBtn) el.logBtn.addEventListener('click', openLog);
+    if (el.logX) el.logX.addEventListener('click', closeLog);
+    if (el.logMask) el.logMask.addEventListener('click', function (ev) {
+      if (ev.target === el.logMask) closeLog();   // 点背板 = 收起
     });
 
     if (el.btns) el.btns.addEventListener('click', function (e) {

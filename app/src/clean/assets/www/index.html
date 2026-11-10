@@ -80,7 +80,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.15.9 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.16.0 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -153,7 +153,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.15.9</span>
+      <span class="page-ver">v1.16.0</span>
     </div>
   </div>
 </div>
@@ -296,7 +296,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.9</span>
+    <span class="page-ver">v1.16.0</span>
   </div>
 </div>
 
@@ -386,8 +386,24 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.9</span>
+    <span class="page-ver">v1.16.0</span>
+    <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
+         服务端一直记着（state.log），这里只是把它摊开。 -->
+    <button class="mode-link" id="ngLogBtn">记录</button>
     <button class="mode-link" id="ngRule">玩法说明</button>
+  </div>
+
+  <!-- lg- 前缀是这两块弹层专用的：页内那块设置面板已经把 .sheet 一系列类名占住了，
+       共用一个类名会让那边的面板跟着变形。 -->
+  <div class="lg-mask" id="ngLog" hidden>
+    <div class="lg-sheet">
+      <div class="lg-head">
+        <span class="lg-title">本局记录</span>
+        <span class="lg-sub">越往下越新 · 最多留 30 条</span>
+      </div>
+      <div class="lg-body" id="ngLogList"></div>
+      <button class="lg-x" id="ngLogX" type="button">知道了</button>
+    </div>
   </div>
 </div>
 
@@ -448,7 +464,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.15.9</span>
+      <span class="page-ver">v1.16.0</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -520,7 +536,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.9</span>
+    <span class="page-ver">v1.16.0</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -577,7 +593,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.9</span>
+    <span class="page-ver">v1.16.0</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -627,7 +643,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.15.9</span>
+        <span class="page-ver">v1.16.0</span>
       </div>
     </div>
   </div>
@@ -709,11 +725,28 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.15.9</span>
+      <span class="page-ver">v1.16.0</span>
+      <button class="mode-link" id="fnLogBtn">记录</button>
+      <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
     </div>
 
     <div class="fn-off" id="fnOff" hidden>连接断了 · 正在重连</div>
+
+    <!-- 本局记录 / 桌上的人：一个弹层两页。
+         记录是「刚才那杯怎么来的」，人是「谁该走了」—— 都是桌上临时要查的事，
+         从页脚点开，比在牌桌上再加两个按钮干净。 -->
+    <div class="lg-mask" id="fnLog" hidden>
+      <div class="lg-sheet">
+        <div class="lg-tabs">
+          <button class="lg-tab is-on" id="fnTabLog" type="button">本局记录</button>
+          <button class="lg-tab" id="fnTabWho" type="button">桌上的人</button>
+        </div>
+        <div class="lg-body" id="fnLogList"></div>
+        <div class="lg-body" id="fnWhoList" hidden></div>
+        <button class="lg-x" id="fnLogX" type="button">知道了</button>
+      </div>
+    </div>
   </div>
 
 </div>

@@ -32,7 +32,10 @@
 
   var S = {
     api: DEFAULT_API, code: '', ws: null, you: null, token: null,
-    st: null, alive: false, retry: 0, retryTimer: 0, pingTimer: 0, tt: 0
+    st: null, alive: false, retry: 0, retryTimer: 0, pingTimer: 0, tt: 0,
+    /* 投票倒计时用：服务端每次广播给的是「还剩几毫秒」，
+       本地换算成一个截止时刻，按钮上的秒数才走得动 */
+    voteUntil: 0, kickUntil: 0, tickTimer: 0
   };
 
   var el = {};
@@ -510,8 +513,7 @@
   }
 
   function onMsg(m) {
-    if (m.t === 'you') {
-      S.you = m.pid;
+    if (m.t === 'you') {      S.you = m.pid;
       S.token = m.token;
       if (m.code) S.code = m.code;
       saveSeat();
@@ -521,6 +523,21 @@
       sendDbg();
       return;
     }
+    /* 被请出去：以前找朋友根本踢不了人，这条消息从来没到过。
+       现在要认它 —— 不然座位上的人凭空消失，他还以为手机网络抽了，
+       会一直点重连。说清楚，然后把座位记录清掉，别让「上一桌」卡在首页。 */
+    if (m.t === 'kicked') {
+      var msg = m.msg || '你被请出了这一桌';
+      try { localStorage.removeItem(SEAT_KEY + S.code); } catch (e) {}
+      clearLast();
+      leaveAll();
+      /* 回到「进房」那一屏，把那句话留在房号下面：
+         这一屏没有吐司，直接切到选玩法页的话，人被踢了却什么都没看见 */
+      if (window.F350 && window.F350.switchTo) window.F350.switchTo('findnet');
+      tip(msg);
+      return;
+    }
+
     if (m.t === 'err') {
       /* 服务端的拒绝就是最终答案（次数用完 / 没轮到你 / 已经锁了），
          直接照它说的显示，不在本地猜一套 */
@@ -530,6 +547,9 @@
     if (m.t === 'state') {
       var prev = S.st;
       S.st = m.s;
+      /* 倒计时按「服务器说还剩多久」重新起算：手机时间准不准都不影响 */
+      S.voteUntil = S.st && S.st.vote ? Date.now() + S.st.vote.left : 0;
+      S.kickUntil = S.st && S.st.kick ? Date.now() + S.st.kick.left : 0;
       if (S.st && S.st.game && S.st.game !== 'find') {
         tip('这个房号是「潮汕 350」的房间，不是找朋友');
         return;
@@ -561,6 +581,22 @@
       }
       var prevPhase = prev ? prev.phase : '';
       render();
+
+      /* 有人发起重开 / 有人想请谁出去：不说一句，桌上只会看见按钮突然变了样 */
+      if (S.st.vote && !(prev && prev.vote)) {
+        flash(nameOf(idxIn(S.st, S.st.vote.by)) + ' 发起重开 · 要 ' +
+              S.st.vote.need + ' 人同意');
+        buzz(12);
+      }
+      if (S.st.kick && !(prev && prev.kick)) {
+        flash('有人想请 ' + nameOf(idxIn(S.st, S.st.kick.target)) + ' 出去 · 要 ' +
+              S.st.kick.need + ' 人同意');
+      }
+      /* 弹层开着就跟着刷：别人投了一票，你手上那份不该停在打开那一刻 */
+      if (el.logMask && !el.logMask.hidden) {
+        if (sheetTab === 'log') renderLog(); else paintPeople();
+      }
+      if (S.st.vote || S.st.kick) startTick(); else stopTick();
       if (prev && prev.started && S.st.started && shakeSound(prev, S.st)) playShake();
       if (prev && prev.started && S.st.started) {
         if (prev.phase !== S.st.phase) {
@@ -600,6 +636,11 @@
     S.code = '';
     S.st = null;
     S.you = null;
+    /* 弹层和倒计时跟着这一桌一起收：换一桌还挂着上一桌的战报最容易被误读 */
+    closeSheet();
+    stopTick();
+    S.voteUntil = 0;
+    S.kickUntil = 0;
     showOff(false);
     render();
   }
@@ -873,6 +914,136 @@
     }, 2200);
   }
 
+  /* ================= 本局记录 / 桌上的人 =================
+
+     找朋友这边以前一条记录都不显示 —— 服务端 findLog 一直在记，
+     前端一次都没画过。于是「公骰撞到谁」「这杯为什么算两杯」全靠当场看见，
+     低头回个消息就全错过了。现在页脚有「记录」，摊开来慢慢翻。
+
+     踢人同理：动作白名单里原本没有，12 人的局里有人走了、有人乱点，
+     房主只有「重开一桌」这一把大锤。现在「桌上的人」里能点他出去。 */
+  var sheetTab = 'log';
+
+  function secLeft(until) {
+    if (!until) return 0;
+    return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+  }
+
+  function renderLog() {
+    var box = el.logList;
+    if (!box) return;
+    var list = (S.st && S.st.log) || [];
+    box.textContent = '';
+    if (!list.length) {
+      var em = document.createElement('div');
+      em.className = 'lg-empty';
+      em.textContent = '还没有记录 · 打一手就有了';
+      box.appendChild(em);
+      return;
+    }
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i] || {};
+      var row = document.createElement('div');
+      row.className = 'lg-row';
+      row.setAttribute('data-k', it.k || '');
+      var dot = document.createElement('i');
+      dot.className = 'lg-dot';
+      row.appendChild(dot);
+      var tx = document.createElement('span');
+      /* textContent：名字是别人起的，不能当 HTML 拼 */
+      tx.textContent = it.text || '';
+      row.appendChild(tx);
+      box.appendChild(row);
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function paintPeople() {
+    var box = el.whoList;
+    if (!box || !S.st) return;
+    var st = S.st;
+    box.textContent = '';
+    for (var i = 0; i < st.seats.length; i++) {
+      var s = st.seats[i];
+      var mine = s.id === st.you;
+      var off = s.online === false;
+      var k = st.kick && st.kick.target === s.id ? st.kick : null;
+
+      var row = document.createElement('div');
+      row.className = 'who-row' + (mine ? ' me' : '') + (off ? ' is-off' : '');
+
+      var nm = document.createElement('span');
+      nm.className = 'who-n';
+      nm.textContent = s.name + (mine ? '（我）' : '');
+      row.appendChild(nm);
+
+      var cu = document.createElement('span');
+      cu.className = 'who-c';
+      cu.textContent = (s.cups | 0) + ' 杯' + (off ? ' · 掉线' : '');
+      row.appendChild(cu);
+
+      /* 自己那一行不给按钮：踢自己请点左上角的返回 */
+      if (!mine) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'who-x' + (k ? ' is-on' : '');
+        b.setAttribute('data-pid', s.id);
+        if (k) {
+          b.textContent = '同意 ' + k.yes.length + '/' + k.need +
+            (secLeft(S.kickUntil) ? ' · ' + secLeft(S.kickUntil) + 's' : '');
+        } else {
+          /* 房主点了直接走，别人点了只是发起投票 —— 按钮上就写明，免得按下去没反应 */
+          b.textContent = isHost() ? '请出去' : '发起投票';
+        }
+        row.appendChild(b);
+      }
+      box.appendChild(row);
+    }
+
+    var tip = document.createElement('div');
+    tip.className = 'who-tip';
+    tip.textContent = isHost()
+      ? '你是房主：点「请出去」当场生效，不用别人同意。'
+      : '点「发起投票」：在线的三分之二同意才请得出去，45 秒没人接着点就作废。';
+    box.appendChild(tip);
+  }
+
+  function setTab(tab) {
+    sheetTab = tab === 'who' ? 'who' : 'log';
+    if (el.tabLog) el.tabLog.classList.toggle('is-on', sheetTab === 'log');
+    if (el.tabWho) el.tabWho.classList.toggle('is-on', sheetTab === 'who');
+    if (el.logList) el.logList.hidden = sheetTab !== 'log';
+    if (el.whoList) el.whoList.hidden = sheetTab !== 'who';
+    if (sheetTab === 'log') renderLog();
+    else paintPeople();
+  }
+
+  function openSheet(tab) {
+    if (!el.logMask) return;
+    el.logMask.hidden = false;
+    setTab(tab || 'log');
+  }
+
+  function closeSheet() {
+    if (el.logMask) el.logMask.hidden = true;
+  }
+
+  /* 票数上的秒数得自己走：服务端只在状态变化时推一次 left，
+     没人动的话那条 45 秒的倒计时会僵在那儿。 */
+  function startTick() {
+    if (S.tickTimer) return;
+    S.tickTimer = setInterval(function () {
+      var live = S.st && (S.st.vote || S.st.kick);
+      if (!live) { stopTick(); return; }
+      paintBtns();
+      if (sheetTab === 'who' && el.whoList && !el.whoList.hidden) paintPeople();
+    }, 1000);
+  }
+
+  function stopTick() {
+    if (S.tickTimer) { clearInterval(S.tickTimer); S.tickTimer = 0; }
+  }
+
   function btn(act, text, cls, dis) {
     return '<button class="' + cls + '" type="button" data-act="' + act + '"' +
       (dis ? ' disabled' : '') + '>' + text + '</button>';
@@ -912,7 +1083,18 @@
       else h += '<div class="fn-wait">等 ' + nameOf(nx) + ' 接手</div>';
     }
 
-    if (isHost()) h += btn('freset', '重开一桌', 'fn-mini');
+    /* 重开一桌：跟 350 一样改成投票（在线的三分之二，45 秒不投就散）。
+       以前只有房主能按，按下去就把一桌人的杯子全清了 —— 手滑一下很难看。
+       已经投过的人再点一下就是撤回，比「再点一次确认」清楚。 */
+    var v = st.vote;
+    var myVote = !!(v && v.yes && v.yes.indexOf(st.you) >= 0);
+    var vt = '重开一桌';
+    if (v) {
+      vt = '重开 ' + v.yes.length + '/' + v.need + (myVote ? ' · 撤回' : '');
+      var sv = secLeft(S.voteUntil);
+      if (sv) vt += ' · ' + sv + 's';
+    }
+    h += btn('freset', vt, v ? 'fn-mini on' : 'fn-mini');
     el.btns.innerHTML = h;
   }
 
@@ -962,6 +1144,30 @@
        联机这一屏以前连入口都没有，等于新来的人只能看着房号框猜怎么玩。 */
     if (el.rule) el.rule.addEventListener('click', function () {
       if (window.F350 && window.F350.rules) window.F350.rules('findnet');
+    });
+
+    /* 页脚两个入口：记录 / 桌上的人，同一个弹层两页 */
+    if (el.logBtn) el.logBtn.addEventListener('click', function () { openSheet('log'); });
+    if (el.whoBtn) el.whoBtn.addEventListener('click', function () { openSheet('who'); });
+    if (el.tabLog) el.tabLog.addEventListener('click', function () { setTab('log'); });
+    if (el.tabWho) el.tabWho.addEventListener('click', function () { setTab('who'); });
+    if (el.logX) el.logX.addEventListener('click', closeSheet);
+    if (el.logMask) el.logMask.addEventListener('click', function (e) {
+      if (e.target === el.logMask) closeSheet();      // 点背板 = 收起
+    });
+
+    /* 桌上的人：点那一行右边的按钮 = 请出去（房主）或发起投票（其他人）。
+       已经投过同一个人就变成撤回 —— 按错了不用求人帮忙撤销。 */
+    if (el.whoList) el.whoList.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-pid]') : null;
+      if (!b || !S.st) return;
+      var pid = b.getAttribute('data-pid');
+      var k = S.st.kick;
+      if (k && k.target === pid && k.yes && k.yes.indexOf(S.st.you) >= 0) {
+        send({ t: 'unvotekick' });
+      } else {
+        send({ t: 'kick', pid: pid });
+      }
     });
 
     el.code.addEventListener('input', function () {
@@ -1015,13 +1221,11 @@
       else if (act === 'fskip') send({ t: 'fskip' });
       else if (act === 'fnext') send({ t: 'fnext' });
       else if (act === 'freset') {
-        if (new Date().getTime() - (S.resetAt || 0) > 2500) {
-          S.resetAt = new Date().getTime();
-          tip('再点一次「重开一桌」，杯子就清了');
-          return;
-        }
-        S.resetAt = 0;
-        send({ t: 'freset' });
+        /* 已经投过就撤回，没投过就投一票。
+           不再要「再点一次确认」——投票本身就是那个确认。 */
+        var vv = S.st && S.st.vote;
+        if (vv && vv.yes && vv.yes.indexOf(S.st.you) >= 0) send({ t: 'unvote' });
+        else send({ t: 'restart' });
       }
     });
 
@@ -1120,6 +1324,10 @@
       seats: $('fnSeats'), core: $('fnCore'), coreDice: $('fnCoreDice'),
       coreTag: $('fnCoreTag'), hint: $('fnHint'), btns: $('fnBtns'), off: $('fnOff'),
       whoName: $('fnWhoName'),
+      /* 本局记录 / 桌上的人：页脚两个入口，一个弹层两页 */
+      logMask: $('fnLog'), logList: $('fnLogList'), whoList: $('fnWhoList'),
+      logBtn: $('fnLogBtn'), whoBtn: $('fnWhoBtn'), logX: $('fnLogX'),
+      tabLog: $('fnTabLog'), tabWho: $('fnTabWho'),
       /* 暗门：长按标题开面板，牌桌中段那三格是「快捷键」 */
       title: $('fnTitle'), hot: $('fnHot'), dbg: $('fnDbg')
     };

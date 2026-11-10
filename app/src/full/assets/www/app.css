@@ -1882,3 +1882,187 @@ body.tap-edit .die-slot:active .die {
 }
 .lion-b.ghost .lb-sub { color: rgba(35, 38, 45, 0.42); }
 .lion-b.ghost:active { background: rgba(35, 38, 45, 0.12); }
+
+/* ---------------- 底部弹层：本局记录 / 桌上的人 ----------------
+
+   和调试面板（find.css 的 .dbg-*）长得像，但**刻意不共用类名**：
+   纯净版会把 .dbg- 那一段整块剪掉，共用就等于连记录面板一起剪没了。
+   这里是牌桌上公开的功能，两版都得有。 */
+
+.lg-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(24, 26, 31, 0.42);
+  padding: 0 4vw calc(4vw + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+/* display:flex 会盖过 [hidden] 自带的 display:none —— 不补这一句，
+   面板一进牌桌就是开着的（调试面板当初就踩过） */
+.lg-mask[hidden] { display: none; }
+
+.lg-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 74vh;
+  background: #fff;
+  border-radius: 5.3333vw;
+  padding: 4.8vw 4.2667vw 3.7333vw;
+  box-sizing: border-box;
+  box-shadow: 0 2.6667vw 8vw rgba(20, 22, 26, 0.28);
+  animation: lgUp 0.22s ease-out;
+}
+
+@keyframes lgUp {
+  from { transform: translateY(6vw); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+.lg-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8vw;
+  padding: 0 1.0667vw 2.6667vw;
+}
+.lg-title {
+  font-size: 4.5333vw;
+  font-weight: 600;
+  letter-spacing: 0.32vw;
+  color: #23262d;
+}
+.lg-sub {
+  font-size: 2.6667vw;
+  letter-spacing: 0.16vw;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+/* 记录会长到十几条：只让这一块滚，头尾（标题、按钮）别跟着跑 */
+.lg-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 1.0667vw;
+}
+.lg-body[hidden] { display: none; }
+
+.lg-x {
+  margin-top: 3.2vw;
+  width: 100%;
+  height: 11.7333vw;
+  border: 0;
+  border-radius: 3.2vw;
+  background: rgba(35, 38, 45, 0.06);
+  font: inherit;
+  font-size: 3.4667vw;
+  letter-spacing: 0.32vw;
+  color: #23262d;
+}
+.lg-x:active { background: rgba(35, 38, 45, 0.12); }
+
+/* 一行一条：左边一个小圆点按类型上色，右边一句话。
+   不看时间戳 —— 一桌人只有先后顺序有意义，钟点没人关心。 */
+.lg-row {
+  display: flex;
+  gap: 2.4vw;
+  padding: 2.4vw 0;
+  border-bottom: 1px solid rgba(35, 38, 45, 0.06);
+  font-size: 3.2vw;
+  line-height: 1.45;
+  color: #2c3037;
+}
+.lg-row:last-child { border-bottom: 0; }
+.lg-dot {
+  flex: 0 0 auto;
+  width: 1.6vw;
+  height: 1.6vw;
+  margin-top: 1.7333vw;
+  border-radius: 50%;
+  background: rgba(35, 38, 45, 0.22);
+}
+.lg-row[data-k="join"] .lg-dot    { background: #4a9a6a; }
+.lg-row[data-k="start"] .lg-dot   { background: #4a9a6a; }
+.lg-row[data-k="roll"] .lg-dot    { background: #b5893f; }
+.lg-row[data-k="lock"] .lg-dot    { background: #b5893f; }
+.lg-row[data-k="pick"] .lg-dot    { background: #c2703b; }
+.lg-row[data-k="next"] .lg-dot    { background: #9aa3b2; }
+.lg-row[data-k="skip"] .lg-dot    { background: #9aa3b2; }
+.lg-row[data-k="kick"] .lg-dot    { background: #c2493f; }
+.lg-row[data-k="restart"] .lg-dot { background: #4a7bd6; }
+.lg-row[data-k="again"] .lg-dot   { background: #4a7bd6; }
+.lg-empty {
+  padding: 7.2vw 0 8.8vw;
+  text-align: center;
+  font-size: 3.2vw;
+  letter-spacing: 0.32vw;
+  color: rgba(35, 38, 45, 0.32);
+}
+
+/* 两页切换：记录 / 桌上的人 */
+.lg-tabs {
+  display: flex;
+  gap: 1.6vw;
+  padding: 0 1.0667vw 3.2vw;
+}
+.lg-tab {
+  flex: 1 1 0;
+  height: 9.6vw;
+  border: 0;
+  border-radius: 2.6667vw;
+  background: rgba(35, 38, 45, 0.05);
+  font: inherit;
+  font-size: 3.2vw;
+  letter-spacing: 0.32vw;
+  color: rgba(35, 38, 45, 0.55);
+}
+.lg-tab.is-on { background: #23262d; color: #fff; }
+
+/* 桌上的人：一行一个，右边那颗是「请出去 / 发起投票」 */
+.who-row {
+  display: flex;
+  align-items: center;
+  gap: 2.4vw;
+  padding: 3.2vw 1.0667vw;
+  border-bottom: 1px solid rgba(35, 38, 45, 0.06);
+}
+.who-row:last-child { border-bottom: 0; }
+.who-row .who-n {
+  flex: 1 1 auto;
+  font-size: 3.4667vw;
+  color: #2c3037;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.who-row.me .who-n { color: #b5893f; font-weight: 600; }
+.who-row.is-off .who-n { color: rgba(35, 38, 45, 0.4); }
+.who-row .who-c {
+  flex: 0 0 auto;
+  font-size: 2.9333vw;
+  color: rgba(35, 38, 45, 0.45);
+}
+.who-x {
+  flex: 0 0 auto;
+  min-width: 18vw;
+  padding: 1.6vw 2.4vw;
+  border: 0;
+  border-radius: 2vw;
+  background: rgba(194, 73, 63, 0.1);
+  font: inherit;
+  font-size: 2.9333vw;
+  color: #c2493f;
+}
+.who-x.is-on { background: #c2493f; color: #fff; }
+.who-x:active { opacity: 0.8; }
+.who-tip {
+  padding: 2.6667vw 1.0667vw 1.0667vw;
+  font-size: 2.6667vw;
+  line-height: 1.5;
+  color: rgba(35, 38, 45, 0.4);
+}
