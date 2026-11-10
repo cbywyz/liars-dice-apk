@@ -83,20 +83,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 2026-11-10 起两个版本都在子目录里，根路径只放一张「选版本」的入口页。
-      # 原来完整版占着根路径：把 /clean/ 那几个字母删掉就掉进完整版 ——
-      # 想给客人玩纯净版，一不小心把顺子/豹子/改点全露出来了。
-      # 现在删掉后缀只会到入口页，不会误入任何一个版本。
-      - name: Assemble site (full at /full/, clean at /clean/, landing at /)
+      - name: Assemble site (full at root, clean at /clean/)
         run: |
-          mkdir -p site/full site/clean
-          cp -r app/src/full/assets/www/.  site/full/
+          mkdir -p site/clean
+          cp -r app/src/full/assets/www/.  site/
           cp -r app/src/clean/assets/www/. site/clean/
-          cp landing/index.html site/index.html
-          echo "--- /（入口页）"
+          echo "--- 根目录（完整版）"
           ls site/
-          echo "--- /full/（完整版）"
-          ls site/full/
           echo "--- /clean/（纯净版）"
           ls site/clean/
 
@@ -115,16 +108,16 @@ jobs:
           [ -n "$VF" ] || VF="${GITHUB_SHA:0:7}"
           [ -n "$VC" ] || VC="${GITHUB_SHA:0:7}"
           echo "full=$VF  clean=$VC"
-          sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$VF\"#g" site/full/index.html
+          sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$VF\"#g" site/index.html
           sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$VC\"#g" site/clean/index.html
-          echo "== /full/（完整版）"
-          grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' site/full/index.html
+          echo "== 根目录（完整版）"
+          grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' site/index.html
           echo "== /clean/（纯净版）"
           grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' site/clean/index.html
           # 页签开太久时的版本对照：页面里那段自检脚本会来拿这个文件
-          echo "{\"v\":\"$VF\"}" > site/full/build.json
+          echo "{\"v\":\"$VF\"}" > site/build.json
           echo "{\"v\":\"$VC\"}" > site/clean/build.json
-          cat site/full/build.json
+          cat site/build.json
 
       # Service Worker 的缓存名跟着提交号走：名字一变浏览器就认成「新 SW」，
       # 重新 install 时把整套文件重新拉一遍，activate 再删掉上一版 —— 不用手动清缓存。
@@ -136,11 +129,11 @@ jobs:
           VC=$(git rev-parse HEAD:app/src/clean/assets/www 2>/dev/null | cut -c1-7)
           [ -n "$VF" ] || VF="${GITHUB_SHA:0:7}"
           [ -n "$VC" ] || VC="${GITHUB_SHA:0:7}"
-          [ -f site/full/sw.js ]  || { echo "缺少 site/full/sw.js"; exit 1; }
+          [ -f site/sw.js ]       || { echo "缺少 site/sw.js"; exit 1; }
           [ -f site/clean/sw.js ] || { echo "缺少 site/clean/sw.js"; exit 1; }
-          sed -i "s/__BUILD__/$VF/g" site/full/sw.js
+          sed -i "s/__BUILD__/$VF/g" site/sw.js
           sed -i "s/__BUILD__/$VC/g" site/clean/sw.js
-          grep -n "var CACHE" site/full/sw.js site/clean/sw.js
+          grep -n "var CACHE" site/sw.js site/clean/sw.js
 
       - uses: actions/configure-pages@v5
 
@@ -153,8 +146,7 @@ jobs:
 
       - name: Show URL
         run: |
-          echo "选版本 ${{ steps.deployment.outputs.page_url }}"
-          echo "完整版 ${{ steps.deployment.outputs.page_url }}full/"
+          echo "完整版 ${{ steps.deployment.outputs.page_url }}"
           echo "纯净版 ${{ steps.deployment.outputs.page_url }}clean/"
 
   # ---------- 自动发布：每次构建完都挂一个带两个 APK 的 Release ----------
@@ -204,8 +196,7 @@ jobs:
 
             **iPhone / 其他手机**
 
-            - 选版本（入口页）https://cbywyz.github.io/liars-dice-apk/
-            - 完整版 https://cbywyz.github.io/liars-dice-apk/full/
+            - 完整版 https://cbywyz.github.io/liars-dice-apk/
             - 纯净版 https://cbywyz.github.io/liars-dice-apk/clean/
 
             （Safari → 分享 → 添加到主屏幕，就是桌面图标 + 全屏 + 离线可用）
