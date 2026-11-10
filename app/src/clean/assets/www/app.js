@@ -980,6 +980,11 @@
   var isAndroid = /Android/i.test(UA);
   /* 微信 / QQ / 微博这些内置浏览器加不了桌面图标，得先跳出去 */
   var inApp = /MicroMessenger|QQ\/|Weibo|AlipayClient|DingTalk|Lark|aweme|baiduboxapp/i.test(UA);
+  /* 手机自带的国产浏览器（华为 / 小米 / OPPO / vivo / 夸克 / UC / QQ）：
+     「添加到桌面」一直在菜单里，但它**没有实现 beforeinstallprompt**，装不出 WebAPK ——
+     加出来的是**书签快捷方式**：图标一样、点开还是浏览器里的一页，带着地址栏。
+     所以对这一类不能写「点一下直接装」，得把菜单名字说准、把「会带地址栏」讲明白。 */
+  var oem = /HuaweiBrowser|MiuiBrowser|HeyTapBrowser|VivoBrowser|Quark|UCBrowser|MQQBrowser/i.test(UA);
 
   var mask = document.getElementById('a2hsMask');
   var body = document.getElementById('a2hsBody');
@@ -997,12 +1002,18 @@
   }
 
   function build() {
+    /* 自带浏览器加出来的图标带着地址栏，就别再写「全屏没地址栏」了 —— 说了做不到更糟 */
+    var lead = (isAndroid && oem)
+      ? '加完桌面点开就能玩，图标也在桌面；只是手机自带浏览器加出来的是<strong>桌面快捷方式</strong>，' +
+        '打开时上面会带一条地址栏。'
+      : '从桌面点开是全屏的，没有地址栏，跟装的 App 一样；' +
+        '联网打开过一次之后，<strong>断网也能摇</strong>。';
+
     var h = '<div class="a2hs-prev">' +
       '<img src="apple-touch-icon.png" alt="">' +
       '<div class="a2hs-prev-tx"><strong>骰子</strong><span>加完桌面就多这个图标</span></div>' +
       '</div>' +
-      '<div class="rule-lead">从桌面点开是全屏的，没有地址栏，跟装的 App 一样；' +
-        '联网打开过一次之后，<strong>断网也能摇</strong>。</div>';
+      '<div class="rule-lead">' + lead + '</div>';
 
     /* 系统框弹过又被取消：先说清楚不是没点上，再给手动路子 */
     if (cancelled) {
@@ -1032,13 +1043,25 @@
          走浏览器的「安装应用」—— Chromium 系装的是 WebAPK，图标由系统自己放到桌面，
          **压根不需要「桌面快捷方式」权限**。能拿到 beforeinstallprompt 的浏览器，
          点首页那条就直接弹系统框了，不会走到这一页；走到这里说明只能手动加。 */
-      h += steps('安卓', [
-        '用任意浏览器打开本页（自带浏览器、Chrome、Edge 都行）',
-        '点右上角「<strong>⋮</strong>」，或底部「<strong>≡</strong>」菜单',
-        '优先选「<strong>安装应用</strong>」（有的写「安装」）—— 走这条不用额外权限；' +
-          '没有这一项再选「<strong>添加到主屏幕 / 添加到桌面</strong>」',
-        '确认「安装」/「添加」'
-      ]);
+      if (oem) {
+        h += '<div class="rule-note">这类手机自带的浏览器<strong>没有一键安装</strong>（系统框不会弹），' +
+          '只能照下面手动加 —— 华为浏览器的「添加到桌面」一直在菜单里，加出来的是快捷方式。' +
+          '想全屏无地址栏，就<strong>用 Edge 或 Chrome 打开同一地址</strong>，菜单里选「安装应用」。</div>';
+        h += steps('安卓 · 手机自带浏览器', [
+          '点浏览器底部「<strong>≡</strong>」或右上角「<strong>⋮</strong>」把菜单拉出来',
+          '找「<strong>添加到桌面 / 添加到主屏幕</strong>」' +
+            '（有的在「工具箱」「书签」里，名字不一定一样）',
+          '确认「添加」，桌面上就多一个骰子图标'
+        ], '华为 / 荣耀写「添加到桌面」，小米 / OPPO / vivo 可能写「添加到主屏幕」，位置都在菜单里。');
+      } else {
+        h += steps('安卓', [
+          '用任意浏览器打开本页（自带浏览器、Chrome、Edge 都行）',
+          '点右上角「<strong>⋮</strong>」，或底部「<strong>≡</strong>」菜单',
+          '优先选「<strong>安装应用</strong>」（有的写「安装」）—— 走这条不用额外权限；' +
+            '没有这一项再选「<strong>添加到主屏幕 / 添加到桌面</strong>」',
+          '确认「安装」/「添加」'
+        ]);
+      }
       /* 加完桌面没图标，八成不是浏览器的事，是它没有「创建桌面快捷方式」这个权限 ——
          用户 11-09 用华为 + Edge 实测过：同一个 Edge，授权之后就能加。
          所以这里教怎么开权限，而不是劝人换浏览器（那属于误诊）。 */
@@ -1177,6 +1200,13 @@
     mask.addEventListener('click', function (e) {
       if (e.target === mask) close();
     });
+  }
+
+  /* 自带浏览器加出来的是带地址栏的快捷方式，副标题别写「全屏没地址栏」——
+     说得到做不到，比不说更让人失望。 */
+  if (isAndroid && oem) {
+    var t2o = bar.querySelector('.a2hs-t2');
+    if (t2o) t2o.textContent = '点开看怎么加 · 这个浏览器没有一键装';
   }
 
   bar.hidden = false;
