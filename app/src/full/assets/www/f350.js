@@ -189,9 +189,11 @@
          这两步不能当成「可以接着收」恢复 —— 骰子还摆着，但一颗都不该点得动。 */
       if (o.phase === 'over') {
         G.phase = 'over';
-      } else if (o.phase === 'lion' && (liveHand().length || G.taken.length === DICE)) {
+      } else if (o.phase === 'lion' && isLionValues(lionValsNow())) {
         /* 整轮收齐的豹子桌面是空的（7 颗都在「已收下」那一排），
-           只认 liveHand 会把它当成 ready，白丢一次选择 */
+           只认 liveHand 会把它当成 ready，白丢一次选择。
+           牌面还要按新规则重新认一遍：老存档里可能躺着已经被取消的「15 豹」
+           （1 和 5 混着的 7 颗），不是清一色就当普通状态接上，别让旧局白赚一次正豹。 */
         G.phase = 'lion';
       } else if (o.phase === 'bust' && liveHand().length) {
         G.phase = 'bust';
@@ -202,8 +204,9 @@
         G.phase = 'ready';
       }
       if (G.phase === 'lion') {
-        hint(o.lionPure ? '正豹！其他每人喝 2 杯 · 收下换人，或清零重摇'
-                        : '15 豹！其他每人喝 1 杯 · 收下换人，或清零重摇', 'gold');
+        hint(lionGain() >= BASE
+          ? '豹子！其他每人喝 2 杯 · 收下换人，或清零重摇'
+          : '豹子！其他每人喝 2 杯 · 这手不收分，接着摇', 'gold');
       } else if (G.phase === 'bust') {
         hint(bustText(liveHand().length), 'warn');
       } else if (G.phase === 'rolled') {
@@ -273,24 +276,49 @@
     return out;
   }
 
-  function isLion(list) {
-    if (list.length !== DICE) return false;
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].v !== 1 && list[i].v !== 5) return false;
+  /* 豹子 = 7 颗清一色，**不限点数**（1~6 都算）。
+
+     2026-11-10 先砍掉了「15 豹」（1 和 5 混着的 7 颗也算，喝 1 杯）：
+     350 本来就是「挑 1 和 5 收下」，一回合走到最后，收下的 7 颗必然
+     全是 1 和 5（别的点数根本收不走），于是「出豹子」变成必然发生的事，
+     桌桌都弹、把把都喊人喝，真正稀有的那一手反而被淹在里面。
+
+     同一天接着放开点数：2/3/4/6 的七颗清一色也算豹子。理由很硬 ——
+     这几个点数**收不走**，只可能出现在「一把摇出 7 颗」的那一下，
+     概率是 6/6⁷ = 1/46656（≈四万七千把一回），比只认 1/5 的 1/139968 还稀有。
+     以前这手牌落在「爆掉」里，白喝一杯；现在它比爆掉高级得多：自己不喝，
+     桌上其他人每人 2 杯。只是这几个点数一分不收，所以「收下」那条路走不通，
+     弹窗里只剩「接着摇」（见 lionTake）。
+
+     注意：另一个来源是「整轮收齐」，那条路上收下的必然只有 1 和 5，
+     混着时全等判定自然不成立 —— 不用单独再写一遍。 */
+  function isLionValues(values) {
+    if (!values || values.length !== DICE) return false;
+    var v0 = values[0];
+    if (!v0) return false;
+    for (var i = 1; i < values.length; i++) {
+      if (values[i] !== v0) return false;
     }
     return true;
   }
 
-  /* 正豹 = 清一色 1 或者清一色 5；混着 1 和 5 叫 15 豹。
-     两种豹子判断口径必须一致，所以抽出来，别一处一处抄。 */
-  function lionPureOf(values) {
-    if (!values.length) return false;
-    var one = true, five = true;
-    for (var i = 0; i < values.length; i++) {
-      if (values[i] !== 1) one = false;
-      if (values[i] !== 5) five = false;
+  function isLion(list) {
+    if (!list || list.length !== DICE) return false;
+    var vs = [];
+    for (var i = 0; i < list.length; i++) vs.push(list[i].v);
+    return isLionValues(vs);
+  }
+
+  /* 这一手那 7 颗的点数：一把摇出来的在桌上；整轮收齐的桌面已空，
+     取「已收下」那一排的尾巴（可能攒了 14 颗，只看最后 7 颗）。 */
+  function lionValsNow() {
+    var list = liveHand(), out = [], i;
+    if (list.length) {
+      for (i = 0; i < list.length; i++) out.push(list[i].v);
+      return out;
     }
-    return one || five;
+    var taken = G.taken || [];
+    return taken.slice(Math.max(0, taken.length - DICE));
   }
 
   /* ================= 动作 ================= */
@@ -326,30 +354,32 @@
     for (var r = 0; r < list.length; r++) vs += list[r].v;
     G.rolls = (G.rolls || []).concat([[vs, G.taken.length, list.length]]).slice(-12);
 
-    /* 豹子：7 颗全是 1 和 5 —— 记一次，分数清零，重新拿 7 颗继续摇。
-       正豹（清一色 1 或 5）比 15 豹更狠：桌上其他人喝 2 杯，15 豹喝 1 杯，
-       摇的人自己不喝 —— 所以有人会专门去拼。 */
+    /* 豹子：7 颗清一色，点数不限（1~6 都算）—— 记一次，摇的人自己不喝，
+       桌上其他人每人 2 杯，所以有人会专门去拼。
+       混着的 7 颗 1/5 不算豹子，就是一手大牌，照常点着收。
+       判定必须排在「爆掉」前面：7 个 2 既没有 1 也没有 5，按爆掉处理就白喝一杯。 */
     if (isLion(list)) {
-      var vals = [];
-      for (var q = 0; q < list.length; q++) vals.push(list[q].v);
-      var pure = lionPureOf(vals);
-      G.lionPure = pure;
       current().lion = (current().lion || 0) + 1;
       G.took = false;
       /* 豹子停在桌上，给人两个选择：
            ① 认账 -> 「收下 X 分 · 换人」，这一把的 1 和 5 全算分（7 颗最少 350、最多 700），收完直接锁
+              若这手是 2/3/4/6（一分不收），或者 round 还没到 350，这条路走不通，
+              按钮会变成「不收了 · 接着摇」（见 lionTake / syncLion）
            ② 不认 -> 「清零重摇」，分数归零、拿回 7 颗，还是他摇
          以前这里一律清零，等于替玩家做了决定：明明摇出全桌最大的牌，分数却没了。 */
       G.phase = 'lion';
       save();
       render();
-      hint(pure ? '正豹！其他每人喝 2 杯 · 收下换人，或清零重摇'
-                : '15 豹！其他每人喝 1 杯 · 收下换人，或清零重摇', 'gold');
+      /* 2/3/4/6 的豹子一分不收，说「收下换人」等于骗人 —— 提示跟着能不能收走 */
+      hint(lionGain() >= BASE
+        ? '豹子！其他每人喝 2 杯 · 收下换人，或清零重摇'
+        : '豹子！其他每人喝 2 杯 · 这手不收分，接着摇', 'gold');
       vibrate([16, 60, 16, 60, 26]);
       return;
     }
 
-    /* 爆掉：一个 1 也没有，一个 5 也没有 */
+    /* 爆掉：一个 1 也没有，一个 5 也没有 —— 而且不是豹子（豹子上面已经 return 了，
+       7 个 2 这种既不涨分又不该罚酒的牌，归豹子） */
     var has = false;
     for (var i = 0; i < list.length; i++) {
       if (list[i].v === 1 || list[i].v === 5) { has = true; break; }
@@ -372,8 +402,8 @@
   }
 
   /* 豹子这一手收下能落多少分：已经收下的（G.round）加上桌上还摆着的。
-     一把摇出的豹子 round 是 0，分全在那 7 颗上；整轮收齐的豹子桌面已空，
-     分全在 round 里 —— 两种豹子用同一个数，不长两张皮。 */
+     一把摇出的豹子 round 是 0，分全在那 7 颗上；整轮收齐的桌面已空，
+     分全在 round 里 —— 两种来源用同一个数，不长两张皮。 */
   function lionGain() {
     var list = liveHand(), g = 0;
     for (var i = 0; i < list.length; i++) g += pointsOf(list[i].v);
@@ -410,6 +440,10 @@
     var gain = pickedSum();
     if (!gain) { hint('先点一颗 1 或 5 再收', 'warn'); return; }
 
+    /* render() 结尾会按相位把提示重置成「满 350 才能收手」，
+       所以「收完了」这种一句话结论得攒着、压在 render 后面说。 */
+    var after = null;
+
     var rest = [];
     for (var i = 0; i < G.hand.length; i++) {
       if (G.hand[i].v && G.hand[i].sel) G.taken.push(G.hand[i].v);  /* 被收走，摆到分数下面 */
@@ -419,22 +453,19 @@
     G.round = Math.min(CAP, G.round + gain);
 
     if (!rest.length) {
-      /* 整轮 7 颗全收下 —— 这就是「第二种豹子」。
-         7 颗能全收下来，说明颗颗都是 1 或 5（别的点数根本收不走），跟一把摇出豹子
-         是同一手牌，只是一次摇完还是分两三次摇完的区别。
-         以前这里直接翻篇：分数留在 G.round、骰子变回 7 个空位，玩家还没反应过来
-         这一把就结束了，更没有「收下换人 / 清零重摇」可点 —— 手机上一路玩下来，
-         最常见的「我明明收齐了一手 1 和 5，怎么没弹豹子」就是卡在这一行。 */
-      if (G.taken.length === DICE) {
+      /* 整轮 7 颗全收下。
+         注意：这条路上收下来的**必然**全是 1 和 5（别的点数根本收不走），
+         所以以前「收齐 = 豹子」等于每回合白送一次豹子，桌桌都弹。
+         2026-11-10 起只在牌面真是清一色时才算豹子，混着的照常拿分、继续摇。
+         （这条路上清一色只可能是全 1 或全 5，2/3/4/6 收不走，到不了这里。） */
+      if (isLionValues(G.taken.slice(Math.max(0, G.taken.length - DICE)))) {
         G.hand = blankHand();
         G.phase = 'lion';
         G.took = false;
-        G.lionPure = lionPureOf(G.taken);
         current().lion = (current().lion || 0) + 1;
         save();
         render();
-        hint(G.lionPure ? '正豹！其他每人喝 2 杯 · 收下换人，或清零重摇'
-                        : '15 豹！其他每人喝 1 杯 · 收下换人，或清零重摇', 'gold');
+        hint('豹子！其他每人喝 2 杯 · 收下换人，或清零重摇', 'gold');
         vibrate([16, 60, 16, 60, 26]);
         return;
       }
@@ -442,7 +473,7 @@
       G.hand = blankHand();
       G.phase = 'ready';
       G.took = false;
-      hint('收完了 · 拿回 7 颗继续摇', 'good');
+      after = '收完了 · 拿回 7 颗继续摇';
     } else {
       /* 留在「待选」相位而不是 ready：这一把桌上往往还有别的 1 和 5，
          收走一颗就把剩下的路堵死太别扭 —— 双击一颗、再点另一颗，照样能收。
@@ -455,6 +486,7 @@
     vibrate(22);
     save();
     render();
+    if (after) hint(after, 'good');
 
     if (G.round >= CAP) {
       hint('到顶了 · 直接锁分', 'gold');
@@ -712,7 +744,12 @@
         list.push({ t: '点骰子收分', cls: 'primary is-off', act: 'pick' });
       }
     } else if (G.phase === 'lion') {
-      list.push({ t: '收下 ' + lionGain() + ' 分', cls: 'primary', act: 'liontake' });
+      var lg = lionGain();
+      list.push({
+        t: lg >= BASE ? '收下 ' + lg + ' 分' : '不收了 · 接着摇',
+        cls: 'primary',
+        act: 'liontake'
+      });
       list.push({ t: '清零重摇', cls: 'ghost', act: 'bust' });
     } else if (G.phase === 'bust') {
       list.push({ t: '清零重摇', cls: 'primary', act: 'bust' });
@@ -761,7 +798,7 @@
 
   /* 弹窗里也要再摆一遍这 7 颗：整张卡片压下去，桌上那排被遮得七七八八，
      玩家这时候只看得见一个分数，看不见自己摸的到底是什么牌 ——
-     想确认「这真是豹子吗」「到底是正豹还是 15 豹」，还得把手机歪着从缝里看。
+     想确认「这真是七个一样的吗」「是不是豹子」，还得把手机歪着从缝里看。
      点数用同一套 PIPS / CELL / RED 画（跟桌面、跟「已收下」那排一模一样），
      不会出现弹窗画 5 点、桌上是 4 点这种对不上的事。 */
   function lionDiceHtml(values) {
@@ -832,22 +869,28 @@
     if (G.phase !== 'lion') { closeLion(); return; }
     var m = lionNode();
     var g = lionGain();
-    /* 正豹 / 15 豹 从这一手现算：一把摇出来的看桌上那 7 颗，
-       整轮收齐的看 already 收下的 7 颗（那会儿桌面已经空了） */
-    var list = liveHand(), vals = [];
-    for (var i = 0; i < list.length; i++) vals.push(list[i].v);
-    var fromTable = vals.length > 0;
-    var pure = fromTable ? lionPureOf(vals) : lionPureOf(G.taken);
-    var who = pure ? '正豹 · 桌上其他人每人 2 杯' : '15 豹 · 桌上其他人每人 1 杯';
+    /* 牌面：一把摇出来的看桌上那 7 颗，整轮收齐的看「已收下」的尾巴 */
+    var vals = lionValsNow();
+    if (!vals.length) { closeLion(); return; }
+    var fromTable = liveHand().length > 0;
+    var who = '豹子 · 桌上其他人每人 2 杯';
     if (!fromTable) who += ' · 整轮 7 颗收齐';
     var sub = m.querySelector('#lionSub');
     var gain = m.querySelector('#lionGain');
+    var unit = m.querySelector('.lion-v span');
     var take = m.querySelector('#lionTake');
+    /* 能收的那一档才写「收下 X 分」；2/3/4/6 的豹子一分不收、
+       没满 350 也锁不了，分数那块改成「— 这手不收分」，
+       按钮跟着改成「接着摇」，别给人一个点了没反应的键 */
+    var can = g >= BASE;
     if (sub) sub.textContent = who;
-    if (gain) gain.textContent = g;
+    if (gain) gain.textContent = can ? g : '—';
+    if (unit) unit.textContent = can ? '分' : '这手不收分';
     if (take) {
       var t = take.querySelector('.lb-main');
-      if (t) t.textContent = '收下 ' + g + ' 分';
+      if (t) t.textContent = can ? '收下 ' + g + ' 分' : '不收了 · 接着摇';
+      var ts = take.querySelector('.lb-sub');
+      if (ts) ts.textContent = can ? '分数进账 · 锁分换下一位' : '这手不收分 · 拿回 7 颗接着摇';
     }
     /* 骰子按点数串缓存：没换牌就别重建，否则每次 render 都把进场动画重放一遍 */
     var dz = m.querySelector('#lionDice');
@@ -1016,7 +1059,26 @@
   function lionTake() {
     /* 认这一把豹子：1 和 5 全算分，收完直接锁，换下一位。
        lionGain() 已经含了 G.round，这里别再叠加一次。 */
-    G.round = lionGain();
+    var g = lionGain();
+
+    /* 收不成的那一种豹子：7 个 2/3/4/6（这几个点数一分不收），
+       或者分数还没攒到 350、锁不了。
+       以前这里会一路走到 lockTurn，被「满 350 才能收手」挡回来 ——
+       弹窗关了、分没锁、人没换，看着就像卡死。
+       现在改成：这一手不认账，分数原样留着，拿回 7 颗接着摇。
+       豹子的酒照喝（别人每人 2 杯），只是它换不来分。 */
+    if (g < BASE) {
+      G.hand = blankHand();
+      G.phase = 'ready';
+      G.took = false;
+      closeLion();
+      save();
+      render();
+      hint('豹子 · 其他每人喝 2 杯 · 这手不收分，接着摇', 'gold');
+      return;
+    }
+
+    G.round = g;
     G.took = true;
     closeLion();
     render();
@@ -1383,9 +1445,13 @@
       rules: [
         '拿一颗就少一颗。所以经常会放着 50 分不拿，把 5 留在桌上凑数量，继续搏 1 点。',
         '一把里一个 1、一个 5 都没有 = 爆掉：本回合分数清零，结果留在桌上，点「清零重摇」才拿回 7 颗，还是你摇，不换人。',
-        '7 颗全是 1 和 5 = 豹子：记一次豹子。两种都算 —— 一把摇出 7 颗全是 1 和 5，' +
-        '或者这一回合一颗颗把 7 颗全收下来。这一刻给两个选择：认账就「收下换人」，' +
-        '这一手的 1 和 5 全算分、封顶 700，收完直接锁；不认就「清零重摇」，分数归零、拿回 7 颗还是你摇。',
+        '7 颗<strong>清一色</strong>（点数全一样，1~6 都算）= 豹子：记一次豹子，这一刻给两个选择 —— ' +
+        '认账就「收下换人」，这一手全算分、封顶 700，收完直接锁；不认就「清零重摇」，' +
+        '分数归零、拿回 7 颗还是你摇。',
+        '2、3、4、6 的豹子一分不收（这几个点数本来就不计分），所以它只有「接着摇」这一条路：' +
+        '分数原样留着、拿回 7 颗继续，酒还是别人喝。这种豹子只可能一把摇出来，四万七千把才碰上一回。',
+        '混着 1 和 5 的 7 颗（比如 1115555）<strong>不算豹子</strong>：350 本来就是挑 1 和 5，' +
+        '一回合收到最后必然是这样，不稀罕，当普通的一手大牌收分就行。',
         '封顶 700 分，到顶自动锁，不用手动点。',
         '比锁定的最终分数，高者赢；同分时先收手的排前面。'
       ],
@@ -1394,9 +1460,9 @@
       drinks: [
         '<strong>爆掉</strong>（一把里没有 1 也没有 5）：这个躲不掉，<strong>自己喝 1 杯</strong>；' +
         '如果这一把是 <strong>7 颗全摇</strong>（还没收过骰子、桌上满 7 颗），要<strong>喝双倍 · 2 杯</strong>。然后清零重摇。',
-        '<strong>摇出豹子</strong>：摇的人不喝，台上其他人一起喝 —— ' +
-        '<strong>15 豹</strong>（1 和 5 混着）每人 <strong>1 杯</strong>；' +
-        '<strong>正豹</strong>（清一色 1111111 或 5555555）每人 <strong>2 杯</strong>。',
+        '<strong>摇出豹子</strong>（7 颗点数全一样，1~6 都算）：摇的人不喝，台上其他人每人 <strong>2 杯</strong>。' +
+        '2、3、4、6 的豹子一分不收，纯让别人喝；1 和 5 的豹子还能收下换人。',
+        '混着 1 和 5 的不算豹子，不喝 —— 一回合收满 7 颗必然是这样，要是也算，桌桌都在喝。',
         '所以有人会专门去拼豹子：自己一分不涨、还不用喝，一桌人都得端杯。',
         '<strong>整局打完</strong>：分数最低的喝 <strong>2 杯</strong>。'
       ],
@@ -1405,7 +1471,9 @@
          数字都是按代码里的实际判定算的（7 颗、记分只认 1 和 5），
          换规则的话这里要跟着改，别留一句对不上的旧概率。 */
       odds: {
-        hint: '六面各 16.7% · 豹子 1/2187 · 爆掉 5.85%',
+        /* 入口那行只放结论；细算过的数（豹子 1/46656、Math.random）全留在下一页，
+           这一页被撑长就没人看玩法了。 */
+        hint: '六面各 16.7% · 爆掉 5.85%',
         face: '每颗骰子都是 6 面等概率：1~6 点各 <strong>1/6 ≈ 16.7%</strong>，' +
           '没有「好点数」「差点数」之分，也不存在被调高调低的某一面。',
         items: [
@@ -1413,15 +1481,19 @@
             '下一把出 1 还是 16.7% —— 没有「该出了」，也没有任何补偿机制。',
           '一颗骰子能收走（1 点或 5 点）的概率：<strong>2/6 = 33.3%</strong>，' +
             '所以 7 颗里平均能收 2.3 颗。',
-          '一把 7 颗全是 1 和 5（豹子）：<strong>1/3 连乘 7 次 = 1/2187 ≈ 0.046%</strong>，约两千把一次。',
-          '其中<strong>正豹</strong>（清一色 1111111 或 5555555）：<strong>2/6<sup>7</sup> = 1/139968 ≈ 0.0007%</strong>，' +
-            '十三四万把才碰上一回 —— 所以平时摇到的几乎都是 15 豹，不是你看错了。',
-          '一把 7 颗里一个 1、一个 5 都没有（爆掉）：<strong>(2/3)<sup>7</sup> = 128/2187 ≈ 5.85%</strong>，约十七把一次。',
+          '<strong>豹子</strong>（7 颗点数全一样，1~6 都算）：<strong>6/6<sup>7</sup> = 1/46656 ≈ 0.0021%</strong>，' +
+            '四万七千把才碰上一回 —— 一辈子也未必见一次，所以摇到了要当回事。' +
+            '其中 1 或 5 的豹子（<strong>1/139968</strong>）能收下换人，2/3/4/6 的一分不收，酒一样。',
+          '7 颗全是 1 和 5、但混着来（比如 1115555）的概率是 <strong>1/2187 ≈ 0.046%</strong>，' +
+            '约两千把一次。这<strong>不算豹子</strong>：350 就是挑 1 和 5，收满一回合必然是这形状，' +
+            '要是也算豹子，每回合都得喊人喝。',
+          '一把 7 颗里一个 1、一个 5 都没有（爆掉）：<strong>(2/3)<sup>7</sup> = 128/2187 ≈ 5.85%</strong>，约十七把一次。' +
+            '这 5.85% 里含着 4 种豹子（全 2、全 3、全 4、全 6），它们按豹子算，不算爆。',
           '骰子就是这台手机的随机数（<strong>Math.random</strong>），每次摇重新取一遍：' +
             '不看分数、不看人、不记仇，落后的人不会因此手气变好。'
         ],
-        note: '上面的数按本作的判定算：7 颗明骰、只认 1 和 5。封顶 700 只影响分数怎么攒，' +
-          '不影响怎么摇 —— 到顶那一把该出什么还是什么。'
+        note: '上面的数按本作的判定算：7 颗明骰、只认 1 和 5 计分；豹子认全部 6 种点数。' +
+          '封顶 700 只影响分数怎么攒，不影响怎么摇 —— 到顶那一把该出什么还是什么。'
       },
       note: '上面这些杯数是默认值，开局前按自己的量定，能加能减。App 只管算分和记豹子，喝不喝、喝多少在桌上说好。' +
         '想改人数点右上角「N 人」（2~12），重开一局点它左边的「重开」（点两下才真清分，防手滑）。'
