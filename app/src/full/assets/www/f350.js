@@ -1264,8 +1264,20 @@
     if (solo) solo.addEventListener('click', function () { switchTo('solo'); });
     var net = $('modeNet');
     if (net) net.addEventListener('click', function () {
-      showHomeTip('联机还在做 · 一台手机当主机，其他人连同一个网');
+      /* 联机：先到「选玩法」那层，不直接掉进 350 大厅。
+         以后加别的联机玩法，只要在那页多摆一张卡，这里一个字都不用改。 */
+      switchTo('netmodes');
     });
+
+    /* 选玩法页：目前只有潮汕 350，点进去才建连接、拉大厅数据 */
+    var playNet = $('playNet350');
+    if (playNet) playNet.addEventListener('click', function () {
+      if (window.LDNet) window.LDNet.open();
+      switchTo('net');
+    });
+
+    var nmBack = $('netModesBack');
+    if (nmBack) nmBack.addEventListener('click', function () { switchTo('home'); });
 
     var backHome = $('soloBack');
     if (backHome) backHome.addEventListener('click', function () { switchTo('home'); });
@@ -1314,9 +1326,13 @@
     }
   }
 
-  /* 每一层往上退到哪：玩法页 -> 选玩法，选玩法 -> 首页，首页没有上一级 */
-  var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo' };
-  var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2 };
+  /* 每一层往上退到哪：玩法页 -> 选玩法，选玩法 -> 首页，首页没有上一级。
+     联机现在是「首页 -> 选玩法 -> 350 大厅 -> 牌桌」，比单人那条线多一层：
+     多出来的那一层是为了以后加别的联机玩法时不用动首页，也不用动 350 大厅。 */
+  var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo',
+                 netmodes: 'home', net: 'netmodes', netgame: 'net' };
+  var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2,
+                netmodes: 1, net: 2, netgame: 3 };
 
   function curMode() {
     return document.body.getAttribute('data-mode') || 'home';
@@ -1326,15 +1342,25 @@
   function applyPage(mode) {
     document.body.setAttribute('data-mode', mode);
 
+    /* 用 id 取，不按类名找：联机那张选玩法页复用了 .page-solo 的版式，
+       querySelector('.page-solo') 会先命中它，单人就再也切不回去了。 */
     var pages = {
-      home: document.querySelector('.page-home'),
-      solo: document.querySelector('.page-solo'),
+      home: document.getElementById('pageHome'),
+      solo: document.getElementById('pageSolo'),
       liar: document.querySelector('.page-liar'),
-      f350: document.querySelector('.page-f350')
+      f350: document.getElementById('pageF350'),
+      netmodes: document.getElementById('pageNetModes'),
+      net: document.getElementById('pageNet'),
+      netgame: document.getElementById('pageNetGame')
     };
     for (var k in pages) {
       if (pages[k]) pages[k].hidden = (k !== mode);
     }
+
+    /* 离开联机牌桌就把连接断掉、状态清空：
+       挂在后台还占着一条长连接，手机切两次应用就没电了；
+       而且下次进来应该是干干净净的大厅，不是上次那桌的残影。 */
+    if (mode !== 'netgame' && window.LDNet) window.LDNet.leave();
 
     /* 离开 350 就把人数弹层收掉：它挂在 body 上，页面藏了它还会浮着 */
     if (mode !== 'f350' && el.pop && el.pop.style.display === 'flex') closeMask();

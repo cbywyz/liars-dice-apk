@@ -16,6 +16,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="f350.css">
+<link rel="stylesheet" href="net.css">
 </head>
 <body>
 
@@ -44,8 +45,9 @@
         <span class="mc-sub">一台手机，大家轮着玩</span>
       </button>
 
-      <!-- 联机：先占位。真做的时候主机是安卓端，其他手机浏览器当客户端 -->
-      <button class="mode-card is-soon" id="modeNet">
+      <!-- 联机：2026-11-10 起真的能玩了。规则跑在 Cloudflare 上，
+           谁锁屏都只影响他自己那一手，不用指定谁当主机 -->
+      <button class="mode-card" id="modeNet">
         <span class="mc-top">
           <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 9.5a12.5 12.5 0 0 1 16 0" fill="none" stroke="currentColor"
@@ -55,9 +57,8 @@
             <circle cx="12" cy="17.6" r="1.7" fill="currentColor"/>
           </svg>
           <span class="mc-title">联机模式</span>
-          <span class="mc-badge">开发中</span>
         </span>
-        <span class="mc-sub">每人一台手机 · 连同一个 WiFi</span>
+        <span class="mc-sub">各看各的手机 · 现在先支持潮汕 350</span>
       </button>
     </div>
 
@@ -138,6 +139,223 @@
     <div class="foot solo-foot">
       <span class="page-ver">v1.10.24</span>
     </div>
+  </div>
+</div>
+
+<!-- ==================== 联机：先选玩法 ====================
+     点首页「联机模式」先到这层，而不是直接掉进 350 的开房页。
+     理由是以后还会加别的联机玩法（吹牛联机、斗地主联机…）：
+     多摆一张 .play-card 就行，首页和下面那页大厅都不用动。
+     版式直接复用单人页那套（.page-solo / .play-card），所以两者看起来是一家的。 -->
+<div class="page page-solo page-netmodes" id="pageNetModes" hidden>
+
+  <div class="home">
+    <button class="nav-back" id="netModesBack" aria-label="返回首页">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">联机</div>
+        <div class="home-t2">ONLINE</div>
+      </div>
+
+      <div class="home-cards">
+        <button class="play-card" id="playNet350">
+          <span class="pc-top">
+            <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+              <ellipse cx="12" cy="6.2" rx="7" ry="2.5" fill="none"
+                       stroke="currentColor" stroke-width="1.7"/>
+              <path d="M5 6.2v4.4c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6.2"
+                    fill="none" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M5 10.6v4.4c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-4.4"
+                    fill="none" stroke="currentColor" stroke-width="1.7"/>
+            </svg>
+            <span class="pc-title">潮汕 350</span>
+          </span>
+          <span class="pc-sub">各看各的手机 · 报个 4 位房号就能开局</span>
+        </button>
+      </div>
+
+      <div class="net-more">更多联机玩法还在做</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 联机 350：开房 / 进房 ====================
+     这一页只管拿房号。拿到之后直接进牌桌（下面那页），不在中间再插一层确认 ——
+     酒桌上举着手机等开局的三十秒，多一层点击就是多一次「你先弄好再给我」。 -->
+<div class="page page-net" id="pageNet" hidden>
+
+  <div class="nav">
+    <button class="nav-back" id="netBack" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+    <div class="nav-title">
+      <span class="t1">350</span>
+      <span class="t2">THREE FIFTY</span>
+    </div>
+  </div>
+
+  <div class="net-body">
+    <div class="net-lead">一人一台手机，各看各的屏<br>房号念一声，人齐就开局</div>
+
+    <!-- 名字：第一次进来自动给一个（橙子 / 阿七 / 小满…），不满意直接改。
+         改过就记住，下次不用再填 -->
+    <div class="net-name">
+      <input class="net-name-ip" id="netName" type="text" maxlength="8"
+             autocomplete="off" placeholder="你的名字" aria-label="你的名字">
+    </div>
+
+    <div class="home-cards net-cards">
+      <!-- 上一桌还没打完就先摆这一张：中途退出（接电话、去洗手间）再进来，
+           不用回忆房号、也不用重新喊人。服务器那头座位还在，点一下就回原位。
+           查不到这个房间就自动收起来，绝不摆一个点进去是空白的入口。 -->
+      <button class="net-resume" id="netResume" hidden>
+        <span class="nr-left">
+          <span class="nr-kicker">上一桌还没打完</span>
+          <span class="nr-sub" id="netResumeSub">点一下回到原位</span>
+        </span>
+        <span class="nr-code" id="netResumeCode">----</span>
+      </button>
+
+      <button class="mode-card" id="netCreate">
+        <span class="mc-top">
+          <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M12 8.2v7.6M8.2 12h7.6" fill="none" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          <span class="mc-title">开一个房间</span>
+        </span>
+        <span class="mc-sub">拿一个 4 位房号，念给朋友</span>
+      </button>
+
+      <button class="mode-card" id="netJoin">
+        <span class="mc-top">
+          <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4.6 12h13.4" fill="none" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M13.4 6.6 19 12l-5.6 5.4" fill="none" stroke="currentColor"
+                  stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="mc-title">加入房间</span>
+        </span>
+        <span class="mc-sub">输入朋友给的房号</span>
+      </button>
+    </div>
+
+    <!-- 输房号：点「加入房间」才展开，平时不占地方。
+         房号是纯数字 4 位（撞满了才 6 位）。字母早就去掉了 ——
+         酒桌上念房号，B/D、0/O 总要解释半天，不如只留数字 -->
+    <div class="net-join" id="netJoinBox" hidden>
+      <input class="net-code" id="netCode" type="tel" inputmode="numeric"
+             maxlength="6" autocomplete="off" autocorrect="off"
+             spellcheck="false" pattern="[0-9]*"
+             placeholder="房号" aria-label="4 位房号">
+      <button class="btn primary net-go" id="netGo" type="button">进去</button>
+    </div>
+
+    <div class="net-tip" id="netTip"></div>
+  </div>
+
+  <div class="foot">
+    <span class="page-ver">v1.10.24</span>
+  </div>
+</div>
+
+<!-- ==================== 联机牌桌（350）====================
+     结构和 .page-f350 一模一样：同一套 .p-strip / .f3-* / .btn 类名，
+     所以配色、圆角、字号、动画全都跟单机那边是一份代码，不存在「两套界面」。
+     差别只有两处：状态从服务器来（net.js），底栏按钮多一个「等别人」。 -->
+<div class="page page-netgame" id="pageNetGame" hidden>
+
+  <div class="nav">
+    <button class="nav-back" id="ngBack" aria-label="退出房间">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+    <div class="nav-title">
+      <span class="t1">350</span>
+      <span class="t2">THREE FIFTY</span>
+    </div>
+    <!-- 音效开关：和单机是同一个 .sound-btn，绝对定位在返回箭头右边一格。
+         它必须直接挂在 .nav 下面 —— .sound-btn 自带 left:13.6vw，
+         塞进 .nav-right 那个 flex 里会飞出去。 -->
+    <div class="sound-btn" id="ngSound" role="button" aria-label="音效">
+      <span class="sound-ic" id="ngSoundIc">🔊</span>
+    </div>
+    <div class="nav-right">
+      <!-- 重开：一点就是投一票，全桌三分之二同意（在线人数算）才真清分。
+           一手好牌打到一半被谁手滑按掉，比多点两下难受得多 -->
+      <button class="redo-btn ng-redo" id="ngRedo" type="button">重开</button>
+      <!-- 房号常驻右上角：中途有人掉线重进，不用去翻聊天记录 -->
+      <button class="redo-btn ng-code" id="ngCode" type="button" title="房号">----</button>
+    </div>
+  </div>
+
+  <div class="p-strip" id="ngStrip"></div>
+
+  <div class="f3-stage">
+    <div class="f3-table">
+      <div class="f3-dice" id="ngDice"></div>
+
+      <!-- 还没开局：桌上先别摆骰子，摆房号。
+           这时候最要紧的事是「把房号告诉其他人」，不是看牌 -->
+      <div class="ng-lobby" id="ngLobby" hidden>
+        <span class="ng-lobby-k">房号</span>
+        <span class="ng-lobby-code" id="ngRoomCode">----</span>
+        <span class="ng-lobby-sub" id="ngLobbySub">念给朋友 · 4 位数字</span>
+        <div class="ng-lobby-btns">
+          <button class="btn primary ng-start" id="ngStart" type="button">开始</button>
+        </div>
+      </div>
+
+      <!-- 交接：跟单机一样，锁完分到下一位真正开摇之间先把桌面盖住，
+           区别是这里不再是「传手机」，而是等对面点「我来了」 -->
+      <div class="f3-handoff" id="ngHandoff" hidden>
+        <span class="hd-kicker" id="ngHdKicker"></span>
+        <span class="hd-name" id="ngHdName"></span>
+        <span class="hd-sub" id="ngHdSub"></span>
+        <div class="ng-rank" id="ngRank" hidden></div>
+        <button class="btn primary hd-go" id="ngGo" type="button">我来了 · 摇</button>
+        <!-- 等的人不来就没法往下走了。这里给房主一个出口：
+             点一下把他往后挪一格，这一局接着打（见 net.js 的 canSkip） -->
+        <button class="ng-skip" id="ngSkip" type="button" hidden></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="f3-panel">
+    <div class="f3-taken" id="ngTaken" hidden></div>
+    <div class="f3-score" id="ngScoreBox">
+      <span class="f3-score-num" id="ngScoreNum">0</span>
+      <span class="f3-score-unit">本回合</span>
+    </div>
+    <div class="f3-hint" id="ngHint">满 350 才能收手 · 封顶 700</div>
+  </div>
+
+  <div class="f3-btns" id="ngBtns"></div>
+
+  <!-- 点玩家名字弹出来的小面板：房主是「踢出房间」，其他人是「申请踢出」。
+       不弹整屏页面 —— 桌上还在等你，盖住牌桌只会让人更急 -->
+  <div class="ng-kick" id="ngKick" hidden>
+    <div class="ng-kick-box">
+      <span class="ng-kick-name" id="ngKickName"></span>
+      <span class="ng-kick-sub" id="ngKickSub"></span>
+      <button class="btn primary ng-kick-ok" id="ngKickOk" type="button">踢出房间</button>
+      <button class="btn ghost ng-kick-no" id="ngKickNo" type="button">算了</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span class="page-ver">v1.10.24</span>
+    <button class="mode-link" id="ngRule">玩法说明</button>
   </div>
 </div>
 
@@ -357,6 +575,7 @@
 
 <script src="app.js"></script>
 <script src="f350.js"></script>
+<script src="net.js"></script>
 
 <!-- 页签开太久会一直跑老脚本：手机上常见「关掉再开是新的，切回那个页签还是老的」。
      App 不会这样（APK 一装就是整包替换），网页只能自己发现。这里对一下线上的构建号，

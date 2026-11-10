@@ -43,6 +43,8 @@ var FILES = [
   './app.js',
   './f350.css',
   './f350.js',
+  './net.css',
+  './net.js',
   './manifest.webmanifest',
   './assets/audio/shake.mp3',
   './apple-touch-icon.png',
@@ -114,6 +116,13 @@ self.addEventListener('fetch', function (e) {
   if (url.origin !== self.location.origin) return;
   /* 只要同源的 http(s)：别去碰 data: / blob: / chrome-extension: */
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  /* 接口和房间请求一律放行，不缓存、不接管。
+     /api/new 是一个 GET，返回「这一把的房号」—— 曾经被下面那条
+     「图片音频缓存优先」的分支顺手存了下来，于是退出房间再点「开一个房间」，
+     拿回来还是原来那间（房号都被存成静态资源了）。
+     这类答案只在当下有效，缓存一次就永远是错的；/r/ 是 302 跳转，更不能存。 */
+  if (/^\/(api|r|health)(\/|$)/.test(url.pathname)) return;
 
   if (isCode(req, url)) {
     e.respondWith(new Promise(function (resolve) {

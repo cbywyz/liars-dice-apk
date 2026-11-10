@@ -1,0 +1,1584 @@
+/* 吹牛骰子 · 联机（潮汕 350）
+ *
+ * 这一份只做「跟服务器说话」和「把状态画出来」两件事，
+ * 界面元素、类名、尺寸全部沿用单机：.p-strip / .f3-table / .f3-dice /
+ * .f3-taken / .f3-score / .f3-btns / .btn。f350.js 那边改一次样式，这里跟着变。
+ *
+ * 规则不在这里算 —— 点数、爆掉、豹子、锁分线全在服务器判定。
+ * 以前考虑过「谁先来谁当主机」，但手机一锁屏浏览器就把页面冻住，
+ * 主机一睡整桌人跟着停；放到 Cloudflare 上，谁掉线只影响他自己那一手。
+ *
+ * 为什么每一步都等服务器回话才动：
+ *   350 是明骰，桌上七颗大家都该看见同一副。本地先猜一个再被服务器改，
+ *   就会出现「我这儿显示 3 个 5，结账时说只有 2 个」——这种架最伤和气。
+ *   80~120ms 的等待用「按钮立刻灰下去 + 骰子抖一下」盖过去，手感不比单机差。
+ */
+(function () {
+  'use strict';
+
+  /* 后端地址。
+     整站已经部署在 Cloudflare 上（单机 + 联机同一份 index.html），
+     那种情况下页面和房间是同一个域，直接用同源就好 —— 少一次跨域、少一跳网络。
+     只有 GitHub Pages 的镜像、APK 里的 file:// 才需要退回这个写死的域名。
+     本机联调用 ?net=http://127.0.0.1:8787 覆盖。 */
+  var DEFAULT_API = 'https://dice.2582580.xyz';
+  var HOME_HOST = 'dice.2582580.xyz';
+
+  /* ================= 跟单机一致的常量 ================= */
+  var DICE = 7;
+  var BASE = 350;
+  var CAP = 700;
+  var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  var CELL = [20, 50, 80];
+  var RED = { 1: true, 4: true };
+  var TILT = [-9, 6, -4, 8, -7, 5, -6];
+
+  /* 桌面尺寸（rpx），必须和 f350.css 的 .f3-table 对齐：81.3333vw × 50vw */
+  var TABLE_W = 610;
+  var TABLE_H = 375;
+
+  var VW = 100 / 750;
+  function rpx(n) {
+    var s = (n * VW).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+    return (s || '0') + 'vw';
+  }
+
+  function $(id) { return document.getElementById(id); }
+
+  function pointsOf(v) { return v === 1 ? 100 : v === 5 ? 50 : 0; }
+
+  /* ================= 音效 / 震动 =================
+     联机刚接进首页时是「哑」的：摇骰只有动画没有声，桌上一片安静，
+     跟旁边单机一比就是个半成品。这里复用同一颗 shake.mp3，不另存文件
+     （和 f350.js 一个来源，两个玩法以后音量、音色永远一致）。
+
+     有一件事必须做在真正出声之前：iOS / 微信里 new Audio() 的第一次 play()
+     得落在用户手势里，否则后面任何一次「不是手点出来」的播放都会被静默拦掉，
+     表现就是「安卓有声音、iPhone 没有」。所以第一次碰屏幕时先哑播一下解锁。 */
+  var SOUND_SRC = 'assets/audio/shake.mp3';
+  var SOUND_KEY = 'ld_net_sound';
+  var snd = null;
+  var sndOn = true;
+  try { sndOn = localStorage.getItem(SOUND_KEY) !== '0'; } catch (e) {}
+
+  function ensureSnd() {
+    if (snd) return snd;
+    try {
+      snd = new Audio(SOUND_SRC);
+      snd.preload = 'auto';
+      /* 加载失败就置空，下次再来一颗新的 —— 网络抖一下不该永久变哑 */
+      snd.addEventListener('error', function () { snd = null; });
+    } catch (e) { snd = null; }
+    return snd;
+  }
+
+  function unlockSnd() {
+    var a = ensureSnd();
+    if (!a) return;
+    var quiet = function () { a.muted = false; a.pause(); a.currentTime = 0; };
+    try {
+      a.muted = true;              // 解锁这一下不能真出声，否则一进页面就嗷一声
+      var p = a.play();
+      if (p && p.then) p.then(quiet).catch(function () { a.muted = false; });
+      else quiet();
+    } catch (e) { a.muted = false; }
+  }
+
+  function playShake() {
+    if (!sndOn) return;
+    var a = ensureSnd();
+    if (!a) return;
+    try {
+      a.muted = false;
+      a.currentTime = 0;
+      var p = a.play();
+      if (p && p.catch) p.catch(function () {});
+    } catch (e) {}
+  }
+
+  function vibrate(ms) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
+  }
+
+  /* ================= 重开要投票 =================
+
+     以前谁按谁洗牌：一手好牌正打着，桌上随便谁手滑一下就全没了。
+     现在按服务器的规矩 —— 在线的三分之二点头才真重开（4 人要 3 票、3 人要 2 票）。
+     客户端只负责把「几票 / 要几票」写在按钮上，够不够由服务器算，免得两边各有一套。 */
+
+  function voteNow(s) {
+    var v = s && s.vote;
+    if (!v) return null;
+    /* 服务器给的是「还剩多少毫秒」，本地用自己的钟倒计时，别拿手机时间去比服务器时间 */
+    if (S.voteUntil && Date.now() > S.voteUntil) return null;
+    var mine = false;
+    for (var i = 0; i < v.yes.length; i++) if (v.yes[i] === S.you) mine = true;
+    return { need: v.need, yes: v.yes.length, mine: mine, kind: v.kind, by: v.by };
+  }
+
+  /* 顶栏那颗「重开」：没人发起时就是一个普通按钮，一点就是投票发起人 */
+  function renderRedo() {
+    var b = el.redo, s = S.state;
+    if (!b || !s) return;
+    if (!s.started) { b.hidden = true; return; }
+    b.hidden = false;
+    var v = s.phase === 'over' ? null : voteNow(s);
+    if (!v) {
+      b.textContent = '重开';
+      b.classList.remove('ask', 'on', 'voting');
+      return;
+    }
+    b.textContent = (v.mine ? '已投 ' : '重开 ') + v.yes + '/' + v.need;
+    b.classList.add('voting');
+    b.classList.toggle('ask', !v.mine);
+    b.classList.toggle('on', v.mine);
+    /* 票放在那儿没人接就作废了：到点自己重画一次，别让半截投票一直挂着 */
+    clearTimeout(S.voteTimer);
+    S.voteTimer = setTimeout(render, Math.max(400, S.voteUntil - Date.now()));
+  }
+
+  /* ================= 踢人 =================
+
+     有人手机没电、或者干脆把牌桌忘了，座位一直占着。房主点名字直接请出去；
+     其他人点名字也行，但要三分之二的人点头 —— 谁手快谁说了算，桌上就该吵了。
+     被踢的那位不算分母：让他投票决定自己走不走，等于送他一张否决票。 */
+
+  function kickNow(s) {
+    var k = s && s.kick;
+    if (!k) return null;
+    if (S.kickUntil && Date.now() > S.kickUntil) return null;
+    var mine = false;
+    for (var i = 0; i < k.yes.length; i++) if (k.yes[i] === S.you) mine = true;
+    return { target: k.target, need: k.need, yes: k.yes.length, mine: mine, by: k.by };
+  }
+
+  function playerById(s, pid) {
+    for (var i = 0; i < s.players.length; i++) if (s.players[i].id === pid) return s.players[i];
+    return null;
+  }
+
+  function renderKick() {
+    var box = el.kick;
+    if (!box || box.hidden) return;
+    var s = S.state;
+    var p = s ? playerById(s, S.kickPid) : null;
+    if (!p) { box.hidden = true; return; }
+    var host = hostOf(s);
+    var isHost = !!host && host.id === s.you;
+    var k = kickNow(s);
+    var onThis = k && k.target === p.id;
+
+    el.kickName.textContent = p.name + (p.online === false ? ' · 离线' : '');
+    if (isHost) {
+      el.kickSub.textContent = p.online === false
+        ? '离线有一会儿了 · 请出去，座位让给下一位'
+        : '他还在线 · 确定要请出去？';
+      el.kickOk.textContent = '踢出房间';
+    } else if (onThis) {
+      el.kickSub.textContent = '已有 ' + k.yes + '/' + k.need + ' 人同意';
+      el.kickOk.textContent = k.mine ? '撤回申请' : '同意踢出';
+    } else {
+      el.kickSub.textContent = '申请后要三分之二的人同意才会请他出去';
+      el.kickOk.textContent = '申请踢出';
+    }
+    /* 红＝这一下就把人送走。发起申请、撤回都还是深灰的普通主按钮：
+       按钮一红，点「撤回申请」的人会以为自己在做更狠的事。 */
+    var danger = isHost || (onThis && !k.mine && k.yes + 1 >= k.need);
+    el.kickOk.classList.toggle('danger', !!danger);
+  }
+
+  function openKick(pid) {
+    var s = S.state;
+    if (!s || !pid) return;
+    if (pid === s.you) { toast('这是你自己'); return; }
+    var p = playerById(s, pid);
+    if (!p) return;
+    S.kickPid = pid;
+    if (el.kick) el.kick.hidden = false;
+    renderKick();
+  }
+
+  function closeKick() {
+    S.kickPid = '';
+    if (el.kick) el.kick.hidden = true;
+  }
+
+  function kickOk() {
+    var s = S.state;
+    if (!s) return;
+    var host = hostOf(s);
+    var isHost = !!host && host.id === s.you;
+    var k = kickNow(s);
+    var mine = k && k.target === S.kickPid && k.mine;
+    var pid = S.kickPid;
+    closeKick();
+    if (!isHost && mine) { send({ t: 'unvotekick' }, 'unvotekick'); return; }
+    vibrate(16);
+    send({ t: 'kick', pid: pid }, 'kick');
+  }
+
+  /* ================= 跳过卡住的那一手 =================
+
+     规则跟服务器同一套（src/index.js 的 canSkipBy）：只有房主点得动。
+     房主要是自己掉线了、或者他本人就是卡住的那个，就放开给所有人 ——
+     房主不在是常态，不能因为它整桌陪着等。
+
+     跳一个人等于让他这一局直接出局，所以这个权力不撒给全桌：
+     谁手快谁说了算，桌上就该吵了。 */
+  function hostOf(s) {
+    for (var i = 0; i < s.players.length; i++) if (s.players[i].seat === 0) return s.players[i];
+    return null;
+  }
+
+  function canSkip(s) {
+    if (!s || !s.started || s.phase === 'over') return null;
+    var cur = s.players[s.turn];
+    if (!cur || cur.locked) return null;
+    if (myTurn()) return null;
+    var host = hostOf(s);
+    var ok = true;
+    if (host) ok = (host.online === false) || (host.id === s.you);
+    if (!ok) return null;
+    return { name: cur.name, off: cur.online === false };
+  }
+
+  /* 交接层底下那行字：能跳就给「跳过 XX」，不能跳就什么都不放 ——
+     桌上不需要一个永远点不动的按钮。 */
+  function renderSkipBtn(s) {
+    var b = el.skip;
+    if (!b) return;
+    var sk = canSkip(s);
+    if (s.phase !== 'handoff' || !sk) { b.hidden = true; return; }
+    b.hidden = false;
+    b.textContent = sk.off ? '跳过 ' + sk.name + '（掉线）' : '跳过 ' + sk.name;
+    b.classList.add('on');
+  }
+
+  function setSound(on) {
+    sndOn = !!on;
+    try { localStorage.setItem(SOUND_KEY, sndOn ? '1' : '0'); } catch (e) {}
+    var ic = $('ngSoundIc'), b = $('ngSound');
+    if (ic) ic.textContent = sndOn ? '🔊' : '🔇';
+    if (b) b.classList.toggle('off', !sndOn);
+    if (sndOn) { unlockSnd(); vibrate(14); }
+  }
+
+  /* 按手牌数排布：≤4 颗一行，多了分两行，行内居中（与 f350.js 同一套算法） */
+  var SLOT_CACHE = {};
+  function layout(n) {
+    if (SLOT_CACHE[n]) return SLOT_CACHE[n];
+    var cols = n <= 4 ? n : Math.ceil(n / 2);
+    var rows = Math.ceil(n / cols);
+    var GX = 16, GY = 24;
+    var maxW = TABLE_W - 72;
+    var maxH = TABLE_H - 110;
+    var size = Math.min(
+      (maxW - (cols - 1) * GX) / cols,
+      (maxH - (rows - 1) * GY) / rows,
+      128
+    );
+    var totalH = rows * size + (rows - 1) * GY;
+    var y0 = (TABLE_H - totalH) / 2;
+    var out = [];
+    for (var r = 0; r < rows; r++) {
+      var cnt = Math.min(cols, n - r * cols);
+      var totalW = cnt * size + (cnt - 1) * GX;
+      var x0 = (TABLE_W - totalW) / 2;
+      for (var c = 0; c < cnt; c++) {
+        var i = r * cols + c;
+        out.push({
+          l: x0 + c * (size + GX),
+          t: y0 + r * (size + GY),
+          r: TILT[i % TILT.length],
+          s: size
+        });
+      }
+    }
+    SLOT_CACHE[n] = out;
+    return out;
+  }
+
+  /* ================= 状态 ================= */
+
+  var S = {
+    api: DEFAULT_API,
+    code: '',
+    you: null,
+    token: '',
+    state: null,      // 服务器最后一次给的桌面
+    sel: {},          // 本地勾中的手牌下标（只有自己能选）
+    handSig: '',
+    pending: '',      // 已经发出、还没回来的动作
+    ws: null,
+    alive: false,
+    retry: 0,
+    retryTimer: null,
+    pingTimer: null,
+    tt: null,         // toast 定时器
+    shakeTimer: null,
+    lastTapIdx: -1,   // 双击收分：上一次点的是哪颗、什么时候
+    lastTapAt: 0,
+    voteUntil: 0,     // 重开投票作废的时刻（本地钟，按服务器给的和数自己算）
+    voteTimer: null,
+    kickUntil: 0,     // 踢人投票的作废时刻
+    kickPid: ''       // 弹层里正在说的那个人
+  };
+
+  var el = {};
+
+  function cache() {
+    el.page = $('pageNetGame');
+    el.code = $('ngCode');
+    el.strip = $('ngStrip');
+    el.stage = el.page ? el.page.querySelector('.f3-stage') : null;
+    el.panel = el.page ? el.page.querySelector('.f3-panel') : null;
+    el.dice = $('ngDice');
+    el.lobby = $('ngLobby');
+    el.roomCode = $('ngRoomCode');
+    el.lobbySub = $('ngLobbySub');
+    el.start = $('ngStart');
+    el.handoff = $('ngHandoff');
+    el.hdKicker = $('ngHdKicker');
+    el.hdName = $('ngHdName');
+    el.hdSub = $('ngHdSub');
+    el.go = $('ngGo');
+    el.rank = $('ngRank');
+    el.taken = $('ngTaken');
+    el.score = $('ngScoreBox');
+    el.scoreNum = $('ngScoreNum');
+    el.hint = $('ngHint');
+    el.btns = $('ngBtns');
+    el.redo = $('ngRedo');
+    el.skip = $('ngSkip');
+    el.kick = $('ngKick');
+    el.kickName = $('ngKickName');
+    el.kickSub = $('ngKickSub');
+    el.kickOk = $('ngKickOk');
+    el.kickNo = $('ngKickNo');
+    el.off = null;            // 断线提示条，第一次需要时再插
+  }
+
+  /* ================= 本地记住的东西 ================= */
+
+  function seatKey(code) { return 'ld_net_seat_' + code; }
+
+  function loadSeat(code) {
+    try {
+      var raw = localStorage.getItem(seatKey(code));
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function saveSeat() {
+    if (!S.code || !S.you) return;
+    try {
+      localStorage.setItem(seatKey(S.code), JSON.stringify({ pid: S.you, token: S.token }));
+    } catch (e) {}
+    rememberRoom();
+  }
+
+  /* ================= 「上一桌还在」 =================
+     座位是按房号存的（ld_net_seat_1234），大厅因此不知道「你还有一局没打完」——
+     中途退出再进来只有「开一个房间 / 加入房间」两个按钮，人只能凭记忆输房号。
+     这里额外记一条「最近待过的桌子」，大厅就能把它摆到最上面。
+
+     只记房号不记局内状态：桌上长什么样永远以服务器为准，
+     本地记一份分数最容易出现「我这儿 350、你那儿 300」的架。 */
+  var LAST_KEY = 'ld_net_last';
+
+  function rememberRoom() {
+    if (!S.code) return;
+    try {
+      localStorage.setItem(LAST_KEY, JSON.stringify({ code: S.code, at: Date.now() }));
+    } catch (e) {}
+  }
+
+  function lastRoom() {
+    try {
+      var o = JSON.parse(localStorage.getItem(LAST_KEY) || 'null');
+      if (!o || !/^(\d{4}|\d{6})$/.test(o.code || '')) return null;
+      /* 一天以前的就算了：房间空着一晚上早被清掉了，留着只会点进去扑空 */
+      if (Date.now() - (o.at || 0) > 86400000) return null;
+      return o;
+    } catch (e) { return null; }
+  }
+
+  function clearLast() {
+    try { localStorage.removeItem(LAST_KEY); } catch (e) {}
+  }
+
+  /* 名字：第一次进来自动给一个，不满意自己改。
+     以前是空着让人填 —— 酒桌上没人愿意在开局前先打一次字，
+     结果一桌全是「玩家1、玩家2」，谁也认不出谁。
+     池子挑的都是两个字的常用昵称，念出来不别扭、也不带任何含义。 */
+  var NAMES = [
+    '橙子', '阿七', '小满', '豆豆', '老王', '阿珍', '大熊', '小北',
+    '冬瓜', '阿飞', '团子', '花生', '阿May', '芒果', '小雨', '阿宝',
+    '毛豆', '小鱼', '二两', '阿伟', '桃子', '小鹿', '阿泰', '年糕'
+  ];
+
+  function randName() {
+    return NAMES[Math.floor(Math.random() * NAMES.length)] || '玩家';
+  }
+
+  function myName() {
+    try {
+      var n = (localStorage.getItem('ld_net_name') || '').trim();
+      if (n) return n;
+      n = randName();
+      localStorage.setItem('ld_net_name', n);   // 记住这个随机名，下次还是它
+      return n;
+    } catch (e) { return '玩家'; }
+  }
+
+  function saveName(n) {
+    try { localStorage.setItem('ld_net_name', n || ''); } catch (e) {}
+  }
+
+  /* ================= 说话 ================= */
+
+  function wsUrl() {
+    return S.api.replace(/^http/, 'ws') + '/r/' + S.code + '/ws';
+  }
+
+  function connect() {
+    if (!S.code) return;
+    closeSocket();
+    S.alive = true;
+
+    var ws;
+    try { ws = new WebSocket(wsUrl()); }
+    catch (e) { scheduleRetry(); return; }
+    S.ws = ws;
+
+    ws.onopen = function () {
+      if (S.ws !== ws) return;
+      S.retry = 0;
+      showOff(false);
+      var seat = loadSeat(S.code);
+      ws.send(JSON.stringify({
+        t: 'hello',
+        name: myName(),
+        pid: seat && seat.pid,
+        token: seat && seat.token
+      }));
+      startPing();
+    };
+
+    ws.onmessage = function (ev) {
+      if (S.ws !== ws) return;
+      var m;
+      try { m = JSON.parse(ev.data); } catch (e) { return; }
+      onMsg(m);
+    };
+
+    ws.onclose = function () {
+      if (S.ws !== ws) return;
+      S.ws = null;
+      stopPing();
+      if (S.alive) { showOff(true); scheduleRetry(); }
+    };
+
+    ws.onerror = function () {};
+  }
+
+  function closeSocket() {
+    var ws = S.ws;
+    S.ws = null;
+    if (ws) {
+      try { ws.onclose = null; ws.close(); } catch (e) {}
+    }
+    stopPing();
+  }
+
+  function onMsg(m) {
+    if (m.t === 'you') {
+      S.you = m.pid;
+      S.token = m.token;
+      if (m.code) S.code = m.code;
+      saveSeat();
+      return;
+    }
+    /* 被请出房间：别装成「网络抽了」在那儿一直重连，说清楚然后回大厅 */
+    if (m.t === 'kicked') {
+      toast(m.msg || '你被请出了房间');
+      try { localStorage.removeItem(seatKey(S.code)); } catch (e) {}
+      clearLast();
+      goLobby();
+      return;
+    }
+
+    if (m.t === 'state') {
+      /* 先把「上一条状态里我是不是该动了」记下来：接手提醒、爆掉、豹子
+         这些都靠新旧对比判断，赋值之后就比不了了 */
+      var prev = S.state;
+      var wasMine = !!prev && myTurn();
+      var prevPhase = prev ? prev.phase : '';
+
+      S.state = m.s;
+      S.pending = '';
+      /* 投票的倒计时按「服务器说还剩多久」重新起算，手机时间准不准都不影响 */
+      S.voteUntil = S.state.vote ? Date.now() + S.state.vote.left : 0;
+      S.kickUntil = S.state.kick ? Date.now() + S.state.kick.left : 0;
+      /* 手牌变了就把勾选清掉：上一手的勾不能带到这一手，
+         否则「点一下收下」收走的可能是自己没看见的那几颗 */
+      var sig = handSig();
+      if (sig !== S.handSig) {
+        S.handSig = sig;
+        S.sel = {};
+      }
+      render();
+
+      /* 震动只做「该你动了」和「出事了」两种，响太多就变成骚扰。
+         手机搁在桌上，靠这一下把人从聊天里叫回来就够了。 */
+      if (S.state && S.state.started) {
+        if (!wasMine && myTurn()) vibrate([16, 60, 16]);
+        if (prevPhase !== 'bust' && S.state.phase === 'bust') vibrate([40, 70, 40]);
+        if (prevPhase !== 'lion' && S.state.phase === 'lion') vibrate([16, 60, 16, 60, 26]);
+        if (prevPhase !== 'over' && S.state.phase === 'over') vibrate([40, 70, 40, 70, 60]);
+        /* 谁被跳过 / 谁被让到队尾，得说一声 —— 桌上突然换了人，
+           没看见这句只会以为点到别的什么了。 */
+        var lg = S.state.log && S.state.log.length ? S.state.log[S.state.log.length - 1] : null;
+        if (lg && lg.k === 'skip' && (!prev || !prev.log
+            || prev.log[prev.log.length - 1].text !== lg.text)) {
+          toast(lg.text);
+        }
+        /* 有人发起重开：按钮突然从「重开」变成「重开 1/4」，不说一句谁都以为点错了 */
+        var nv = S.state.vote;
+        if (nv && (!prev || !prev.vote)) {
+          var who = nv.by;
+          for (var pi = 0; pi < S.state.players.length; pi++) {
+            if (S.state.players[pi].id === nv.by) who = S.state.players[pi].name;
+          }
+          toast(who + ' 发起重开 · 要 ' + nv.need + ' 人同意');
+          vibrate(12);
+        }
+        /* 有人申请踢人：被点的那张卡上会多一行「踢出 1/2」，再说一句把注意力引过去 */
+        var nk = S.state.kick;
+        if (nk && (!prev || !prev.kick)) {
+          var kname = nk.target;
+          for (var ki = 0; ki < S.state.players.length; ki++) {
+            if (S.state.players[ki].id === nk.target) kname = S.state.players[ki].name;
+          }
+          toast('有人想请 ' + kname + ' 出去 · 要 ' + nk.need + ' 人同意');
+        }
+        /* 票够了、真洗牌了 */
+        if (lg && (lg.k === 'restart' || lg.k === 'again')
+            && (!prev || !prev.log || prev.log[prev.log.length - 1].text !== lg.text)) {
+          toast(lg.text);
+        }
+      }
+      return;
+    }
+    if (m.t === 'err') {
+      var was = S.pending;
+      S.pending = '';
+      var msg = m.msg || '这一步没成';
+      /* 还没进桌就出错（房号没了、局已经开了）：这句话得留在房号下面，
+         光一个 1.5 秒的吐司，人一抬头就没了，只剩「正在连房间…」挂在那儿 */
+      if (!S.state || !S.state.started) {
+        if (el.lobbySub) el.lobbySub.textContent = msg;
+      }
+      render();
+      toast(msg);
+      /* 跳过被拒 = 本机看到的状态比服务器旧了（最常见的是他掉线又悄悄连回来，
+         那条「上线了」的广播我们没收到）。这时候光弹一句话没用 ——
+         界面还停在「可以跳过」上，人会一直点。干脆再要一次全量状态。 */
+      if (was === 'skip') send({ t: 'sync' });
+    }
+  }
+
+  function send(obj, tag) {
+    if (!S.ws || S.ws.readyState !== 1) {
+      toast('还没连上，正在重连');
+      return false;
+    }
+    S.pending = tag || obj.t;
+    S.ws.send(JSON.stringify(obj));
+    render();
+    return true;
+  }
+
+  function scheduleRetry() {
+    if (!S.alive) return;
+    clearTimeout(S.retryTimer);
+    var wait = Math.min(4000, 400 * Math.pow(2, Math.min(S.retry, 4)));
+    S.retry++;
+    S.retryTimer = setTimeout(function () {
+      if (S.alive) connect();
+    }, wait);
+  }
+
+  /* 心跳：手机网络闲置一会儿就会把长连接悄悄断掉（看起来「连着」实际发不出去）。
+     25 秒戳一下，成本一个空包，掉线能早发现 20 秒。 */
+  function startPing() {
+    stopPing();
+    S.pingTimer = setInterval(function () {
+      if (S.ws && S.ws.readyState === 1) {
+        try { S.ws.send(JSON.stringify({ t: 'ping' })); } catch (e) {}
+      }
+    }, 25000);
+  }
+
+  function stopPing() {
+    clearInterval(S.pingTimer);
+    S.pingTimer = null;
+  }
+
+  function leave() {
+    S.alive = false;
+    clearTimeout(S.retryTimer);
+    closeSocket();
+    clearTimeout(S.shakeTimer);
+    clearTimeout(S.voteTimer);  // 上一桌的投票倒计时不能接着跑
+    S.voteUntil = 0;
+    S.state = null;
+    S.you = null;
+    S.token = '';
+    S.sel = {};
+    S.handSig = '';
+    S.pending = '';
+    S.code = '';
+    if (el.dice) el.dice.classList.remove('shaking');
+  }
+
+  /* ================= 看状态 ================= */
+
+  function me() {
+    var s = S.state;
+    if (!s || !s.you) return null;
+    for (var i = 0; i < s.players.length; i++) {
+      if (s.players[i].id === s.you) return s.players[i];
+    }
+    return null;
+  }
+
+  /* 房主这个概念在联机里已经不重要了：开局、重开、再来一局谁都能点，
+     所以不再有 isHost()。留着它只会让人以为还有哪一步要等房主。 */
+
+  function myTurn() {
+    var s = S.state;
+    return !!(s && s.started && s.phase !== 'over' &&
+      s.players[s.turn] && s.players[s.turn].id === s.you);
+  }
+
+  function curName() {
+    var s = S.state;
+    if (!s || !s.players[s.turn]) return '';
+    return s.players[s.turn].name;
+  }
+
+  function liveCount() {
+    var s = S.state;
+    if (!s) return 0;
+    var n = 0;
+    for (var i = 0; i < s.hand.length; i++) if (s.hand[i].v) n++;
+    return n;
+  }
+
+  function picked() {
+    var out = [], gain = 0;
+    var s = S.state;
+    if (!s) return { idx: out, gain: gain };
+    for (var i = 0; i < s.hand.length; i++) {
+      var d = s.hand[i];
+      if (d.v && S.sel[i] && pointsOf(d.v)) {
+        out.push(i);
+        gain += pointsOf(d.v);
+      }
+    }
+    return { idx: out, gain: gain };
+  }
+
+  function handSig() {
+    var s = S.state;
+    if (!s) return '';
+    var out = s.phase + '|' + s.turn + '|' + s.took + '|';
+    for (var i = 0; i < s.hand.length; i++) {
+      out += s.hand[i].v + (S.sel[i] ? '*' : '') + ',';
+    }
+    return out;
+  }
+
+  /* ================= 画 ================= */
+
+  function render() {
+    var s = S.state;
+    if (!s) return;
+
+    if (el.code) el.code.textContent = s.code;
+
+    renderLobby();
+    renderStrip();
+    renderDice();
+    renderScore();
+    renderTaken();
+    renderHint();
+    renderBtns();
+    renderHandoff();
+    renderRedo();
+    renderKick();
+  }
+
+  function renderLobby() {
+    var s = S.state;
+    var on = !s.started;
+    if (el.lobby) el.lobby.hidden = !on;
+    if (el.dice) el.dice.style.display = on ? 'none' : '';
+    /* 还没开局时整块分数区（含提示）都收起来：
+       「0 本回合」没有意义，而「人齐了就开始」桌上那张卡已经说清楚了。
+       少一块压在底下的灰字，房号才是这一页唯一要看的东西。 */
+    if (el.panel) el.panel.style.display = on ? 'none' : '';
+    /* 还没开局没什么可重开的，把按钮收起来，顶栏只留房号 */
+    if (el.redo) el.redo.hidden = on;
+    if (!on) return;
+
+    if (el.roomCode) {
+      el.roomCode.textContent = s.code;
+      /* 6 位房号按 4 位的字号会顶出桌面，按位数收一档 */
+      el.roomCode.style.fontSize = s.code.length > 4 ? '10.4vw' : '';
+      el.roomCode.style.letterSpacing = s.code.length > 4 ? '1.4vw' : '';
+    }
+    var full = s.players.length >= 2;
+    if (el.start) {
+      /* 谁都能开局：房主要是中途退出，剩下的人不该被卡在「等房主」 */
+      el.start.hidden = false;
+      el.start.classList.toggle('is-off', !full);
+      el.start.textContent = full ? '开始' : '还差 1 个人';
+    }
+    if (el.lobbySub) {
+      el.lobbySub.textContent = (full ? '人齐了 · 谁点都行 · ' : '念给朋友 · ')
+        + s.players.length + ' 人在房间里';
+    }
+  }
+
+  function renderStrip() {
+    if (!el.strip) return;
+    var s = S.state;
+    var key = s.players.map(function (p) {
+      return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
+        ':' + (p.lion || 0);
+    }).join('|') + '#' + s.turn + '#' + s.phase
+      + '#' + (s.kick ? s.kick.target + ':' + s.kick.yes.length + '/' + s.kick.need : '');
+
+    if (el.strip.getAttribute('data-key') === key) return;
+    el.strip.setAttribute('data-key', key);
+    el.strip.innerHTML = '';
+
+    for (var i = 0; i < s.players.length; i++) {
+      var p = s.players[i];
+      var div = document.createElement('div');
+      /* 点名字能把人请出去（房主直接请，其他人发起投票），所以每张卡都得带着 id */
+      var asking = !!(s.kick && s.kick.target === p.id);
+      div.className = 'p-card tap'
+        + (i === s.turn && s.phase !== 'over' ? ' on' : '')
+        + (p.locked ? ' done' : '')
+        + (p.online === false ? ' off' : '')
+        + (asking ? ' asking' : '');
+      div.setAttribute('data-pid', p.id);
+
+      var nm = document.createElement('div');
+      nm.className = 'p-name';
+      nm.textContent = p.name;
+
+      /* 在线状态：绿点 · 在线 / 红点 · 离线。
+         以前只有「掉线」那两个字挂在名字后面，还得先认出「没字 = 在线」；
+         桌上三个人问「他还在不在」的时候，看一眼颜色比读字快。 */
+      var st = document.createElement('div');
+      st.className = 'p-stat' + (p.online === false ? ' is-off' : '');
+      var dot = document.createElement('i');
+      dot.className = 'p-dot';
+      st.appendChild(dot);
+      st.appendChild(document.createTextNode(p.online === false ? '离线' : '在线'));
+
+      var sc = document.createElement('div');
+      sc.className = 'p-score';
+      sc.textContent = p.locked ? String(p.score) : '—';
+
+      div.appendChild(nm);
+      div.appendChild(st);
+      div.appendChild(sc);
+
+      if (p.lion) {
+        var l = document.createElement('div');
+        l.className = 'p-lion';
+        l.textContent = '豹子 ×' + p.lion;
+        div.appendChild(l);
+      }
+      /* 有人正在申请请他出去：票数直接写在卡上，不然全桌只有发起人知道 */
+      if (s.kick && s.kick.target === p.id) {
+        var kk = document.createElement('div');
+        kk.className = 'p-kick';
+        kk.textContent = '踢出 ' + s.kick.yes.length + '/' + s.kick.need;
+        div.appendChild(kk);
+      }
+      el.strip.appendChild(div);
+    }
+  }
+
+  function renderDice() {
+    var s = S.state;
+    if (!el.dice) return;
+    var sig = handSig() + '#' + (myTurn() ? 1 : 0) + '#' + s.round;
+    if (el.dice.getAttribute('data-key') === sig) return;
+    el.dice.setAttribute('data-key', sig);
+    el.dice.innerHTML = '';
+
+    var n = s.hand.length;
+    var slots = layout(n);
+    var canPick = myTurn() && s.phase === 'rolled';
+
+    for (var i = 0; i < n; i++) {
+      var it = slots[i], d = s.hand[i];
+      var slot = document.createElement('div');
+      slot.className = 'die-slot';
+      slot.setAttribute('data-i', String(i));
+      slot.style.left = rpx(it.l);
+      slot.style.top = rpx(it.t);
+      slot.style.setProperty('--ds', rpx(it.s));
+      slot.style.setProperty('--r', it.r + 'deg');
+      slot.style.transform = 'rotate(' + it.r + 'deg) scaleY(0.86)';
+
+      var box = document.createElement('div');
+      box.className = 'die' + (d.v ? '' : ' blank');
+      box.style.animationDelay = i * 26 + 'ms';
+
+      if (d.v) {
+        var cells = PIPS[d.v] || [];
+        for (var c = 0; c < cells.length; c++) {
+          var pip = document.createElement('div');
+          pip.className = 'pip' + (RED[d.v] ? ' red' : '');
+          pip.style.left = CELL[cells[c] % 3] + '%';
+          pip.style.top = CELL[Math.floor(cells[c] / 3)] + '%';
+          box.appendChild(pip);
+        }
+        if (canPick && pointsOf(d.v)) {
+          slot.classList.add('countable');
+          if (S.sel[i]) slot.classList.add('sel');
+          var tag = document.createElement('i');
+          tag.className = 'f3-val';
+          tag.textContent = String(pointsOf(d.v));
+          slot.appendChild(tag);
+        }
+      }
+      slot.appendChild(box);
+      el.dice.appendChild(slot);
+    }
+  }
+
+  function renderScore() {
+    if (!el.scoreNum) return;
+    var s = S.state;
+    var v = s.round;
+    if (el.scoreNum.textContent !== String(v)) {
+      el.scoreNum.textContent = String(v);
+      el.scoreNum.classList.remove('bump');
+      void el.scoreNum.offsetWidth;
+      el.scoreNum.classList.add('bump');
+    }
+    el.score.className = 'f3-score' + (v >= CAP ? ' max' : v >= BASE ? ' ok' : '');
+  }
+
+  /* 本回合已经收下的 1 和 5（摆出来才知道分是怎么攒的）。
+     和 f350.js 同一套「一排还是两排」的挑法：颗数多时按高度让步，别把桌面挤没。 */
+  function renderTaken() {
+    var box = el.taken;
+    if (!box) return;
+    var s = S.state;
+    var list = s.taken || [];
+    var key = list.length + '/' + s.round;
+    if (box.getAttribute('data-key') === key) return;
+
+    var n = list.length;
+    var vw = window.innerWidth / 100;
+    var room = 0;
+    if (n && el.stage) {
+      var wasHidden = box.hidden;
+      box.hidden = true;
+      var stageH = el.stage.clientHeight;
+      box.hidden = wasHidden;
+      room = Math.max(0, stageH - window.innerWidth * 0.5 - window.innerWidth * 0.08) / vw;
+    }
+
+    var fit = null;
+    for (var ri = 1; ri <= 2; ri++) {
+      var perRow = Math.ceil(n / ri);
+      var byW = (88 - (perRow - 1) * 0.7) / perRow;
+      var byH = room > 0 ? (room - (ri - 1) * 0.7) / ri : 16;
+      var cand = Math.min(16, byW, byH);
+      if (!fit || cand > fit.ds) fit = { ds: cand, rows: ri, perRow: perRow };
+    }
+
+    var ds = n ? Math.max(6, fit.ds) : 16;
+    var rows = fit ? fit.rows : 1;
+    var perRow = fit ? fit.perRow : n;
+    box.style.setProperty('--ds', ds.toFixed(3) + 'vw');
+
+    var prev = parseInt(box.getAttribute('data-n') || '0', 10);
+    box.innerHTML = '';
+    box.setAttribute('data-rows', String(rows));
+
+    var row = null;
+    for (var i = 0; i < list.length; i++) {
+      if (i % perRow === 0) {
+        row = document.createElement('div');
+        row.className = 'tk-row';
+        box.appendChild(row);
+      }
+      var v = list[i];
+      var w = document.createElement('div');
+      w.className = 'tk-die' + (i >= prev ? ' new' : '');
+      var d = document.createElement('div');
+      d.className = 'die';
+      var cells = PIPS[v] || [];
+      for (var c = 0; c < cells.length; c++) {
+        var pip = document.createElement('div');
+        pip.className = 'pip' + (RED[v] ? ' red' : '');
+        pip.style.left = CELL[cells[c] % 3] + '%';
+        pip.style.top = CELL[Math.floor(cells[c] / 3)] + '%';
+        d.appendChild(pip);
+      }
+      w.appendChild(d);
+      row.appendChild(w);
+    }
+    box.hidden = !list.length;
+    box.setAttribute('data-key', key);
+    box.setAttribute('data-n', String(n));
+  }
+
+  function renderHint() {
+    if (!el.hint) return;
+    var s = S.state;
+    var cls = '';
+    var text = '';
+
+    if (!s.started) {
+      text = '';
+    } else if (s.phase === 'over') {
+      text = '一局打完 · 按分数排';
+      cls = 'good';
+    } else if (s.phase === 'handoff') {
+      text = '';
+    } else if (!myTurn()) {
+      var cur = s.players[s.turn];
+      var skNow = canSkip(s);
+      if (cur && cur.online === false) {
+        /* 掉线的时候谁都能看见，但只有房主能点 —— 说清楚是谁该动手，
+           免得桌上三个人轮流去戳一个戳不动的按钮 */
+        text = cur.name + ' 掉线了 · ' + (skNow ? '点下面跳过' : '等房主跳过');
+        cls = 'warn';
+      } else {
+        /* 在线的人不催：他可能正在看牌。真接不上手，交接层那边有「跳过」
+           （见 renderSkipBtn），不用在这行灰字里先给人扣个帽子 */
+        text = '轮到 ' + curName();
+      }
+    } else if (s.phase === 'rolled') {
+      var p = picked();
+      if (p.gain) {
+        text = '选中 ' + p.idx.length + ' 颗 · 收下 ' + p.gain + ' 分';
+        cls = 'good';
+      } else if (s.took) {
+        text = '不点的留在桌上，接着摇';
+      } else {
+        text = '点要拿走的 1 和 5 · 不点的留在桌上继续摇';
+      }
+    } else if (s.phase === 'bust') {
+      text = '爆了 · 这一把一分没有，清零重摇';
+      cls = 'warn';
+    } else if (s.phase === 'lion') {
+      text = '七个一样 · 收下就锁分';
+      cls = 'gold';
+    } else {
+      var left = liveCount();
+      text = left && left < DICE ? '还剩 ' + left + ' 颗 · 摇一摇' : '摇一摇';
+    }
+
+    el.hint.textContent = text;
+    el.hint.className = 'f3-hint' + (cls ? ' ' + cls : '');
+  }
+
+  function renderBtns() {
+    if (!el.btns) return;
+    var s = S.state;
+    el.btns.innerHTML = '';
+    if (!s.started) return;
+
+    var list = [];
+    var turn = myTurn();
+
+    if (s.phase === 'over') {
+      /* 结算时底栏一个按钮都不放。这里原本有个和「摇一摇」一样大的
+         「回联机大厅」，跟卡片里的「再来一局」并排摆着，谁都以为主按钮是回大厅 ——
+         一局打完顺手点下去，就真散了。回大厅的路留给左上角那个返回箭头。 */
+      return;
+    } else if (!turn) {
+      /* 轮到一个掉线的人：干等没有意义，房主点一下就能把他这一局跳过。
+         在线的就不给这个按钮 —— 他可能正看着牌，凭什么替他把这一手也收了。 */
+      var sk = canSkip(s);
+      if (sk && sk.off) {
+        list.push({ t: '跳过 ' + sk.name, cls: 'primary', act: 'skip' });
+      } else {
+        list.push({ t: '轮到 ' + curName(), cls: 'primary is-off', act: 'none' });
+      }
+    } else if (s.phase === 'rolled') {
+      var p = picked();
+      var left = liveCount();
+      if (p.gain) {
+        list.push({ t: '收下 ' + p.gain + ' 分', cls: 'primary', act: 'take' });
+      } else if (s.took) {
+        list.push({
+          t: left && left < DICE ? '摇剩下 ' + left + ' 颗' : '摇一摇',
+          cls: 'primary', act: 'roll'
+        });
+      } else {
+        list.push({ t: '点骰子收分', cls: 'primary is-off', act: 'none' });
+      }
+    } else if (s.phase === 'lion') {
+      var gain = 0;
+      for (var i = 0; i < s.hand.length; i++) if (s.hand[i].v) gain += pointsOf(s.hand[i].v);
+      var total = Math.min(CAP, s.round + gain);
+      list.push({
+        t: total >= BASE ? '收下 ' + total + ' 分' : '不收了 · 接着摇',
+        cls: 'primary', act: 'liontake'
+      });
+      list.push({ t: '清零重摇', cls: 'ghost', act: 'reset' });
+    } else if (s.phase === 'bust') {
+      list.push({ t: '清零重摇', cls: 'primary', act: 'reset' });
+    } else if (s.phase === 'handoff') {
+      list.push({ t: '轮到你了', cls: 'primary is-off', act: 'none' });
+    } else {
+      var lv = liveCount();
+      list.push({
+        t: lv && lv < DICE ? '摇剩下 ' + lv + ' 颗' : '摇一摇',
+        cls: 'primary', act: 'roll'
+      });
+    }
+
+    if (turn && s.phase !== 'over' && s.phase !== 'bust'
+        && s.phase !== 'lion' && s.phase !== 'handoff') {
+      var ok = s.round >= BASE;
+      list.push({
+        t: ok ? '锁 ' + s.round + ' 分' : '满 ' + BASE + ' 锁分',
+        cls: 'ghost' + (ok ? '' : ' is-off'),
+        act: ok ? 'lock' : 'none'
+      });
+    }
+
+    for (var k = 0; k < list.length; k++) {
+      var b = document.createElement('button');
+      b.className = 'btn ' + list[k].cls;
+      b.setAttribute('data-act', list[k].act);
+      b.textContent = list[k].t;
+      if (S.pending && list[k].act !== 'none') b.classList.add('is-wait');
+      el.btns.appendChild(b);
+    }
+  }
+
+  function renderHandoff() {
+    var s = S.state;
+    var box = el.handoff;
+    if (!box) return;
+
+    if (s.phase !== 'handoff' && s.phase !== 'over') {
+      box.hidden = true;
+      if (el.rank) el.rank.hidden = true;
+      if (el.go) el.go.hidden = false;
+      if (el.skip) el.skip.hidden = true;
+      return;
+    }
+
+    box.hidden = false;
+
+    if (s.phase === 'over') {
+      /* 350 抓的是「最低分」的那个人，不是最高分 —— 分数是「攒着往 350 冲」的，
+         冲得最少的那个才是这局的输家。所以榜从低到高排，头一行就是被抓住的。 */
+      var rows = s.players.slice().sort(function (a, b) {
+        if (a.score !== b.score) return a.score - b.score;
+        var ia = s.order.indexOf(a.id), ib = s.order.indexOf(b.id);
+        if (ia < 0) ia = 99;
+        if (ib < 0) ib = 99;
+        return ia - ib;
+      });
+
+      if (el.hdKicker) el.hdKicker.textContent = '一局打完 · 分最低的背';
+      if (el.hdName) el.hdName.textContent = rows.length ? rows[0].name + ' · ' + rows[0].score : '';
+      if (el.hdSub) el.hdSub.textContent = '分最少的排第一 · 同分先锁的在前';
+
+      if (el.rank) {
+        el.rank.hidden = false;
+        el.rank.innerHTML = '';
+        for (var i = 0; i < rows.length; i++) {
+          var r = document.createElement('div');
+          r.className = 'ng-rank-row' + (i === 0 ? ' top' : '');
+          var nm = document.createElement('b');
+          nm.textContent = (i + 1) + '. ' + rows[i].name;
+          var sc = document.createElement('span');
+          sc.textContent = rows[i].score + ' 分';
+          var lk = document.createElement('i');
+          lk.textContent = rows[i].lion ? ' 豹子×' + rows[i].lion : '';
+          r.appendChild(nm);
+          r.appendChild(sc);
+          r.appendChild(lk);
+          el.rank.appendChild(r);
+        }
+      }
+
+      if (el.go) {
+        /* 一局已经打完，分数落定了，谁点都能接着开 —— 这里不投票。
+           要投票的是打到一半按「重开」，那才是真的会把牌吞掉。 */
+        el.go.hidden = false;
+        el.go.classList.remove('is-off');
+        el.go.textContent = '再来一局';
+      }
+      if (el.skip) el.skip.hidden = true;
+      return;
+    }
+
+    /* 交接：锁完分、下一位真正接手之前，先把桌面盖住 */
+    if (el.rank) el.rank.hidden = true;
+    if (el.go) {
+      el.go.hidden = false;
+      el.go.textContent = myTurn() ? '我来了 · 摇' : '等 ' + curName() + ' 接手';
+      el.go.classList.toggle('is-off', !myTurn());
+    }
+    if (el.hdKicker) el.hdKicker.textContent = '轮到';
+    if (el.hdName) el.hdName.textContent = curName();
+    if (el.hdSub) {
+      var rest = 0;
+      for (var j = 0; j < s.players.length; j++) if (!s.players[j].locked) rest++;
+      el.hdSub.textContent = '还剩 ' + rest + ' 位没锁';
+    }
+    renderSkipBtn(s);
+  }
+
+  /* ================= 操作 ================= */
+
+  function act(a) {
+    var s = S.state;
+    if (!s) return;
+    if (a === 'none') return;
+    if (a === 'exit') { goLobby(); return; }
+
+    if (a === 'roll') {
+      /* 声音和震动跟着手指走，不等服务器 —— 摇骰这一下要有反馈，
+         等 100ms 回包再响就「慢半拍」，比没声音更怪。 */
+      playShake();
+      vibrate(18);
+      shake();
+      send({ t: 'roll' }, 'roll');
+      return;
+    }
+    if (a === 'take') {
+      var p = picked();
+      if (!p.gain) { toast('先点一颗 1 或 5'); return; }
+      vibrate(8);
+      send({ t: 'take', idx: p.idx }, 'take');
+      return;
+    }
+    if (a === 'lock') { vibrate(24); send({ t: 'lock' }, 'lock'); return; }
+    if (a === 'skip') { vibrate(14); send({ t: 'skip' }, 'skip'); return; }
+    /* 再来一局：一局已经打完，点一下就走。
+       重开：打到一半才要全桌三分之二点头（投过了再点就是撤回）；
+       结算之后按重开等于开下一局，也不用投。 */
+    if (a === 'again' || (a === 'restart' && s.phase === 'over')) {
+      vibrate(12);
+      send({ t: a }, a);
+      return;
+    }
+    if (a === 'restart') {
+      var vv = voteNow(s);
+      if (vv && vv.mine) {
+        vibrate(8);
+        send({ t: 'unvote' }, 'unvote');
+        toast('撤回了，要重开再点一下');
+        return;
+      }
+      vibrate(12);
+      send({ t: 'restart' }, 'restart');
+      return;
+    }
+    if (a === 'liontake') { send({ t: 'lionTake' }, 'liontake'); return; }
+    if (a === 'reset') { send({ t: 'reset' }, 'reset'); return; }
+    if (a === 'go') { send({ t: 'go' }, 'go'); return; }
+    if (a === 'start') { send({ t: 'start' }, 'start'); return; }
+  }
+
+  function shake() {
+    if (!el.dice) return;
+    el.dice.classList.remove('shaking');
+    void el.dice.offsetWidth;
+    el.dice.classList.add('shaking');
+    clearTimeout(S.shakeTimer);
+    S.shakeTimer = setTimeout(function () {
+      if (el.dice) el.dice.classList.remove('shaking');
+    }, 480);
+  }
+
+  function onDieTap(e) {
+    var s = S.state;
+    if (!s || s.phase !== 'rolled' || !myTurn()) return;
+    var t = e.target;
+    while (t && t !== el.dice && !t.getAttribute('data-i')) t = t.parentNode;
+    if (!t || t === el.dice) return;
+    var i = parseInt(t.getAttribute('data-i'), 10);
+    var d = s.hand[i];
+    if (!d || !pointsOf(d.v)) return;
+
+    /* 连点两下同一颗 = 选中它并立刻收下。单机那边一直是这么玩的
+       （f350.js 的 onDieTap），联机少了这一步，桌上一半人点两下没反应，
+       只能老老实实「点骰子 → 再按底下的收下」，手指头都觉得冤。
+       320ms 和单机同一个阈值，手感不分两套。 */
+    var now = Date.now();
+    var dbl = (S.lastTapIdx === i && now - S.lastTapAt < 320);
+    S.lastTapIdx = i;
+    S.lastTapAt = now;
+
+    if (dbl) {
+      S.sel[i] = true;              // 双击一定把点到的这颗算进去
+      vibrate(10);
+      render();
+      act('take');
+      return;
+    }
+
+    if (S.sel[i]) delete S.sel[i];
+    else S.sel[i] = true;
+    vibrate(10);
+    render();
+  }
+
+  /* ================= 大厅 ================= */
+
+  function tip(msg, ok) {
+    var t = $('netTip');
+    if (!t) return;
+    t.textContent = msg || '';
+    t.className = 'net-tip' + (ok ? ' ok' : '');
+  }
+
+  function open() {
+    var nm = $('netName');
+    if (nm && !nm.value) nm.value = myName();
+    tip('');
+    var box = $('netJoinBox');
+    if (box) box.hidden = true;
+    var code = $('netCode');
+    if (code) code.value = '';
+    /* 提前把 DNS / TLS 打个照面：进房那一刻直接建 WS，少一次握手的停顿 */
+    try {
+      fetch(S.api + '/health', { cache: 'no-store', mode: 'cors' }).catch(function () {});
+    } catch (e) {}
+    refreshResume();
+  }
+
+  /* 大厅顶部「上一桌还没打完」那张条。
+     本地只记房号，房间是死是活要现场问一句 —— 大家散场之后房间会被回收，
+     摆一个点进去是空桌的入口，比不摆更让人恼火。
+     问不到 / 房间没了就把记录一起删掉，下次不再惦记。 */
+  function refreshResume() {
+    var box = $('netResume');
+    if (!box) return;
+    var last = lastRoom();
+    if (!last) { box.hidden = true; return; }
+    box.hidden = true;                    // 先收着，确认房间还在再露出来，免得闪一下
+    fetch(S.api + '/api/has?code=' + last.code, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok || !j.room) { clearLast(); return; }
+        var c = $('netResumeCode'), sub = $('netResumeSub');
+        var n = j.room.n | 0;
+        if (c) c.textContent = last.code;
+        if (sub) {
+          if (j.room.phase === 'over') sub.textContent = '上一局打完了 · 回去再来一局';
+          else if (j.room.started) sub.textContent = '局还在打 · 点一下回原位';
+          else sub.textContent = n > 1 ? n + ' 人在等开局' : '房间还在 · 点一下进去';
+        }
+        box.hidden = false;
+      })
+      .catch(function () { box.hidden = true; });
+  }
+
+  function goLobby() {
+    leave();
+    if (window.F350 && window.F350.switchTo) window.F350.switchTo('net');
+    else if (location.hash !== '#net') location.hash = 'net';
+    tip('');
+    /* 从桌上退下来的这一刻，才最需要那条「上一桌还没打完」——
+       不刷一下，人就只能看见「开一个房间 / 加入房间」，还得自己背房号 */
+    refreshResume();
+  }
+
+  function enterRoom(code) {
+    S.code = code;
+    S.state = null;
+    S.you = null;
+    S.token = '';
+    S.sel = {};
+    S.handSig = '';
+    S.pending = '';
+
+    cache();
+    if (window.F350 && window.F350.switchTo) window.F350.switchTo('netgame');
+    else location.hash = 'netgame';
+
+    /* 先摆个空桌 + 房号，别让人对着一张白屏等握手 */
+    if (el.code) el.code.textContent = code;
+    if (el.roomCode) el.roomCode.textContent = code;
+    /* 清空 DOM 的同时必须把 data-key 一起摘掉：
+       那两个函数靠「签名没变就直接 return」省重绘，DOM 被清空了签名却还留着，
+       回来后第一帧就被判定成「跟上次一样」直接跳过 —— 桌上于是七颗骰子一颗都不画，
+       手里明明有牌、底栏却写着「点骰子收分」，点哪儿都没反应。 */
+    if (el.strip) { el.strip.innerHTML = ''; el.strip.removeAttribute('data-key'); }
+    if (el.dice) { el.dice.innerHTML = ''; el.dice.removeAttribute('data-key'); }
+    if (el.taken) { el.taken.innerHTML = ''; el.taken.removeAttribute('data-key'); }
+    if (el.scoreNum) el.scoreNum.textContent = '0';
+    if (el.btns) el.btns.innerHTML = '';
+    if (el.hint) el.hint.textContent = '';
+    if (el.panel) el.panel.style.display = 'none';
+    if (el.lobbySub) el.lobbySub.textContent = '正在连房间…';
+    if (el.lobby) el.lobby.hidden = false;
+
+    connect();
+  }
+
+  function createRoom() {
+    if (!S.api || S.connecting) return;
+    tip('正在开房…');
+    fetch(S.api + '/api/new', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) { tip((j && j.msg) || '开房失败，再试一次'); return; }
+        tip('');
+        enterRoom(j.code);
+      })
+      .catch(function () { tip('连不上服务器 · 检查一下网络'); });
+  }
+
+  function joinRoom() {
+    var inp = $('netCode');
+    var code = (inp && inp.value || '').replace(/\D/g, '').slice(0, 6);
+    if (code.length !== 4 && code.length !== 6) { tip('房号是 4 位数字'); return; }
+    tip('正在找这个房间…');
+    fetch(S.api + '/api/has?code=' + code, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) { tip((j && j.why) || '房号不对'); return; }
+        if (!j.room) { tip('没有这个房间 · 房号念对了吗'); return; }
+        tip('');
+        enterRoom(code);
+      })
+      .catch(function () { tip('连不上服务器 · 检查一下网络'); });
+  }
+
+  /* ================= 断线提示 / 吐司 ================= */
+
+  function showOff(on) {
+    if (!el.stage) return;
+    if (!el.off) {
+      el.off = document.createElement('div');
+      el.off.className = 'ng-off';
+      el.off.hidden = true;
+      el.off.textContent = '连接断了 · 正在重连';
+      el.stage.appendChild(el.off);
+    }
+    el.off.hidden = !on;
+  }
+
+  function toast(msg) {
+    var t = $('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(S.tt);
+    S.tt = setTimeout(function () { t.classList.remove('show'); }, 1600);
+  }
+
+  /* ================= 启动 ================= */
+
+  function boot() {
+    var q = (location.search.match(/[?&]net=([^&]+)/) || [])[1];
+    if (q) {
+      try { S.api = decodeURIComponent(q).replace(/\/+$/, ''); } catch (e) {}
+    } else if (window.LD_NET_BASE) {
+      S.api = String(window.LD_NET_BASE).replace(/\/+$/, '');
+    } else if (location.hostname === HOME_HOST) {
+      S.api = location.origin;
+    }
+
+    cache();
+
+    /* 音效：默认开，开关记在本机（跟单机那个 🔊 各记各的，
+       联机时有人把单机静音了不该连带把桌上也弄哑）。
+       第一次碰屏幕先哑播一下，把 iOS / 微信的音频解锁掉 —— 只解一次。 */
+    var sb = $('ngSound');
+    if (sb) {
+      sb.classList.toggle('off', !sndOn);
+      sb.addEventListener('click', function () { setSound(!sndOn); });
+    }
+    var sic = $('ngSoundIc');
+    if (sic) sic.textContent = sndOn ? '🔊' : '🔇';
+
+    var unlocked = false;
+    function unlockOnce() {
+      if (unlocked) return;
+      unlocked = true;
+      unlockSnd();
+      document.removeEventListener('touchstart', unlockOnce, true);
+      document.removeEventListener('mousedown', unlockOnce, true);
+    }
+    document.addEventListener('touchstart', unlockOnce, true);
+    document.addEventListener('mousedown', unlockOnce, true);
+
+    var back = $('netBack');
+    if (back) back.addEventListener('click', function () {
+      /* 往上一层退是「选联机玩法」，不是直接回首页：
+         以后这里有别的联机玩法，一次返回就把人扔回首页太粗暴 */
+      if (window.F350 && window.F350.switchTo) window.F350.switchTo('netmodes');
+      else location.hash = 'netmodes';
+    });
+
+    var c = $('netCreate');
+    if (c) c.addEventListener('click', createRoom);
+
+    /* 「回到上一桌」：座位上还有自己的位置，服务器凭 token 认人，直接回原位 */
+    var rs = $('netResume');
+    if (rs) rs.addEventListener('click', function () {
+      var last = lastRoom();
+      if (!last) { rs.hidden = true; return; }
+      enterRoom(last.code);
+    });
+
+    var j = $('netJoin');
+    if (j) j.addEventListener('click', function () {
+      var box = $('netJoinBox');
+      if (!box) return;
+      box.hidden = !box.hidden;
+      if (!box.hidden) {
+        var inp = $('netCode');
+        if (inp) setTimeout(function () { inp.focus(); }, 60);
+      }
+    });
+
+    var go = $('netGo');
+    if (go) go.addEventListener('click', joinRoom);
+
+    var inp = $('netCode');
+    if (inp) {
+      inp.addEventListener('input', function () {
+        /* 只收数字：房间号是纯数字，粘进来带空格或字母直接滤掉 */
+        var v = inp.value.replace(/\D/g, '').slice(0, 6);
+        if (v !== inp.value) inp.value = v;
+        tip('');
+      });
+      inp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.keyCode === 13) { inp.blur(); joinRoom(); }
+      });
+    }
+
+    var nm = $('netName');
+    if (nm) {
+      nm.addEventListener('change', function () {
+        saveName(nm.value.trim().slice(0, 8));
+        /* 还没开局的话，服务器允许改名，改完立刻同步 */
+        if (S.ws && S.ws.readyState === 1 && S.state && !S.state.started) {
+          S.ws.send(JSON.stringify({ t: 'rename', name: nm.value.trim().slice(0, 8) }));
+        }
+      });
+    }
+
+    var ngBack = $('ngBack');
+    if (ngBack) ngBack.addEventListener('click', goLobby);
+
+    var rd = $('ngRedo');
+    if (rd) rd.addEventListener('click', function () {
+      /* 一下就是投一票，不再有「确定？」那一步 ——
+         真正的确认是「全桌三分之二都点了」，一个人点两下没有意义 */
+      vibrate(10);
+      act('restart');
+    });
+
+    var st = $('ngStart');
+    if (st) st.addEventListener('click', function () { act('start'); });
+
+    if (el.dice) el.dice.addEventListener('click', onDieTap);
+
+    /* 玩家条：点谁的名字就聊谁。委托在容器上，卡片每次重画都不用重新绑 */
+    if (el.strip) el.strip.addEventListener('click', function (ev) {
+      var t = ev.target;
+      while (t && t !== el.strip && !t.getAttribute('data-pid')) t = t.parentNode;
+      if (!t || t === el.strip) return;
+      openKick(t.getAttribute('data-pid'));
+    });
+
+    if (el.kickOk) el.kickOk.addEventListener('click', kickOk);
+    if (el.kickNo) el.kickNo.addEventListener('click', closeKick);
+    if (el.kick) el.kick.addEventListener('click', function (ev) {
+      if (ev.target === el.kick) closeKick();     // 点背板 = 算了
+    });
+
+    if (el.btns) el.btns.addEventListener('click', function (e) {
+      var t = e.target;
+      while (t && t !== el.btns && !t.getAttribute('data-act')) t = t.parentNode;
+      if (!t || t === el.btns) return;
+      act(t.getAttribute('data-act'));
+    });
+
+    if (el.go) el.go.addEventListener('click', function () {
+      if (!S.state) return;
+      act(S.state.phase === 'over' ? 'again' : 'go');
+    });
+
+    if (el.skip) el.skip.addEventListener('click', function () {
+      if (!el.skip.classList.contains('on')) return;   // 还没到点，别让人白点
+      act('skip');
+    });
+
+    var rg = $('ngRule');
+    if (rg) rg.addEventListener('click', function () {
+      var rb = $('ruleBtn2');
+      if (rb) rb.click();
+    });
+
+    /* 分享链接 /?room=1234：别人点开就直接进那一桌。
+       留 300ms 让 f350.js 先把首页摆好，再切页，否则切过去又被打回来。
+       进过就把 ?room= 从地址栏擦掉：不然之后每次刷新页面都往那一桌钻，
+       人还以为「这 App 只会回这一个房间」。 */
+    var room = (location.search.match(/[?&]room=(\d{4}|\d{6})/) || [])[1];
+    if (room) {
+      var rc = $('netCode');
+      if (rc) rc.value = room;
+      try {
+        if (history.replaceState) {
+          history.replaceState(null, '', location.pathname + (location.hash || ''));
+        }
+      } catch (e) {}
+      setTimeout(function () {
+        if (window.F350 && window.F350.switchTo) window.F350.switchTo('net');
+        joinRoom();
+      }, 300);
+    }
+
+    /* 切回前台时如果连接已经断了，立刻重连，不等 4 秒退避 */
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) return;
+      if (!S.alive) return;
+      if (!S.ws && !S.retryTimer) connect();
+      else if (!S.ws) connect();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+
+  window.LDNet = {
+    open: open,
+    leave: leave,
+    goLobby: goLobby,
+    /* 给自动化测试用：能读当前桌面，也能直接发一条协议 */
+    state: function () { return S.state; },
+    send: function (o) { return send(o); }
+  };
+})();

@@ -1627,6 +1627,12 @@ body.tap-edit .die-slot:active .die {
 
 .home-ver { display: block; }
 
+/* 隐藏开关开/关的那一下：这行版本号闪 600ms 的颜色，一个字都不弹。
+   开是绿、关是红（见 app.js 的 LDDEV 那段）。用颜色而不是 toast，
+   是因为这一下只有握着手机的人该知道 —— 旁边人抬头看时已经褪回去了。 */
+.home-ver.is-dev-on { color: #2f9e63; }
+.home-ver.is-dev-off { color: #cf4a41; }
+
 /* 首页底部那颗「免责声明」：字比版权行大一点，但不做成按钮块，别抢主入口 */
 .home-legal {
   display: inline-block;

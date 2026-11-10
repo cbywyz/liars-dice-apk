@@ -108,12 +108,12 @@ jobs:
           [ -n "$VF" ] || VF="${GITHUB_SHA:0:7}"
           [ -n "$VC" ] || VC="${GITHUB_SHA:0:7}"
           echo "full=$VF  clean=$VC"
-          sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$VF\"#g" site/index.html
-          sed -i -E "s#(href|src)=\"(app|f350)\.(css|js)\"#\1=\"\2.\3?v=$VC\"#g" site/clean/index.html
+          sed -i -E "s#(href|src)=\"(app|f350|net)\.(css|js)\"#\1=\"\2.\3?v=$VF\"#g" site/index.html
+          sed -i -E "s#(href|src)=\"(app|f350|net)\.(css|js)\"#\1=\"\2.\3?v=$VC\"#g" site/clean/index.html
           echo "== 根目录（完整版）"
-          grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' site/index.html
+          grep -oE '(href|src)="(app|f350|net)\.(css|js)\?v=[^"]*"' site/index.html
           echo "== /clean/（纯净版）"
-          grep -oE '(href|src)="(app|f350)\.(css|js)\?v=[^"]*"' site/clean/index.html
+          grep -oE '(href|src)="(app|f350|net)\.(css|js)\?v=[^"]*"' site/clean/index.html
           # 页签开太久时的版本对照：页面里那段自检脚本会来拿这个文件
           echo "{\"v\":\"$VF\"}" > site/build.json
           echo "{\"v\":\"$VC\"}" > site/clean/build.json

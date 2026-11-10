@@ -973,9 +973,14 @@
     });
   }
 
-  /* ================= 隐藏入口：长按标题 1.2s ================= */
+  /* ================= 隐藏入口：长按标题 1.2s =================
+
+     两道门：先在「免责声明」里连点标题 7 下把总开关打开（见文件前面的 LDDEV 那段），
+     这里的长按才会起作用。开关关着的时候，按多久都什么都不发生 ——
+     不震、不弹，连计时器都不起，跟一块普通标题没有区别。 */
 
   function onTitleStart() {
+    if (!window.LDDev || !window.LDDev.on()) return;
     clearTimers();
     S.titleTimer = setTimeout(function () {
       S.titleTimer = null;
@@ -1067,6 +1072,9 @@
   function onHotTap(e) {
     if (d.panel) return;
     if (!d.hotZoneOn) return;      // 总闸关着 —— 这块就是普通桌面
+    /* 隐藏开关关了，三格也跟着哑。hotZoneOn 是单独存的，
+       只判它的话「关掉总开关」会留下一条还在生效的暗路。 */
+    if (!window.LDDev || !window.LDDev.on()) return;
     if (S.hotSwallowTap && Date.now() - S.hotSwallowAt < HOT_TAP_BACK) {
       S.hotSwallowTap = false;   // 这是刚才掀盖手势的尾巴，不是点击
       return;
@@ -1086,6 +1094,8 @@
   }
 
   function openPanel() {
+    /* 用到了就续一次期：开关是按「最后一次用」算 30 天的 */
+    if (window.LDDev) window.LDDev.keep();
     vibrate('light');
     setData({ panel: true });
     /* 面板是贴着底部弹出来的，长按时手指正好在它上面 ——
@@ -1184,6 +1194,8 @@
 
   function onDieTap(i) {
     if (!d.tapEdit) return;
+    /* 同上：总开关关着，点骰改点也一起失效 */
+    if (!window.LDDev || !window.LDDev.on()) return;
     if (S.swallowDieTap) return;
     var st = d.state;
     if (st !== 'open' && st !== 'ajar') return;
@@ -1647,6 +1659,116 @@
 
   bar.hidden = false;
 })();
+
+/* LDDEV_BEGIN */
+/* ================= 隐藏开关（所有玩法的暗门都由它统一调度） =================
+
+   为什么要有这一层：
+   作弊项本来是「长按标题 1.2 秒」直接弹出来的。手机往桌上一放，谁来都能按两下，
+   看见了就学会了 —— 这东西藏是藏不住的，只能让它别在别人手里顺手撞见。
+
+   为什么不用密码：这是纯前端，密码就写在 js 里，看源码就知道了。
+   密码挡得住手滑，挡不住「学了去」；而且输密码这个动作最招眼 ——
+   手指一格一格按，旁边人瞄一眼反而记住了。
+
+   现在的规矩：
+     · 默认关着。关着的时候长按标题多久都**什么都不发生**：不震、不弹、连计时都不起。
+     · 开的地方在「免责声明」那一层 —— 连点那行标题 7 下。
+       选它因为条款页是全家最没人看的一页，标题又是那页上最没人会碰的一行。
+     · 再连点 7 下 = 关掉。散场前顺手关一下，手机借人也放心。
+     · 开着管 30 天，每次真用到就续一次期 —— 自己天天用就一直有效；
+       手机借出去放一个月没人碰，后门自己失效。
+
+   给以后的玩法（350、联机那些）：要做暗门，入口第一句先判
+       if (!window.LDDev || !window.LDDev.on()) return;
+   真用到隐藏功能的时候再叫一句 window.LDDev.keep()。
+   开关只有这一个，别每个玩法各存一份 —— 不然关了这头忘那头，等于没关。
+
+   这里只管状态和「连点 N 下」这个动作，落点在文件末尾那层免责声明里。 */
+
+(function () {
+  'use strict';
+
+  var KEY = 'ld_dev_on';
+  var TAPS = 7;         // 连点几下
+  var GAP = 900;        // 两下之间超过这么久，就当重新开始数
+  var KEEP = 30;        // 开着管多少天
+
+  var mem = 0;          // localStorage 不可用时的兜底（无痕模式、旧 WebView）
+
+  function raw() {
+    try {
+      return Number(localStorage.getItem(KEY) || 0) || 0;
+    } catch (e) {
+      return mem;
+    }
+  }
+
+  function set(t) {
+    mem = t;
+    try {
+      if (t) localStorage.setItem(KEY, String(t));
+      else localStorage.removeItem(KEY);
+    } catch (e) {}
+  }
+
+  function on() {
+    var t = raw();
+    return t > 0 && Date.now() - t < KEEP * 86400000;
+  }
+
+  /* 真用到隐藏功能时叫一下：有效期从「最后一次用」重新算 */
+  function keep() {
+    if (on()) set(Date.now());
+  }
+
+  function buzz(p) {
+    try {
+      if (navigator.vibrate) navigator.vibrate(p);
+    } catch (e) {}
+  }
+
+  var n = 0;
+  var at = 0;
+
+  /* 元素上的「连点 N 下」。凑满了就在开/关之间切一次。
+     全程一个字都不弹：开、关只靠震动节奏区分 —— 开是两下短的，关是一下长的。
+     元素上闪一下颜色，600ms 退回，别人抬头时已经没了。 */
+  function tap(e) {
+    var now = Date.now();
+    if (now - at > GAP) n = 0;
+    n += 1;
+    at = now;
+    if (n < TAPS) return;
+    n = 0;
+
+    var was = on();
+    set(was ? 0 : Date.now());
+    buzz(was ? 120 : [18, 90, 18]);
+
+    var elx = e && e.currentTarget;
+    if (elx && elx.classList) {
+      var cls = was ? 'is-dev-off' : 'is-dev-on';
+      elx.classList.add(cls);
+      setTimeout(function () { elx.classList.remove(cls); }, 700);
+    }
+  }
+
+  window.LDDev = {
+    on: on,
+    keep: keep,
+    tap: tap,
+    off: function () { set(0); }
+  };
+
+  /* 落点：首页页脚那行「v1.10.24 · 仅供朋友聚会娱乐」。
+     选它的理由：字小、灰色、贴在屏幕最底下，是全家最没存在感的一行，
+     谁也不会去点它；而它又一直在首页，不用翻页就能摸到。
+     连点 7 下开，再连点 7 下关 —— 同一个动作，不用记第二个手势。 */
+  var host = document.getElementById('homeVer');
+  if (host) host.addEventListener('click', tap);
+})();
+/* LDDEV_END */
 
 /* ================= 免责声明与使用条款 =================
 
