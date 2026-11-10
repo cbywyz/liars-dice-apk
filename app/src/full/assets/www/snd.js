@@ -19,9 +19,62 @@
      LDSnd.cue('open')            —— 开盖
      LDSnd.cue('drink')           —— 有人喝 / 结算
    传了不认识的 name 就什么都不做（不会报错，调用点不用防御）。
+
+   ================= 音效总开关（全站一份）=================
+   五个玩法页各有一颗 🔊：吹牛、350 单机、找朋友单机、350 联机、找朋友联机。
+   以前前两个各记各的（吹牛存内存、350 联机存 ld_net_sound），
+   在 350 里关掉、切到找朋友又响起来，看起来就像「这个开关是假的」。
+
+   现在开关只有一个，写在 localStorage['ld_sound']：
+     · 谁被点都走 LDSnd.setOn()，页面上所有 .sound-btn 一起变图标
+     · cue() 自己先判开关 —— 调用点不用每处再写一遍 if
+     · 各玩法那颗 shake.mp3 用 isOn() 判（音频元素在各自模块里，
+       音效模块管不到，但状态还是这一份）
+   老版本只写过 ld_net_sound，第一次升级上来先把它读过来：
+   之前特意关过声音的人，不该因为换了版本又突然被吵一下。
 */
 (function () {
   var ctx = null;
+
+  /* ---------------- 总开关 ---------------- */
+
+  var SKEY = 'ld_sound';
+
+  function readOn() {
+    try {
+      var v = localStorage.getItem(SKEY);
+      if (v === '0') return false;
+      if (v === '1') return true;
+      /* 没写过（老版本装上来的第一把）：沿用联机 350 那份旧记录 */
+      return localStorage.getItem('ld_net_sound') !== '0';
+    } catch (e) { return true; }
+  }
+
+  var on = readOn();
+
+  /* 把状态画到所有 🔊 上，顺手给还没绑过的按钮绑一次点击。
+     用 querySelectorAll 而不是逐个 id：以后再加玩法页，
+     只要写一个 .sound-btn 进来就自动生效，不必回来改这里。 */
+  function paint() {
+    var bs = document.querySelectorAll('.sound-btn');
+    for (var i = 0; i < bs.length; i++) {
+      var b = bs[i];
+      b.classList.toggle('off', !on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      var ic = b.querySelector('.sound-ic');
+      if (ic) ic.textContent = on ? '🔊' : '🔇';
+      if (b.__ldSndBound) continue;
+      b.__ldSndBound = 1;
+      b.addEventListener('click', function (e) {
+        /* 顶栏的按钮有时候套在可点的容器里，别让这一下再冒上去 */
+        if (e && e.stopPropagation) e.stopPropagation();
+        window.LDSnd.setOn(!on);
+        /* 开着的时候震一下（跟原来联机 350 那颗一样的力道）；
+           关掉就别震了 —— 关了声音还在手里嗡一下，容易以为没关掉 */
+        try { if (on && navigator.vibrate) navigator.vibrate(14); } catch (err) {}
+      });
+    }
+  }
 
   function AC() {
     var C = window.AudioContext || window.webkitAudioContext;
@@ -103,6 +156,9 @@
       } catch (e) {}
     },
     cue: function (name) {
+      /* 关了声音就一声都不出 —— 包括换人、豹子、结算这些「顺手响一下」的。
+         这几声最容易漏，才特意收在这里判，而不是靠每个调用点自觉。 */
+      if (!on) return;
       var c = get();
       var list = CUES[name];
       if (!c || !list) return;
@@ -111,8 +167,30 @@
         if (c.state === 'suspended' && c.resume) c.resume();
       } catch (e) {}
       for (var i = 0; i < list.length; i++) tone(c, list[i]);
-    }
+    },
+
+    /* 开关：各玩法只管问 isOn()，别再自己存一份 */
+    isOn: function () { return on; },
+    setOn: function (v) {
+      on = !!v;
+      try { localStorage.setItem(SKEY, on ? '1' : '0'); } catch (e) {}
+      paint();
+      /* 页面里除了顶栏那颗 🔊，可能还有别的音效开关（吹牛设置面板的拨杆）。
+         用一个事件通知出去，免得它们显示的还是老状态。 */
+      try {
+        window.dispatchEvent(new CustomEvent('ldsound', { detail: { on: on } }));
+      } catch (e) {}
+      return on;
+    },
+    toggle: function () { return window.LDSnd.setOn(!on); },
+    /* 顶栏换了 / 新插进来一颗按钮时调一下 */
+    sync: paint
   };
+
+  /* 脚本在 body 末尾加载，此时五颗按钮都已经在文档里了；
+     DOMContentLoaded 再补一次是给「脚本被挪到前面」留的余量。 */
+  paint();
+  document.addEventListener('DOMContentLoaded', paint);
 
   /* 一次性解锁：捕获阶段，先于页面自己的点击逻辑跑。
      用三个事件是因为 iOS 只认 touchstart，桌面调试只发 mousedown，

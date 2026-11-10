@@ -80,7 +80,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.15.8 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.15.9 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -153,7 +153,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.15.8</span>
+      <span class="page-ver">v1.15.9</span>
     </div>
   </div>
 </div>
@@ -296,7 +296,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.8</span>
+    <span class="page-ver">v1.15.9</span>
   </div>
 </div>
 
@@ -386,7 +386,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.8</span>
+    <span class="page-ver">v1.15.9</span>
     <button class="mode-link" id="ngRule">玩法说明</button>
   </div>
 </div>
@@ -448,7 +448,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.15.8</span>
+      <span class="page-ver">v1.15.9</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -514,6 +514,12 @@
         <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
       </svg>
     </button>
+    <!-- 音效开关：跟吹牛、联机 350 是同一颗 .sound-btn，绝对定位在返回箭头右边一格。
+         状态不在这里，全站只有 snd.js 一份（LDSnd.isOn / setOn），
+         点谁都是那一个开关，换页面不会各响各的。 -->
+    <div class="sound-btn" id="f350Sound" role="button" aria-label="音效">
+      <span class="sound-ic" id="f350SoundIc">🔊</span>
+    </div>
     <div class="nav-title">
       <span class="t1">350</span>
       <span class="t2">THREE FIFTY</span>
@@ -563,7 +569,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.8</span>
+    <span class="page-ver">v1.15.9</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -580,6 +586,10 @@
         <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
       </svg>
     </button>
+    <!-- 音效开关：同 .sound-btn，全站共用一个状态（snd.js） -->
+    <div class="sound-btn" id="findSound" role="button" aria-label="音效">
+      <span class="sound-ic" id="findSoundIc">🔊</span>
+    </div>
     <div class="nav-title">
       <span class="t1">找朋友</span>
       <span class="t2">ZHAO PENGYOU</span>
@@ -616,7 +626,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.15.8</span>
+    <span class="page-ver">v1.15.9</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -666,7 +676,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.15.8</span>
+        <span class="page-ver">v1.15.9</span>
       </div>
     </div>
   </div>
@@ -706,6 +716,10 @@
           <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
         </svg>
       </button>
+      <!-- 音效开关：联机 350 牌桌那颗的同一个（全站共用一份状态） -->
+      <div class="sound-btn" id="fnSound" role="button" aria-label="音效">
+        <span class="sound-ic" id="fnSoundIc">🔊</span>
+      </div>
       <div class="nav-title" id="fnTitle">
         <span class="t1">找朋友</span>
         <span class="t2">联机 · 明骰</span>
@@ -746,7 +760,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.15.8</span>
+      <span class="page-ver">v1.15.9</span>
       <button class="mode-link" id="fnRule">玩法说明</button>
     </div>
 

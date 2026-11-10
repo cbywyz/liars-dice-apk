@@ -280,8 +280,14 @@
       audio = null;
     }
   }
+  /* 开关的真身在 snd.js（全站一份），这里只问它。
+     snd.js 没加载（老缓存）就退回自己那份，不至于整页哑掉。 */
+  function soundOn() {
+    return window.LDSnd ? window.LDSnd.isOn() : !!d.soundOn;
+  }
+
   function playSound() {
-    if (!d.soundOn || !audio) return;
+    if (!soundOn() || !audio) return;
     try {
       audio.currentTime = 0;
       var p = audio.play();
@@ -300,7 +306,7 @@
      摇骰那声沙沙是真音频，合成不出来；而「哒」一下的开盖声合成一下就够了。
      跟 🔊 走同一个开关 —— 关了音效还叮一声，那这个开关就是假的。 */
   function cue(name) {
-    if (!d.soundOn) return;
+    if (!soundOn()) return;
     if (window.LDSnd) window.LDSnd.cue(name);
   }
 
@@ -1258,7 +1264,9 @@
   /* ================= 音效开关 ================= */
 
   function setSound(on) {
-    setData({ soundOn: on });
+    /* 写进全站那一份（snd.js），五颗 🔊 一起变；自己这份只是留给设置面板的拨杆看 */
+    if (window.LDSnd) window.LDSnd.setOn(on);
+    setData({ soundOn: !!on });
     vibrate('light');
   }
 
@@ -1289,8 +1297,8 @@
     on(el.titleBtn, 'mousedown', onTitleStart);
     on(document, 'mouseup', onTitleEnd);
 
-    // 音效
-    on(el.soundBtn, 'click', function () { setSound(!d.soundOn); });
+    // 音效：顶栏那颗 🔊 由 snd.js 统一绑（五个玩法页一个写法）。
+    // 这里再绑一次就是同一下点两回 —— 开了又关，看起来像没反应。
 
     // 骰子数量：点标题右边那个「N 颗」拉开选择条
     on(el.countBtn, 'click', function () {
@@ -1420,7 +1428,8 @@
     setData({
       dice: emptyDice(),
       lidStyle: lidStyle(0, false),
-      soundOn: true,
+      /* 开机先认全站那一份开关：上一把在 350 里关过声音，进来不该又响 */
+      soundOn: window.LDSnd ? window.LDSnd.isOn() : true,
       forceOn: false,
       isLocked: false,
       tapEdit: loadTapEdit(),
@@ -1428,11 +1437,17 @@
       diceCount: d.diceCount
     });
 
+    /* 别的页面把开关动了（同一台手机只是切了个玩法），回来时跟着变。
+       设置面板那个拨杆读的是 d.soundOn，不跟着改就会「显示开、其实关」。 */
+    window.addEventListener('ldsound', function (e) {
+      if (!e || !e.detail || e.detail.on === d.soundOn) return;
+      setData({ soundOn: !!e.detail.on });
+    });
+
     // 首帧把按钮和音效图标补上
     d.tapEdit = loadTapEdit();
     document.body.classList.toggle('tap-edit', !!d.tapEdit);
-    el.soundIc.textContent = d.soundOn ? '🔊' : '🔇';
-    el.soundBtn.classList.toggle('off', !d.soundOn);
+    if (window.LDSnd) window.LDSnd.sync();
     renderButtons();
 
     window.addEventListener('resize', function () {

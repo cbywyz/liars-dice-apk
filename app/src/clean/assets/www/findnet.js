@@ -193,6 +193,7 @@
   }
 
   function playShake() {
+    if (window.LDSnd && !window.LDSnd.isOn()) return;
     var a = ensureShk();
     if (!a) return;
     try {

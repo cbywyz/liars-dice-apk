@@ -149,6 +149,8 @@
      这里直接复用吹牛模式那颗 shake.mp3，不另外存一份，
      免得两个玩法以后各改各的、声音不一致。 */
   function playShake() {
+    /* 关了声音就别摇出沙沙声（开关是全站那份，见 snd.js） */
+    if (window.LDSnd && !window.LDSnd.isOn()) return;
     try {
       if (!S.shake) {
         S.shake = new Audio('assets/audio/shake.mp3');

@@ -56,10 +56,14 @@
      得落在用户手势里，否则后面任何一次「不是手点出来」的播放都会被静默拦掉，
      表现就是「安卓有声音、iPhone 没有」。所以第一次碰屏幕时先哑播一下解锁。 */
   var SOUND_SRC = 'assets/audio/shake.mp3';
-  var SOUND_KEY = 'ld_net_sound';
   var snd = null;
-  var sndOn = true;
-  try { sndOn = localStorage.getItem(SOUND_KEY) !== '0'; } catch (e) {}
+  /* 开关的真身是 snd.js 里那一份（全站共用）。这里存 sndOn 只当兜底 ——
+     snd.js 没加载（老缓存）时才轮得到它。 */
+  var sndOn = window.LDSnd ? window.LDSnd.isOn() : true;
+
+  function soundOn() {
+    return window.LDSnd ? window.LDSnd.isOn() : sndOn;
+  }
 
   function ensureSnd() {
     if (snd) return snd;
@@ -85,7 +89,7 @@
   }
 
   function playShake() {
-    if (!sndOn) return;
+    if (!soundOn()) return;
     var a = ensureSnd();
     if (!a) return;
     try {
@@ -104,7 +108,7 @@
      跟本地那个 🔊 走同一个开关 —— 有人在地铁上关了音效，
      结果换人还在叮一声，那这个开关就是假的。 */
   function cue(name) {
-    if (!sndOn) return;
+    if (!soundOn()) return;
     if (window.LDSnd) window.LDSnd.cue(name);
   }
 
@@ -260,15 +264,6 @@
     b.hidden = false;
     b.textContent = sk.off ? '跳过 ' + sk.name + '（掉线）' : '跳过 ' + sk.name;
     b.classList.add('on');
-  }
-
-  function setSound(on) {
-    sndOn = !!on;
-    try { localStorage.setItem(SOUND_KEY, sndOn ? '1' : '0'); } catch (e) {}
-    var ic = $('ngSoundIc'), b = $('ngSound');
-    if (ic) ic.textContent = sndOn ? '🔊' : '🔇';
-    if (b) b.classList.toggle('off', !sndOn);
-    if (sndOn) { unlockSnd(); vibrate(14); }
   }
 
   /* 按手牌数排布：≤4 颗一行，多了分两行，行内居中（与 f350.js 同一套算法） */
@@ -1416,16 +1411,10 @@
 
     cache();
 
-    /* 音效：默认开，开关记在本机（跟单机那个 🔊 各记各的，
-       联机时有人把单机静音了不该连带把桌上也弄哑）。
+    /* 音效开关：顶栏那颗 🔊 由 snd.js 统一绑（五颗一个写法），
+       这里只把图标按当前状态画一遍。
        第一次碰屏幕先哑播一下，把 iOS / 微信的音频解锁掉 —— 只解一次。 */
-    var sb = $('ngSound');
-    if (sb) {
-      sb.classList.toggle('off', !sndOn);
-      sb.addEventListener('click', function () { setSound(!sndOn); });
-    }
-    var sic = $('ngSoundIc');
-    if (sic) sic.textContent = sndOn ? '🔊' : '🔇';
+    if (window.LDSnd) window.LDSnd.sync();
 
     var unlocked = false;
     function unlockOnce() {
