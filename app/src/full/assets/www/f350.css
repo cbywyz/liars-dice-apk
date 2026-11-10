@@ -190,6 +190,76 @@
   transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
+/* ---------------- 交接：桌面盖住，等下一位接手 ----------------
+
+   锁完分直接把「摇一摇」摆回底栏有个真实的坑：手机还在桌上传来传去，
+   上一位还没挪手、下一位已经抢过去，谁按一下这一回合就开了 ——
+   7 颗骰子白摇，人也以为是自己的回合。所以换人时先把桌面盖住，
+   名字大字报在那儿，点「我来了」才开。多一次点击，换一个不会错的顺序。 */
+
+.f3-handoff {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8vw;
+  padding: 3vw;
+  border-radius: inherit;
+  background: radial-gradient(76% 72% at 50% 38%, rgba(24, 52, 34, 0.985), rgba(9, 19, 13, 0.995));
+  box-shadow: inset 0 0 0 0.2667vw rgba(255, 255, 255, 0.06);
+  animation: hdIn 0.2s ease both;
+}
+
+/* [hidden] 要压过 display:flex —— 否则盖层永远盖着 */
+.f3-handoff[hidden] { display: none; }
+
+/* 只淡入、不缩放：这里加过 backdrop-filter(blur) 配 transform 动画，
+   截图里会把自己那几行字糊一层「重影」到背景上（Chromium 的合成层 bug）。
+   底色本来就不透明度 0.98 以上，糊不糊看不出来，索性去掉。 */
+@keyframes hdIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.hd-kicker {
+  font-size: 3.2vw;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.08em;
+}
+
+.hd-name {
+  font-size: 9.6vw;
+  font-weight: 700;
+  line-height: 1.16;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+
+.hd-sub {
+  font-size: 3.2vw;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 深绿底上再用深色按钮等于没有按钮，这里换成金色（跟豹子那套金呼应）。
+   f350.css 在 app.css 之后加载，同权重下能盖掉 .btn.primary 的深色渐变。 */
+.f3-handoff .hd-go {
+  margin-top: 2.6vw;
+  width: 46vw;
+  height: 11.2vw;
+  line-height: 11.2vw;
+  border-radius: 5.6vw;
+  font-size: 4.1333vw;
+  letter-spacing: 0.4vw;
+  background: linear-gradient(180deg, #f2c76e, #cf9a2c);
+  color: #2b1d06;
+  box-shadow: 0 1.6vw 3.6vw rgba(0, 0, 0, 0.34);
+}
+
 /* ---------------- 分数 ---------------- */
 
 .f3-panel {

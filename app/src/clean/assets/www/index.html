@@ -77,7 +77,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.10.23 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.10.24 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -136,7 +136,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.10.23</span>
+      <span class="page-ver">v1.10.24</span>
     </div>
   </div>
 </div>
@@ -198,7 +198,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.10.23</span>
+      <span class="page-ver">v1.10.24</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -238,6 +238,15 @@
   <div class="f3-stage">
     <div class="f3-table">
       <div class="f3-dice" id="f3Dice"></div>
+      <!-- 交接：锁完分、下一位真正开摇之前，先把桌面盖住停一下。
+           手机还在桌上传来传去，谁手一抖按了「摇一摇」，这一回合的 7 颗就白摇了，
+           人也会以为「轮到我了吧」抢先摇 —— 顺序一乱，后面全跟着乱。 -->
+      <div class="f3-handoff" id="f3Handoff" hidden>
+        <span class="hd-kicker" id="hdKicker">1 号 · 锁 450 分</span>
+        <span class="hd-name" id="hdName">轮到 2 号</span>
+        <span class="hd-sub" id="hdSub">还剩 2 位没锁</span>
+        <button class="btn primary hd-go" id="hdGo" type="button">我来了 · 摇</button>
+      </div>
     </div>
   </div>
 
@@ -255,7 +264,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.10.23</span>
+    <span class="page-ver">v1.10.24</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>

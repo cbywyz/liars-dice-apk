@@ -102,7 +102,7 @@
     round: 0,
     taken: [],          // 本回合已经收下的点数，按收的先后排（分数下面那排小骰子）
     took: false,        // 这一把是否已经收过骰子：收过之后剩下的还能接着收，不用重摇
-    phase: 'ready',     // ready | rolled | bust | over
+    phase: 'ready',     // ready | rolled | bust | lion | handoff | over
     shakeAt: 0
   };
 
@@ -200,6 +200,10 @@
       } else if (liveHand().length) {
         /* 桌上有牌就回「可以点」的状态：刚才没来得及收的那几颗还点得动 */
         G.phase = 'rolled';
+      } else if (o.phase === 'handoff') {
+        /* 交接态存档：退出去再进来还得「等这一位接手」。
+           不能因为桌面是空的就当 ready —— 那等于凭空还他一个可以白摇的回合。 */
+        G.phase = 'handoff';
       } else {
         G.phase = 'ready';
       }
@@ -253,13 +257,17 @@
     render();
   }
 
-  function newTurn() {
+  /* 换人。
+     handoff = true 时进入「交接态」：桌子盖住、等这一位自己点「我来了」才开摇。
+     只有「上一位锁完分」这条路会传 true（见 lockTurn）——
+     开局第一把不盖：刚选完人数，手机就在先手那个人手上，多一层只是烦。 */
+  function newTurn(handoff) {
     clearTimeout(S.timer);
     G.round = 0;
     G.taken = [];
     G.took = false;
     G.hand = blankHand();
-    G.phase = 'ready';
+    G.phase = handoff ? 'handoff' : 'ready';
     save();
     render();
   }
@@ -323,8 +331,12 @@
 
   /* ================= 动作 ================= */
 
+  /* 交接态也要拦：桌面盖着的时候「摇一摇」不该摇得动。
+     底栏那会儿本来就没这个按钮（见 renderBtns），这里再挡一道，
+     免得存档恢复、语音/连点之类的路绕过去。 */
   function onRoll() {
-    if (G.phase === 'bust' || G.phase === 'lion' || G.phase === 'over') return;
+    if (G.phase === 'bust' || G.phase === 'lion' || G.phase === 'over'
+        || G.phase === 'handoff') return;
     if (!G.hand.length) G.hand = blankHand();
 
     // 摇就是摇桌上全部骰子，不区分「上一把留下的」和「新拿回来的」
@@ -517,7 +529,22 @@
 
     if (next < 0) { finish(); return; }
     G.turn = next;
-    newTurn();
+    /* 这里必须走交接：手机在桌上传递的那两秒钟，谁按到「摇一摇」都会把
+       这一回合直接开掉 —— 上一个版本就是直接切 ready，底栏立刻摆着「摇一摇」。 */
+    newTurn(true);
+  }
+
+  /* 交接：点「我来了 · 摇」才真把这一回合交给他。
+     这一步存在的唯一理由就是那半秒钟 —— 上一位锁完、手机刚递出去，
+     「摇一摇」要是已经能按，抢过来的人一点就把 7 颗摇了，顺序全乱。 */
+  function handoffGo() {
+    if (G.phase !== 'handoff') return;
+    G.phase = 'ready';
+    vibrate(10);
+    save();
+    render();
+    /* 必须压在 render 后面：render 结尾会按相位重写提示，写在前面就被覆盖了 */
+    hint(current().name + ' · 摇一摇开局', 'good');
   }
 
   function finish() {
@@ -759,6 +786,10 @@
       list.push({ t: '清零重摇', cls: 'ghost', act: 'bust' });
     } else if (G.phase === 'bust') {
       list.push({ t: '清零重摇', cls: 'primary', act: 'bust' });
+    } else if (G.phase === 'handoff') {
+      /* 交接时底栏不给「摇一摇」：桌面盖着、名字写着「轮到 2 号」，
+         底下却摆一颗能摇的按钮，等于留个陷阱。写成灰的，纯做说明用。 */
+      list.push({ t: '轮到 ' + current().name, cls: 'primary is-off', act: 'none' });
     } else {
       var left = liveHand().length;
       list.push({
@@ -770,7 +801,8 @@
 
     /* 爆掉时不给锁分：本局分数已经清 0，锁无可锁，
        留一个灰按钮在旁边只会让人以为还能点 */
-    if (G.phase !== 'over' && G.phase !== 'bust' && G.phase !== 'lion') {
+    if (G.phase !== 'over' && G.phase !== 'bust' && G.phase !== 'lion'
+        && G.phase !== 'handoff') {
       var ok = G.round >= BASE;
       list.push({
         t: ok ? '锁 ' + G.round + ' 分' : '满 ' + BASE + ' 锁分',
@@ -917,10 +949,37 @@
     renderScore();
     renderTaken();
     renderBtns();
+    syncHandoff();
     /* 顶栏那个「N 人」：还没开局时显示上次选的人数 */
     if (el.pCount) el.pCount.textContent = (G.players.length || loadPlayerCount()) + ' 人';
     if (G.phase === 'ready' && !liveHand().length) {
       hint('满 ' + BASE + ' 才能收手 · 封顶 ' + CAP);
+    }
+    if (G.phase === 'handoff') {
+      hint('轮到 ' + current().name + ' · 点桌面上的「我来了」');
+    }
+  }
+
+  /* 交接盖层：上一位锁了多少、现在轮到谁、还剩几位没锁，都写在这块上。
+     不写这些的话，一桌人只看见「轮到 2 号」，还得自己回想上一手多少分。 */
+  function syncHandoff() {
+    var box = el.handoff;
+    if (!box) return;
+    var on = G.phase === 'handoff';
+    box.hidden = !on;
+    if (!on) return;
+    var lastIdx = G.order.length ? G.order[G.order.length - 1] : -1;
+    var last = lastIdx >= 0 ? G.players[lastIdx] : null;
+    if (el.hdKicker) {
+      el.hdKicker.textContent = last
+        ? last.name + ' · 锁 ' + last.score + ' 分'
+        : '上一位已经锁分';
+    }
+    if (el.hdName) el.hdName.textContent = '轮到 ' + current().name;
+    if (el.hdSub) {
+      var left = 0;
+      for (var i = 0; i < G.players.length; i++) if (!G.players[i].locked) left++;
+      el.hdSub.textContent = G.players.length + ' 人局 · 还有 ' + left + ' 位没锁';
     }
   }
 
@@ -1153,6 +1212,10 @@
     el.hint = $('f3Hint');
     el.btns = $('f3Btns');
     el.pop = $('f3Mask');
+    el.handoff = $('f3Handoff');
+    el.hdKicker = $('hdKicker');
+    el.hdName = $('hdName');
+    el.hdSub = $('hdSub');
     el.pCount = $('pCountTxt');
     if (!el.dice) return;
 
@@ -1191,6 +1254,8 @@
     el.dice.addEventListener('click', onDieTap);
     el.btns.addEventListener('click', onBtn);
     el.pop.addEventListener('click', onMaskTap);
+    var hg = $('hdGo');
+    if (hg) hg.addEventListener('click', handoffGo);
 
     /* 三层导航，各管各的：首页选模式、单人页选玩法、玩法页只负责玩。
        以前把「350 玩法」塞在玩法页底栏，等于让玩家在玩法之间横跳，
@@ -1446,7 +1511,10 @@
       steps: [
         ['摇', '7 颗一起摇出来，明着摊开。'],
         ['点要拿的', '1 点算 100 分、5 点算 50 分，其余不计分。点哪颗才拿走哪颗，不点就留在桌上继续摇。'],
-        ['收下 / 锁分', '分数实时累加，满 350 才能锁，锁了就轮到下一位。连点两下同一颗可以直接收。']
+        ['收下 / 锁分', '分数实时累加，满 350 才能锁，锁了就轮到下一位。连点两下同一颗可以直接收。'],
+        /* 用户 2026-11-10 提的：上一位锁完、手机还在桌上传，谁碰一下「摇一摇」就把
+           下一家的 7 颗摇了。所以换人这一步是独立的一步，写在操作里让人心里有数。 */
+        ['换人', '锁完分桌面会盖住，写着「轮到 X 号」；他自己点「我来了」才开摇 —— 手机传来传去也不会误点。']
       ],
       rules: [
         '拿一颗就少一颗，桌上不会补。所以经常会放着 50 分不拿，把 5 留在桌上凑数量，继续搏 1 点。',
@@ -1653,6 +1721,7 @@
         };
       },
       roll: onRoll, pick: onPick, lock: lockTurn, restart: restart,
+      handoffGo: handoffGo,
       newGame: newGame
     };
   }
