@@ -21,7 +21,7 @@ android {
 
     // 2026-11-10 起只发网页版，APK 不跟着编，这两处版本号**故意停在 1.10.22**。
     // 以后真要发新版 App 时：versionName 改成网页版当前的版本号（index.html 里的 page-ver），
-    // versionCode 各 +1，然后 dispatch 时勾上 with_apk。见 README「发 APK 之前要做的两件事」。
+    // versionCode 各 +1，然后 dispatch 时勾上 with_apk。见 docs/build.md「发 APK 之前要做的三件事」。
     flavorDimensions "edition"
     productFlavors {
         // 完整版：带三格隐形区、点数设置面板、点骰改点
