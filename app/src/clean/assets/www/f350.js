@@ -12,6 +12,39 @@
 (function () {
   'use strict';
 
+  /* ================= 联机昵称 =================
+     名字是「这一桌怎么称呼你」，属于联机这一层 —— 所以输入框只摆在「联机」首页，
+     350 和找朋友都来这儿取，别再让两个玩法各问一次（2026-11-10 用户提的：
+     原来只有 350 的开房页能改名，进找朋友就顶着上一个名字下桌）。
+
+     存在 localStorage 的 ld_net_name（跟以前同一个键，老用户的名字不会丢）。
+     第一次进来先随机给一个：酒桌上没人愿意在开局前打一次字。 */
+  var NAME_KEY = 'ld_net_name';
+  var NAME_POOL = [
+    '橙子', '阿七', '小满', '豆豆', '老王', '阿珍', '大熊', '小北',
+    '冬瓜', '阿飞', '团子', '花生', '阿May', '芒果', '小雨', '阿宝',
+    '毛豆', '小鱼', '二两', '阿伟', '桃子', '小鹿', '阿泰', '年糕'
+  ];
+
+  window.LDName = {
+    rand: function () {
+      return NAME_POOL[Math.floor(Math.random() * NAME_POOL.length)] || '玩家';
+    },
+    get: function () {
+      var n = '';
+      try { n = (localStorage.getItem(NAME_KEY) || '').trim(); } catch (e) {}
+      if (n) return n;
+      n = this.rand();
+      this.set(n);
+      return n;
+    },
+    set: function (n) {
+      n = String(n == null ? '' : n).trim().slice(0, 8);
+      try { localStorage.setItem(NAME_KEY, n); } catch (e) {}
+      return n;
+    }
+  };
+
   /* ================= 常量 ================= */
 
   var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
@@ -943,6 +976,28 @@
     m.style.display = 'flex';
   }
 
+  /* 换人 / 豹子 / 爆点 / 结算：全站共用的合成音（snd.js）。
+     取不到就静默 —— 老缓存里没有 snd.js 时不该因此报错。 */
+  function cue(name) {
+    if (window.LDSnd) window.LDSnd.cue(name);
+  }
+
+  /* 阶段一响：只在阶段**真的变了**的时候出声。
+     挂在 render() 里而不是散到各处，是因为这里改阶段的地方有五六个
+     （摇、爆、豹、锁分、交接、重开），漏一个就少一声。
+     第一次渲染（进页面 / 读存档接上旧局）不响 —— 一打开就嗷一声太吓人，
+     而且接着上一局的时候「豹子」早就出过了。 */
+  var lastPhase = '';
+  function cuePhase() {
+    var was = lastPhase;
+    lastPhase = G.phase;
+    if (!was || was === G.phase) return;
+    if (G.phase === 'handoff') cue('pass');
+    else if (G.phase === 'lion') cue('lion');
+    else if (G.phase === 'bust') cue('bust');
+    else if (G.phase === 'over') cue('drink');
+  }
+
   function render() {
     renderPlayers();
     renderDice();
@@ -950,6 +1005,7 @@
     renderTaken();
     renderBtns();
     syncHandoff();
+    cuePhase();
     /* 顶栏那个「N 人」：还没开局时显示上次选的人数 */
     if (el.pCount) el.pCount.textContent = (G.players.length || loadPlayerCount()) + ' 人';
     if (G.phase === 'ready' && !liveHand().length) {
@@ -1276,6 +1332,29 @@
       switchTo('net');
     });
 
+    /* 找朋友联机：连接由它自己在 enter() 里建（要先有房号） */
+    var playNetFind = $('playNetFind');
+    if (playNetFind) playNetFind.addEventListener('click', function () {
+      switchTo('findnet');
+    });
+
+    /* 名字输入：边打边存（不等到失焦，手机上很容易直接按返回），
+       清空就当没改过 —— 顶着一个空白名字上桌，别人没法喊你 */
+    var nmName = $('nmName');
+    if (nmName) {
+      nmName.addEventListener('input', function () { window.LDName.set(nmName.value); });
+      nmName.addEventListener('change', function () {
+        if (!nmName.value.trim()) nmName.value = window.LDName.get();
+        else nmName.value = window.LDName.set(nmName.value);
+      });
+    }
+    var nmRand = $('nmRand');
+    if (nmRand) nmRand.addEventListener('click', function () {
+      var n = window.LDName.rand();
+      window.LDName.set(n);
+      if (nmName) nmName.value = n;
+    });
+
     var nmBack = $('netModesBack');
     if (nmBack) nmBack.addEventListener('click', function () { switchTo('home'); });
 
@@ -1286,18 +1365,24 @@
     if (pLiar) pLiar.addEventListener('click', function () { switchTo('liar'); });
     var pF350 = $('playF350');
     if (pF350) pF350.addEventListener('click', function () { switchTo('f350'); });
+    var pFind = $('playFind');
+    if (pFind) pFind.addEventListener('click', function () { switchTo('find'); });
 
     /* 底栏「← 返回」= 退到上一层，跟系统返回键同一个效果 */
     var b1 = $('toSolo');
     if (b1) b1.addEventListener('click', function () { switchTo('solo'); });
     var b2 = $('toSolo2');
     if (b2) b2.addEventListener('click', function () { switchTo('solo'); });
+    var b3 = $('toSolo3');
+    if (b3) b3.addEventListener('click', function () { switchTo('solo'); });
 
     /* 玩法说明：底栏进去，点空白 / 关闭出来 */
     var r1 = $('ruleBtn');
     if (r1) r1.addEventListener('click', function () { openRules('liar'); });
     var r2 = $('ruleBtn2');
     if (r2) r2.addEventListener('click', function () { openRules('f350'); });
+    var r3 = $('ruleBtn3');
+    if (r3) r3.addEventListener('click', function () { openRules('find'); });
     var rc = $('ruleClose');
     if (rc) rc.addEventListener('click', function () { closeRules(); });
     var rm = $('ruleMask');
@@ -1329,10 +1414,10 @@
   /* 每一层往上退到哪：玩法页 -> 选玩法，选玩法 -> 首页，首页没有上一级。
      联机现在是「首页 -> 选玩法 -> 350 大厅 -> 牌桌」，比单人那条线多一层：
      多出来的那一层是为了以后加别的联机玩法时不用动首页，也不用动 350 大厅。 */
-  var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo',
-                 netmodes: 'home', net: 'netmodes', netgame: 'net' };
-  var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2,
-                netmodes: 1, net: 2, netgame: 3 };
+  var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo', find: 'solo',
+                 netmodes: 'home', net: 'netmodes', findnet: 'netmodes', netgame: 'net' };
+  var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2, find: 2,
+                netmodes: 1, net: 2, findnet: 2, netgame: 3 };
 
   function curMode() {
     return document.body.getAttribute('data-mode') || 'home';
@@ -1349,8 +1434,10 @@
       solo: document.getElementById('pageSolo'),
       liar: document.querySelector('.page-liar'),
       f350: document.getElementById('pageF350'),
+      find: document.getElementById('pageFind'),
       netmodes: document.getElementById('pageNetModes'),
       net: document.getElementById('pageNet'),
+      findnet: document.getElementById('pageFindNet'),
       netgame: document.getElementById('pageNetGame')
     };
     for (var k in pages) {
@@ -1361,6 +1448,24 @@
        挂在后台还占着一条长连接，手机切两次应用就没电了；
        而且下次进来应该是干干净净的大厅，不是上次那桌的残影。 */
     if (mode !== 'netgame' && window.LDNet) window.LDNet.leave();
+
+    /* 联机找朋友也一样：离开这一页就把 socket 挂起来（房号和座位留着，
+       回来自动重连）。它自己管三屏切换，这里只负责叫它一声。 */
+    if (window.LDFindNet) {
+      if (mode === 'findnet') window.LDFindNet.enter();
+      else window.LDFindNet.leave();
+    }
+
+    /* 「联机」这层是起名的地方：每次回到这里都把当前名字摆上（清空过就重新给一个） */
+    if (mode === 'netmodes' && window.LDName) {
+      var nmi = document.getElementById('nmName');
+      if (nmi && !nmi.value.trim()) nmi.value = window.LDName.get();
+    }
+
+    /* 找朋友自己管自己的状态（杯子数、当前是哪一家）：
+       进去叫一声让它把桌子摆好，离开时把人数下拉收掉 */
+    if (mode === 'find' && window.LDFind) window.LDFind.enter();
+    else if (mode !== 'find' && window.LDFind) window.LDFind.leave();
 
     /* 离开 350 就把人数弹层收掉：它挂在 body 上，页面藏了它还会浮着 */
     if (mode !== 'f350' && el.pop && el.pop.style.display === 'flex') closeMask();
@@ -1381,7 +1486,7 @@
     /* ld_mode 记"当前在哪一页"，ld_last_play 只记"上次玩哪个玩法"。
        两个混用就会出现「从首页进来被跳过首页」那种 bug，别合。 */
     try { localStorage.setItem('ld_mode', mode); } catch (e) {}
-    if (mode === 'liar' || mode === 'f350') {
+    if (mode === 'liar' || mode === 'f350' || mode === 'find') {
       try { localStorage.setItem('ld_last_play', mode); } catch (e) {}
     }
 
@@ -1472,7 +1577,7 @@
   function markLastPlay() {
     var last = null;
     try { last = localStorage.getItem('ld_last_play'); } catch (e) {}
-    var badges = { liar: $('badgeLiar'), f350: $('badgeF350') };
+    var badges = { liar: $('badgeLiar'), f350: $('badgeF350'), find: $('badgeFind') };
     for (var k in badges) {
       /* 一次都没玩过时一个都不显示：默认给吹牛挂「上次玩的」是撒谎 */
       if (badges[k]) badges[k].hidden = (k !== last);
@@ -1598,7 +1703,104 @@
       },
       note: '上面这些杯数是默认值，开局前按自己的量定，能加能减。App 只管算分和记豹子，喝不喝、喝多少在桌上说好。' +
         '想改人数点右上角「N 人」（2~12），重开一局点它左边的「重开」（点两下才真清分，防手滑）。'
+    },
+    find: {
+      title: '潮汕 找朋友 · 怎么玩',
+      lead: '明骰，没有盖子：一圈人谁的点数被公骰摇中，谁就喝 —— 喝多少开桌前说好。',
+      steps: [
+        ['围一圈', '点右上角「N 人」选人数（2~12）。1 号在左上，顺时针排一圈，每人 2 颗。'],
+        ['各自摇', '每人先摇出自己的 2 颗，<strong>全部明着摊开</strong>，桌上谁都看得见。'],
+        ['轮到谁', '轮到谁摇公骰之前，<strong>所有人的 2 颗都重摇一遍</strong>（换一手新点数）。' +
+          '单机版是一台手机传一圈；<strong>联机版各家点自己的座位摇</strong>，点数是服务器摇的，谁也改不了。'],
+        ['摇到停为止', '公骰点中谁，谁喝，这一家<strong>接着摇</strong>；一直摇到「谁都没对上」，才轮到下一家。']
+      ],
+      rules: [
+        '对上分三档：①<strong>一模一样</strong>（公骰 3+4，他手里也是 3+4 或 4+3）→ 喝<strong>双倍</strong>；' +
+          '②只是<strong>和值</strong>相同（他 2+5 或 1+6，也是 7 点）→ 喝一杯；' +
+          '③两边都是<strong>豹子</strong>（公骰 55，他 22 / 66，<strong>不看点数</strong>）→ 喝一杯。',
+        '<strong>每把每人只摇 1 次</strong>：轮到这一家时全桌自动换一手，摇完就定，不能补摇。' +
+          '<strong>公骰一摇就锁</strong> —— 之后谁都不能再改点数，直到「没人对上」换下一家，' +
+          '换人时全部重摇、次数也重新算。',
+        '<strong>11 也算豹子</strong>（2 点）：公骰摇出 11，手里 22~66 的人照样喝；' +
+          '但他手里如果正好是 11，那是一模一样，喝双倍。',
+        '<strong>只有 11 正豹多一项附加</strong>：摇出 11 的这位，<strong>可以再点一个人，罚他 1 杯</strong>。' +
+          '这一杯是额外的 —— 上面「对上的人」照旧记，他就算同时被命中，也是两笔一起算；' +
+          '点完这一杯再看有没有人命中，决定接着摇还是换人。其它豹子（22~66）没有这项。',
+        '同一次可能点到好几个人，各喝各的；同一个人只按最高那一档算，不会既算双倍又算一杯。',
+        '<strong>摇公骰的人自己也算</strong>：公骰摇出跟他一样的点数，他自己一样要喝 —— 没有「庄家免喝」这回事。',
+        '从 1 号摇到最后一号算一轮，接着下一轮，玩到散场。'
+      ],
+      drinks: [
+        '<strong>一模一样 = 双倍（2 杯）</strong>，只是和值相同、或豹子碰豹子 = 1 杯。' +
+          '11 正豹另指的那一杯固定 1 杯，不翻倍。',
+        '要按自己的量改就开局前说好，App 按「杯」累计，你按自己的杯量换算。',
+        '每个座位下面记着<strong>累计杯数</strong>，一轮下来谁欠得最多一眼看到；换人数 / 重开会清掉。',
+        '「重开」要连点两下才真清 —— 满桌的杯数是这一晚的战绩，手滑一下没了很扫兴。'
+      ],
+      note: 'App 只负责摇、判、记杯数；喝不喝、喝多少在桌上说好。各地规矩不一样，' +
+        '开桌前把「和值算不算」「豹子碰豹子算不算」两句对一遍，免得上桌吵。'
     }
+  };
+
+  /* 350 联机单独一份：单机那份讲的是「一台手机传着摇」，重开是一下就清、
+     人数是右上角自己挑 —— 联机这几步全不一样，照单机那份读，人会去找
+     那个根本不存在的「N 人」按钮，也会以为重开点一下就行。
+     判定（收分 / 爆 / 豹子 / 封顶 / 比大小）两边一模一样，直接借过来，
+     以后改规则只改一处，单机和联机不会各说各的。 */
+  RULES.net = {
+    title: '潮汕 350 · 联机怎么玩',
+    lead: '一人一台手机进同一个房号，轮到你就在自己手机上摇。' +
+      '骰子和分数都在服务器上算 —— 谁也别想改自己那七个点数。',
+    steps: [
+      ['开一个房间', '点「开一个房间」拿一个 4 位房号，念给桌上的人；' +
+        '进别人的桌就点「加入房间」输房号。名字在「联机」首页起，进房只回显。'],
+      ['开局', '满 2 人房主就能点「开始」。人没到齐也可以先开着 —— 中途进来的人照样接得上。'],
+      ['轮到你就在自己手机上摇', '手感跟单机一样：点「摇一摇」，再点要拿的 1 和 5。' +
+        '别人的手机上显示的是「等 某某」，不会有人替你点。'],
+      ['摇爆了就自己清零', '一把里没有 1 也没有 5 = 爆，本回合分清零；' +
+        '点「清零重摇」拿回 7 颗，还是你摇，不换人。'],
+      ['满了 350 才锁，封顶 700', '锁完桌面就盖起来 —— 这一手定了，不能反悔。'],
+      ['交接得本人点', '下一位点「我来了 · 摇」才真正开摇，跟单机「把手机递过去」一个意思，' +
+        '只是隔着网。他人不在、手机揣兜里，房主可以点「跳过」把他往后挪一格，这一局接着打。'],
+      ['重开要投票', '打到一半点「重开」是投一票，<strong>在线的人三分之二同意</strong>才真清分；' +
+        '45 秒没人接就作废。一局已经打完时不用投，点一下直接开下一局。'],
+      ['掉线 / 退出再进来', '房号常驻右上角。回到「联机」再进 350，顶上有「上一桌还没打完」，' +
+        '点一下就回原位 —— 服务器凭房号 + 你的身份认人，不用重新报名字。']
+    ],
+    rules: RULES.f350.rules,
+    drinks: RULES.f350.drinks,
+    odds: RULES.f350.odds,
+    note: '联机版没有「改人数」这一项 —— 桌上坐着几个人就是几个人，想加人把房号念给他。' +
+      '杯数是默认值，开桌前按自己的量定；App 只管算分、记豹子、判谁爆，喝不喝在桌上说好。'
+  };
+
+  /* 联机版单独一份：开桌、进房、接手、中途加入这几步单机没有，
+     混在单机那份里写，人会以为「点自己座位就能摇」单机也成立。
+     判定规则完全一样，所以 rules / drinks / note 直接借过来 ——
+     以后改规则只改一处，两个入口一起变，不会出现「单机说双倍、联机说一杯」。 */
+  RULES.findnet = {
+    title: '潮汕 找朋友 · 联机怎么玩',
+    lead: '一人一台手机进同一个房号。点数在服务器摇，谁也改不了自己的牌 —— ' +
+      '这是联机版唯一的意义。',
+    steps: [
+      ['开一桌', '点「开一桌（2~12 人）」拿一个 4 位房号，念给桌上的人；' +
+        '进别人的桌就输房号点「进房」。名字在「联机」首页起，进房只回显。'],
+      ['开局', '满 2 人房主就能点「开局」。人没到齐也可以先开着，中途进来的人照样接得上。'],
+      ['各摇各的', '每人 2 颗明骰，<strong>点自己的座位</strong>摇，每人每把只摇 1 次；' +
+        '房主可以替掉线的人摇。'],
+      ['摇公骰', '轮到谁，谁点「摇公骰」。<strong>必须等所有人都摇过</strong>才让摇 —— ' +
+        '一摇就锁，之后谁都不能再改点数。'],
+      ['没人对上 → 换人', '换下一位：庄家点「某某 接手」，<strong>下一位自己也能点「我来接手」</strong>。' +
+        '快换人时下一位座位会金圈呼吸、右上角标「准备」。换人 = 全部重摇、次数重算。'],
+      ['中途有人进来', '公骰还没摇 → 直接入圈一起摇；<strong>公骰已经摇了 → 这一把不算他</strong>，' +
+        '座位压暗标「下把」，下一位接手后自动入圈。'],
+      ['掉线 / 退出', '退出去座位还留着（服务器凭这台手机的 token 认人）。' +
+        '回到「找朋友 · 联机」第一屏，顶上有「上一桌还没打完」，点一下回原位。' +
+        '真要放弃座位，在牌桌上连点两下 ← 。']
+    ],
+    rules: RULES.find.rules,
+    drinks: RULES.find.drinks,
+    note: RULES.find.note
   };
 
   function openRules(key) {
@@ -1716,7 +1918,7 @@
   }
 
   // 给外部（index.html 的首次进入）用
-  window.F350 = { switchTo: switchTo, openPDrop: openPDrop };
+  window.F350 = { switchTo: switchTo, openPDrop: openPDrop, rules: openRules };
 
   /* 只在 ?test=1 时挂出来：自动化测试要能指定点数，
      否则「摇到豹子」「摇到爆」这种分支根本没法稳定复现。 */

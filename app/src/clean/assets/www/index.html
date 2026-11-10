@@ -17,6 +17,8 @@
 <link rel="stylesheet" href="app.css">
 <link rel="stylesheet" href="f350.css">
 <link rel="stylesheet" href="net.css">
+<link rel="stylesheet" href="find.css">
+<link rel="stylesheet" href="findnet.css">
 </head>
 <body>
 
@@ -78,7 +80,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.10.28 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.15.8 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -134,10 +136,24 @@
         </span>
         <span class="pc-sub">明骰 · 1 点 100、5 点 50，满 350 才能收</span>
       </button>
+
+      <button class="play-card" id="playFind" data-play="find">
+        <span class="pc-top">
+          <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor"
+                    stroke-width="1.7" stroke-dasharray="2.6 2.6"/>
+            <circle cx="8.9" cy="12" r="1.55" fill="currentColor"/>
+            <circle cx="15.1" cy="12" r="1.55" fill="currentColor"/>
+          </svg>
+          <span class="pc-title">潮汕 找朋友</span>
+          <span class="pc-badge" id="badgeFind" hidden>上次玩的</span>
+        </span>
+        <span class="pc-sub">明骰 · 每人 2 颗，中间摇出谁就谁喝</span>
+      </button>
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.10.28</span>
+      <span class="page-ver">v1.15.8</span>
     </div>
   </div>
 </div>
@@ -162,6 +178,14 @@
         <div class="home-t2">ONLINE</div>
       </div>
 
+      <!-- 名字在这一层起：350 和找朋友都从这儿取（localStorage 的 ld_net_name）。
+           以前只有 350 那页有输入框，进找朋友就没处改名了 —— 2026-11-10 用户提的。 -->
+      <div class="nm-name">
+        <input class="nm-name-ip" id="nmName" type="text" maxlength="8"
+               autocomplete="off" spellcheck="false" placeholder="你的名字" aria-label="你的名字">
+        <button class="nm-rand" id="nmRand" type="button" aria-label="换一个名字">换</button>
+      </div>
+
       <div class="home-cards">
         <button class="play-card" id="playNet350">
           <span class="pc-top">
@@ -176,6 +200,21 @@
             <span class="pc-title">潮汕 350</span>
           </span>
           <span class="pc-sub">各看各的手机 · 报个 4 位房号就能开局</span>
+        </button>
+
+        <button class="play-card" id="playNetFind">
+          <span class="pc-top">
+            <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor"
+                      stroke-width="1.5" stroke-dasharray="2.4 2.8" opacity=".65"/>
+              <circle cx="12" cy="4.4" r="1.5" fill="currentColor"/>
+              <circle cx="18.9" cy="16.4" r="1.5" fill="currentColor"/>
+              <circle cx="5.1" cy="16.4" r="1.5" fill="currentColor"/>
+              <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+            </svg>
+            <span class="pc-title">潮汕 找朋友</span>
+          </span>
+          <span class="pc-sub">每人 2 颗明骰 · 摇到谁谁喝 · 2~12 人</span>
         </button>
       </div>
 
@@ -203,13 +242,6 @@
 
   <div class="net-body">
     <div class="net-lead">一人一台手机，各看各的屏<br>房号念一声，人齐就开局</div>
-
-    <!-- 名字：第一次进来自动给一个（橙子 / 阿七 / 小满…），不满意直接改。
-         改过就记住，下次不用再填 -->
-    <div class="net-name">
-      <input class="net-name-ip" id="netName" type="text" maxlength="8"
-             autocomplete="off" placeholder="你的名字" aria-label="你的名字">
-    </div>
 
     <div class="home-cards net-cards">
       <!-- 上一桌还没打完就先摆这一张：中途退出（接电话、去洗手间）再进来，
@@ -264,7 +296,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.10.28</span>
+    <span class="page-ver">v1.15.8</span>
   </div>
 </div>
 
@@ -354,7 +386,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.10.28</span>
+    <span class="page-ver">v1.15.8</span>
     <button class="mode-link" id="ngRule">玩法说明</button>
   </div>
 </div>
@@ -416,7 +448,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.10.28</span>
+      <span class="page-ver">v1.15.8</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -482,9 +514,194 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.10.28</span>
+    <span class="page-ver">v1.15.8</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
+</div>
+
+<!-- ==================== 潮汕 找朋友 ====================
+     明骰，没有盖子：所有人的 2 颗一直摊在桌上，中间那圈是公骰。
+     1 号在左上、顺时针排一圈；轮到谁，所有人先重摇，再由他摇公骰。
+     判定与流程见 find.js 顶部注释，规则在「玩法说明」里。 -->
+<div class="page page-find" id="pageFind" hidden>
+
+  <div class="nav">
+    <button class="nav-back" id="toSolo3" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+    <div class="nav-title">
+      <span class="t1">找朋友</span>
+      <span class="t2">ZHAO PENGYOU</span>
+    </div>
+    <!-- 右上角：重开（两下确认）+ 人数。跟 350 同一套控件，位置也一致 -->
+    <div class="nav-right">
+      <button class="redo-btn" id="findRedo" type="button">重开</button>
+      <div class="count-btn" id="fCountBtn">
+        <span id="fCountTxt">6 人</span><i class="count-caret"></i>
+      </div>
+    </div>
+    <div class="drop drop-grid" id="fDrop" hidden></div>
+    <div class="drop-shade" id="fShade" hidden></div>
+  </div>
+
+  <div class="fd-top">
+    <span class="fd-round" id="fdRound">第 1 轮</span>
+    <span class="fd-who" id="fdWho">1 号摇</span>
+  </div>
+
+  <div class="fd-stage">
+    <div class="fd-ring" id="fdRing">
+      <!-- 中间的公骰：座位绝对定位挂在 #fdRing 上，所以这层不能有定位 -->
+      <div class="fd-core idle" id="fdCore">
+        <div class="fd-dice" id="fdCoreDice"></div>
+        <span class="fd-core-tag" id="fdCoreTag">公骰</span>
+      </div>
+      <div id="fdSeats"></div>
+    </div>
+  </div>
+
+  <div class="fd-hint" id="fdHint">轮到 <b>1 号</b> · 摇中间的 2 颗</div>
+
+  <div class="fd-btns" id="fdBtns"></div>
+
+  <div class="foot">
+    <span class="page-ver">v1.15.8</span>
+    <button class="mode-link" id="ruleBtn3">玩法说明</button>
+  </div>
+</div>
+
+<!-- ==================== 找朋友 · 联机（每人一台手机） ====================
+     为什么这个玩法联机比单机顺：一台手机传一圈，12 个人要点 12 下；
+     每人一台手机，各摇各的，点数还在服务器摇 —— 谁也改不了。
+     三屏：拿房号 → 大厅 → 牌桌。牌桌复用 find.css 的圆环，不另起一套视觉。 -->
+<div class="page page-solo page-findnet" id="pageFindNet" hidden>
+
+  <!-- ① 拿房号 -->
+  <div class="home" id="fnGate">
+    <button class="nav-back" id="fnBack" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">找朋友 · 联机</div>
+        <div class="home-t2">ZHAO PENGYOU</div>
+      </div>
+
+      <div class="fn-who">以 <b id="fnWhoName">你</b> 的身份进房 · 名字在「联机」首页改</div>
+
+      <!-- 上一桌还没打完：中途退出（接电话、去洗手间、误触返回）再进来，
+           不用回忆房号、也不用让桌上的人重新报数 —— 服务器凭 token 认人，
+           点一下回原位。350 那边一直有这张卡，找朋友这边以前没有，
+           退出去就只能干看着（2026-11-10 用户提的）。 -->
+      <button class="fn-resume" id="fnResume" type="button" hidden>
+        <span class="nr-left">
+          <span class="nr-kicker">上一桌还没打完</span>
+          <span class="nr-sub" id="fnResumeSub">点一下回到原位</span>
+        </span>
+        <span class="nr-code" id="fnResumeCode">----</span>
+      </button>
+
+      <div class="fn-box">
+        <div class="fn-lbl">房号</div>
+        <input class="fn-inp" id="fnCode" inputmode="numeric" maxlength="6"
+               placeholder="4 位数字" autocomplete="off" autocorrect="off">
+        <button class="btn primary" id="fnJoin" type="button">进房</button>
+        <button class="btn ghost" id="fnNew" type="button">开一桌（2~12 人）</button>
+        <div class="fn-tip" id="fnTip"></div>
+      </div>
+
+      <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
+      <div class="foot">
+        <span class="page-ver">v1.15.8</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 大厅 -->
+  <div class="fn-lobby" id="fnLobby" hidden>
+    <div class="nav">
+      <button class="nav-back" id="fnQuit" aria-label="离开这一桌">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+        </svg>
+      </button>
+      <div class="nav-title">
+        <span class="t1">大厅</span>
+        <span class="t2">LOBBY</span>
+      </div>
+      <div class="nav-right">
+        <button class="fn-copy" id="fnCopy" type="button">复制房号</button>
+      </div>
+    </div>
+
+    <div class="fn-lobby-body">
+      <div class="fn-bigcode" id="fnLobbyCode">----</div>
+      <div class="fn-lobby-tip" id="fnLobbyTip">正在进房…</div>
+      <div class="fn-plist" id="fnLobbyList"></div>
+      <div class="fn-lobby-btns">
+        <button class="btn primary" id="fnStart" type="button" disabled>开局</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 牌桌 -->
+  <div class="fn-table" id="fnTable" hidden>
+    <div class="nav">
+      <button class="nav-back" id="fnBack2" aria-label="返回大厅">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+        </svg>
+      </button>
+      <div class="nav-title" id="fnTitle">
+        <span class="t1">找朋友</span>
+        <span class="t2">联机 · 明骰</span>
+      </div>
+      <div class="nav-right">
+        <span class="fn-code" id="fnCodeTag">0000</span>
+      </div>
+    </div>
+
+    <div class="fd-top">
+      <span class="fd-round" id="fnRound">第 1 轮</span>
+      <span class="fd-who" id="fnWho">1 号摇</span>
+    </div>
+
+    <div class="fd-stage">
+      <div class="fd-ring" id="fnRing">
+        <div class="fd-core idle" id="fnCore">
+          <div class="fd-dice" id="fnCoreDice"></div>
+          <span class="fd-core-tag" id="fnCoreTag">公骰</span>
+        </div>
+        <div id="fnSeats"></div>
+      </div>
+    </div>
+
+    <!-- 座位和提示行之间留一块空白：手指从这儿起手也不容易误点座位 -->
+    <div class="fn-hot" id="fnHot" aria-hidden="true">
+      <i data-z="1"></i><i data-z="2"></i><i data-z="3"></i><i data-z="4"></i><i data-z="5"></i>
+    </div>
+
+    <div class="fd-hint" id="fnHint">等各家摇完</div>
+
+    <div class="fd-btns" id="fnBtns"></div>
+
+    <!-- 玩法说明放在牌桌上，不放在「拿房号」那一屏：
+         这是要边玩边看的东西 —— 谁被点到、这一杯怎么算，都是在桌上才想翻一下。
+         摆在门槛上，等于让人开局前先读一遍，读完还得记住
+         （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
+    <div class="foot fn-table-foot">
+      <span class="page-ver">v1.15.8</span>
+      <button class="mode-link" id="fnRule">玩法说明</button>
+    </div>
+
+    <div class="fn-off" id="fnOff" hidden>连接断了 · 正在重连</div>
+  </div>
+
 </div>
 
 <div class="f3-mask" id="f3Mask" style="display:none"></div>
@@ -524,7 +741,11 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- 提示音先加载：五个玩法都从它取 cue（换人 / 豹子 / 爆点 / 开盖 / 喝） -->
+<script src="snd.js"></script>
 <script src="app.js"></script>
+<script src="find.js"></script>
+<script src="findnet.js"></script>
 <script src="f350.js"></script>
 <script src="net.js"></script>
 

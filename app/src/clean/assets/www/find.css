@@ -1,0 +1,344 @@
+/* ==========================================================================
+   潮汕 找朋友（ZHAO PENGYOU） —— 第三个玩法，独立一页。
+   · 明骰：所有骰子一直摊开，没有盖子
+   · N 个人围一圈，每人 2 颗；中间一圈是「公骰」，也 2 颗
+   · 轮到谁，就由谁一直摇公骰，直到摇出一次「没人对上」为止
+
+   尺寸一律用 vw，跟 app.css / f350.css 同一套换算（750 宽设计稿 → 1vw = 7.5px）。
+   ========================================================================== */
+
+/* .page 是 display:flex，会盖过 [hidden] 的默认 display:none，得单独声明 */
+.page-find[hidden] { display: none; }
+
+/* ---------------- 顶部一行：第几轮 · 轮到谁 ---------------- */
+
+.fd-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2.1333vw;
+  padding: 0 4vw 1.0667vw;
+}
+
+.fd-round {
+  font-size: 2.6667vw;
+  letter-spacing: 0.32vw;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+.fd-who {
+  font-size: 3.7333vw;
+  font-weight: 600;
+  color: #23262d;
+  letter-spacing: 0.1333vw;
+}
+
+/* ---------------- 圆环 ---------------- */
+
+.fd-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2vw;
+}
+
+/* 正方形靠 padding-top 撑（aspect-ratio 在老 WebView 上不认）。
+   绝对定位子元素的百分比按 padding box 算，所以 top:50% 正好落在中间。 */
+.fd-ring {
+  position: relative;
+  width: 92vw;
+  height: 0;
+  padding-top: 92vw;
+  box-sizing: content-box;
+}
+
+/* 桌面底纹：一圈虚线圈，只是让人一眼看出「这是个圈」 */
+.fd-ring::before {
+  content: '';
+  position: absolute;
+  left: 12%;
+  top: 12%;
+  width: 76%;
+  height: 76%;
+  border-radius: 50%;
+  border: 0.2667vw dashed rgba(35, 38, 45, 0.11);
+  pointer-events: none;
+}
+
+/* ---------------- 座位 ---------------- */
+
+.fd-seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 17.6vw;
+  padding: 0.8vw 0.5333vw 1.0667vw;
+  box-sizing: border-box;
+  border-radius: 2.6667vw;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07),
+              0 0.8vw 2vw rgba(35, 38, 45, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5333vw;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* 轮到他摇：整块反色，扫一眼就知道球在谁手上 */
+.fd-seat.now {
+  background: #23262d;
+  box-shadow: 0 1.0667vw 2.4vw rgba(35, 38, 45, 0.26);
+}
+.fd-seat.now .fd-n { color: rgba(255, 255, 255, 0.62); }
+.fd-seat.now .fd-cups { color: rgba(255, 255, 255, 0.5); }
+.fd-seat.now .fd-cups.has { color: #f0d79a; }
+
+/* 这一把被点到的人：金圈 + 抖一下 */
+.fd-seat.hit {
+  box-shadow: 0 0 0 0.5333vw #b5893f, 0 1.3333vw 3.2vw rgba(181, 137, 63, 0.3);
+  animation: fdShake 0.42s ease;
+}
+.fd-seat.hit .fd-n { color: #7a5a1e; }
+
+/* ---------------- 11 正豹：点一位（附加 1 杯） ---------------- */
+
+/* 等高家点人时整圈一起呼吸，一眼看出「现在该点人，不是该摇」。
+   只有 11 正豹会进这个状态，别的豹子不会。 */
+.fd-ring.pick .fd-seat {
+  animation: fdPulse 1.15s ease-in-out infinite;
+}
+/* 已经被命中的人不跟着呼吸 —— 他那笔账记完了，留着实金圈就好。
+   （动画的优先级高于普通声明，所以得显式关掉，改 box-shadow 是没用的） */
+.fd-ring.pick .fd-seat.hit {
+  animation: none;
+}
+
+@keyframes fdPulse {
+  0%, 100% { box-shadow: 0 0 0 0.4vw rgba(181, 137, 63, 0.5), 0 0.8vw 2vw rgba(35, 38, 45, 0.06); }
+  50%      { box-shadow: 0 0 0 0.8vw rgba(181, 137, 63, 0.24), 0 1.2vw 2.6vw rgba(35, 38, 45, 0.12); }
+}
+
+/* 被指名的那一位：实金圈 + 右上角一个小标签「指名」。
+   跟「对上」共用金圈，多这个小标就不会把两笔账看混。
+   标签做得很小是有原因的：第一版写「指名 +1」直接压住了座位上的号码（2026-11-10 截图）。 */
+.fd-seat.sel {
+  box-shadow: 0 0 0 0.5333vw #b5893f, 0 1.3333vw 3.2vw rgba(181, 137, 63, 0.26);
+}
+
+.fd-tag {
+  display: none;
+  position: absolute;
+  top: -1.2vw;
+  right: -1.4vw;
+  padding: 0.2vw 0.9333vw;
+  border-radius: 999px;
+  background: #b5893f;
+  color: #fff;
+  font-size: 1.9vw;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 0.5333vw 1.2vw rgba(181, 137, 63, 0.34);
+}
+.fd-seat.sel .fd-tag { display: block; }
+
+/* 快轮到下一位接手：金圈呼吸 + 右上角「准备」小标。
+   换人那一下桌上最容易「没人动」—— 光在提示行写一行字，隔着半张桌子谁也看不见；
+   圈到人身上，他自己就知道该把手指放上去了。 */
+.fd-seat.next {
+  animation: fdPulse 1.15s ease-in-out infinite;
+}
+.fd-seat.next .fd-tag { display: block; }
+
+@keyframes fdShake {
+  0%   { transform: translate(-50%, -50%) scale(1); }
+  30%  { transform: translate(-50%, -50%) scale(1.09) rotate(-1.5deg); }
+  62%  { transform: translate(-50%, -50%) scale(1.05) rotate(1.2deg); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+.fd-n {
+  font-size: 2.4vw;
+  line-height: 1;
+  letter-spacing: 0.1333vw;
+  color: rgba(35, 38, 45, 0.44);
+}
+
+.fd-cups {
+  font-size: 2.4vw;
+  line-height: 1;
+  color: rgba(35, 38, 45, 0.26);
+  /* 0 杯也占位，不然有人喝过之后整块的高度会跳一下 */
+  min-height: 2.4vw;
+}
+.fd-cups.has {
+  color: #8a5f18;
+  font-weight: 600;
+}
+
+/* ---------------- 骰子 ---------------- */
+
+.fd-dice {
+  display: flex;
+  gap: 0.6667vw;
+}
+
+/* 一颗骰子：3×3 九宫格铺点，边长由 --s 派生，圆角投影跟着缩 */
+.fd-d {
+  --s: 6vw;
+  position: relative;
+  width: var(--s);
+  height: var(--s);
+  border-radius: calc(var(--s) * 0.24);
+  background: linear-gradient(160deg, #fffdf8, #f2ece0);
+  box-shadow: inset 0 0 0 calc(var(--s) * 0.035) rgba(35, 38, 45, 0.1),
+              0 calc(var(--s) * 0.075) calc(var(--s) * 0.16) rgba(35, 38, 45, 0.16);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: calc(var(--s) * 0.14);
+  box-sizing: border-box;
+}
+
+.fd-d i {
+  display: block;
+  width: calc(var(--s) * 0.2);
+  height: calc(var(--s) * 0.2);
+  border-radius: 50%;
+  align-self: center;
+  justify-self: center;
+  background: #2b2f37;
+}
+
+/* 1 点和 4 点是红的 —— 跟实物骰子一致，认点数快 */
+.fd-d i.r { background: #c0392b; }
+
+/* 空位：还没摇过 / 还没轮到，占着位置不塌 */
+.fd-d.empty {
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 0 calc(var(--s) * 0.035) rgba(35, 38, 45, 0.08);
+}
+.fd-d.empty i { display: none; }
+
+/* 刚翻出来的那一把：跳一下，眼睛跟得上 */
+.fd-d.pop { animation: fdPop 0.32s ease; }
+
+@keyframes fdPop {
+  0%   { transform: scale(0.72); opacity: 0.4; }
+  70%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* ---------------- 中间的公骰 ---------------- */
+
+.fd-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 34vw;
+  height: 34vw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 34%, #fffdf8 0%, #f6f1e6 55%, #ece5d6 100%);
+  box-shadow: inset 0 0 0 0.2667vw rgba(35, 38, 45, 0.08),
+              0 1.6vw 4vw rgba(35, 38, 45, 0.12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.0667vw;
+}
+
+/* 公骰里的两颗比座位上的大一号，一进页面视线就落在中间 */
+.fd-core .fd-d { --s: 9.8667vw; }
+
+.fd-core-tag {
+  font-size: 2.4vw;
+  letter-spacing: 0.5333vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+/* 还在等第一次摇：中间空着，别让人以为是「摇出空」 */
+.fd-core.idle .fd-core-tag { color: rgba(35, 38, 45, 0.28); }
+
+/* ---------------- 结果一行 ---------------- */
+
+.fd-hint {
+  flex: 0 0 auto;
+  min-height: 13.6vw;
+  padding: 1.0667vw 5vw 0;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 3.4667vw;
+  line-height: 1.5;
+  color: rgba(35, 38, 45, 0.66);
+}
+
+.fd-hint b { color: #23262d; font-weight: 600; }
+.fd-hint .gold { color: #8a5f18; font-weight: 600; }
+
+/* 第二行明细：谁因为什么喝、指名点到了谁。
+   主行放不下（一次点到五六个人）时全靠这一行，所以它必须能换行 —— 别再套 flex。 */
+.fd-sub {
+  display: block;
+  margin-top: 0.8vw;
+  font-size: 2.5vw;
+  line-height: 1.45;
+  color: rgba(35, 38, 45, 0.4);
+}
+
+/* ---------------- 按钮 ---------------- */
+
+.fd-btns {
+  flex: 0 0 auto;
+  padding: 0 8vw 1.0667vw;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vw;
+}
+
+/* 九宫格里没点的位置：占格但不可见（不能用 display:none，会把格线挤歪） */
+.fd-d i.blank { visibility: hidden; }
+
+/* 「重开」第二下确认的中间态：按钮变浅金，明确告诉人还没生效 */
+.redo-btn.arm {
+  color: #8a5f18;
+  box-shadow: inset 0 0 0 0.1333vw rgba(181, 137, 63, 0.55);
+}
+
+/* ---------------- 座位与提示行之间的留白 ----------------
+   一块 13vw 的空档，不接手指：座位点起来不容易连带碰到下面的按钮。 */
+.page-findnet .fn-hot {
+  position: relative;
+  flex: 0 0 auto;
+  display: block;
+  height: 13.0667vw;
+  pointer-events: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 总闸一开，这一片就接手指。 */
+.page-findnet .fn-hot.on { pointer-events: auto; }
+
+/* 五格**不画任何东西、也不接手指**：位置只写在 findnet.js 的 hotCellAt 里，
+   靠 document 上的坐标判定。这里留五个 0×0 的 `<i>` 只是当锚点用
+   （数得清是几格、以后想调也有地方挂），免得再出现「CSS 一套坐标、
+   JS 一套坐标，改了一边忘了另一边」——2026-11-10 就是因为这个，
+   下排两格压到「接手」按钮上还不知道。 */
+.page-findnet .fn-hot > i {
+  position: absolute;
+  display: block;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* 标题不给选中：长按本来就没有任何功能，选中文字只是碍事 */
+.page-findnet #fnTitle {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

@@ -208,6 +208,14 @@
     } catch (e) {}
   }
 
+  /* 开盖、豹子这几下用全站共用的合成音（snd.js）：
+     摇骰那声沙沙是真音频，合成不出来；而「哒」一下的开盖声合成一下就够了。
+     跟 🔊 走同一个开关 —— 关了音效还叮一声，那这个开关就是假的。 */
+  function cue(name) {
+    if (!d.soundOn) return;
+    if (window.LDSnd) window.LDSnd.cue(name);
+  }
+
   function vibrate(kind) {
     if (!navigator.vibrate) return;
     try {
@@ -699,6 +707,9 @@
         hint: fi.text,
         diceFace: fi.kind
       });
+      /* 开盖一声「哒」；开出来是豹子再补一串上行音 —— 摇完最快活的就这一下 */
+      cue('open');
+      if (fi.kind === 'lion') cue('lion');
       if (fi.kind) vibrate('medium');
     } else if (p <= 0.015) {
       closeCup();
@@ -728,6 +739,8 @@
       hint: fi.text,
       diceFace: fi.kind
     });
+    cue('open');
+    if (fi.kind === 'lion') cue('lion');
     if (fi.kind) vibrate('medium'); else vibrate('light');
   }
 

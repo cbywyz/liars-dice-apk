@@ -100,6 +100,14 @@
     try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) {}
   }
 
+  /* 换人 / 豹子 / 爆点 / 结算：全站共用的合成音（snd.js）。
+     跟本地那个 🔊 走同一个开关 —— 有人在地铁上关了音效，
+     结果换人还在叮一声，那这个开关就是假的。 */
+  function cue(name) {
+    if (!sndOn) return;
+    if (window.LDSnd) window.LDSnd.cue(name);
+  }
+
   /* ================= 重开要投票 =================
 
      以前谁按谁洗牌：一手好牌正打着，桌上随便谁手滑一下就全没了。
@@ -421,18 +429,18 @@
     return NAMES[Math.floor(Math.random() * NAMES.length)] || '玩家';
   }
 
+  /* 名字统一由「联机」首页给（window.LDName，见 f350.js），这里只取。
+     这两行原来是「第一次进来随机给一个」的现场生成 —— 现在起名搬到上一层了，
+     保留兜底是防旧缓存 / 裁剪版里没有那份模块。 */
   function myName() {
+    if (window.LDName) return window.LDName.get();
     try {
       var n = (localStorage.getItem('ld_net_name') || '').trim();
       if (n) return n;
       n = randName();
-      localStorage.setItem('ld_net_name', n);   // 记住这个随机名，下次还是它
+      localStorage.setItem('ld_net_name', n);
       return n;
     } catch (e) { return '玩家'; }
-  }
-
-  function saveName(n) {
-    try { localStorage.setItem('ld_net_name', n || ''); } catch (e) {}
   }
 
   /* ================= 说话 ================= */
@@ -533,9 +541,12 @@
          手机搁在桌上，靠这一下把人从聊天里叫回来就够了。 */
       if (S.state && S.state.started) {
         if (!wasMine && myTurn()) vibrate([16, 60, 16]);
-        if (prevPhase !== 'bust' && S.state.phase === 'bust') vibrate([40, 70, 40]);
-        if (prevPhase !== 'lion' && S.state.phase === 'lion') vibrate([16, 60, 16, 60, 26]);
-        if (prevPhase !== 'over' && S.state.phase === 'over') vibrate([40, 70, 40, 70, 60]);
+        if (prevPhase !== 'bust' && S.state.phase === 'bust') { vibrate([40, 70, 40]); cue('bust'); }
+        if (prevPhase !== 'lion' && S.state.phase === 'lion') { vibrate([16, 60, 16, 60, 26]); cue('lion'); }
+        if (prevPhase !== 'over' && S.state.phase === 'over') { vibrate([40, 70, 40, 70, 60]); cue('drink'); }
+        /* 换人：以前只有震动，搁在桌上听不见 —— 手机上「轮到谁」全靠这一声
+           （2026-11-10 用户提的：换人也要有声音）。 */
+        if (prevPhase !== 'handoff' && S.state.phase === 'handoff') cue('pass');
         /* 谁被跳过 / 谁被让到队尾，得说一声 —— 桌上突然换了人，
            没看见这句只会以为点到别的什么了。 */
         var lg = S.state.log && S.state.log.length ? S.state.log[S.state.log.length - 1] : null;
@@ -1257,8 +1268,6 @@
   }
 
   function open() {
-    var nm = $('netName');
-    if (nm && !nm.value) nm.value = myName();
     tip('');
     var box = $('netJoinBox');
     if (box) box.hidden = true;
@@ -1475,17 +1484,6 @@
       });
     }
 
-    var nm = $('netName');
-    if (nm) {
-      nm.addEventListener('change', function () {
-        saveName(nm.value.trim().slice(0, 8));
-        /* 还没开局的话，服务器允许改名，改完立刻同步 */
-        if (S.ws && S.ws.readyState === 1 && S.state && !S.state.started) {
-          S.ws.send(JSON.stringify({ t: 'rename', name: nm.value.trim().slice(0, 8) }));
-        }
-      });
-    }
-
     var ngBack = $('ngBack');
     if (ngBack) ngBack.addEventListener('click', goLobby);
 
@@ -1535,6 +1533,10 @@
 
     var rg = $('ngRule');
     if (rg) rg.addEventListener('click', function () {
+      /* 直接开联机那份（'net'），不要再借单机那张按钮：
+         单机写法里「点右上角 N 人改人数」「重开连点两下」，联机一条都不成立 ——
+         照着读的人会去右上角找那个按钮（2026-11-10 用户：「联机版的玩法说明呢」）。 */
+      if (window.F350 && window.F350.rules) { window.F350.rules('net'); return; }
       var rb = $('ruleBtn2');
       if (rb) rb.click();
     });

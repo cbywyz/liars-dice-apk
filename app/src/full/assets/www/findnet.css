@@ -1,0 +1,304 @@
+/* ==========================================================================
+   找朋友 · 联机版（每人一台手机）—— 只补「开房 / 大厅 / 状态条」这一层。
+
+   牌桌本身（圆环、座位、九宫格骰子、公骰圆盘、结果行、按钮）全部复用
+   find.css 里的 .fd-* —— 同一套视觉，用户不该觉得「单机和联机是两个游戏」。
+
+   尺寸照旧用 vw（750 宽设计稿 → 1vw = 7.5px）。
+   ========================================================================== */
+
+/* .page 是 display:flex，会盖过 [hidden] 的默认 display:none */
+.page-findnet[hidden] { display: none; }
+
+/* 三屏（拿房号 / 大厅 / 牌桌）都靠 [hidden] 切换 */
+.page-findnet .fn-lobby[hidden],
+.page-findnet .fn-table[hidden],
+.page-findnet .home[hidden] { display: none; }
+
+/* ---------------- ① 拿房号 ---------------- */
+
+.fn-box {
+  margin: 8vw 6vw 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.6667vw;
+}
+
+/* 名字已经在「联机」首页起好了，这里只回显一句，省得有人对着两个名字发懵 */
+.page-findnet .fn-who {
+  margin: 5.3333vw 6vw 0;
+  font-size: 2.6667vw;
+  letter-spacing: 0.2vw;
+  text-align: center;
+  color: rgba(35, 38, 45, 0.4);
+}
+.page-findnet .fn-who b { color: #23262d; font-weight: 600; }
+
+.fn-lbl {
+  font-size: 2.6667vw;
+  letter-spacing: 0.5333vw;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+.fn-inp {
+  width: 100%;
+  box-sizing: border-box;
+  height: 16vw;
+  padding: 0 4vw;
+  border: 0;
+  border-radius: 4vw;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1);
+  font: inherit;
+  font-size: 6.4vw;
+  font-weight: 600;
+  letter-spacing: 1.6vw;
+  text-align: center;
+  color: #23262d;
+  outline: none;
+}
+.fn-inp::placeholder {
+  font-size: 3.2vw;
+  font-weight: 400;
+  letter-spacing: 0.2667vw;
+  color: rgba(35, 38, 45, 0.26);
+}
+.fn-inp:focus { box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.55); }
+
+.fn-tip {
+  min-height: 5.3333vw;
+  font-size: 2.9333vw;
+  line-height: 1.4;
+  text-align: center;
+  color: #a8632a;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.fn-tip.show { opacity: 1; }
+
+.fn-note {
+  margin: 6vw 8vw 0;
+  font-size: 2.6667vw;
+  line-height: 1.7;
+  text-align: center;
+  color: rgba(35, 38, 45, 0.36);
+}
+
+/* ---------------- ② 大厅 ---------------- */
+
+.fn-lobby {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fn-copy {
+  padding: 0.8vw 2.6667vw;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1);
+  font: inherit;
+  font-size: 2.6667vw;
+  color: #3a3f49;
+}
+.fn-copy:active { opacity: 0.8; }
+
+.fn-lobby-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2vw 6vw 0;
+}
+
+/* 房号就是这一屏的主角：念给对面听，比任何说明都省事 */
+.fn-bigcode {
+  font-size: 13.3333vw;
+  font-weight: 600;
+  letter-spacing: 3.2vw;
+  text-indent: 3.2vw;
+  text-align: center;
+  color: #23262d;
+  line-height: 1.1;
+}
+
+.fn-lobby-tip {
+  margin-top: 1.6vw;
+  font-size: 2.9333vw;
+  text-align: center;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+.fn-plist {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 5.3333vw;
+  display: flex;
+  flex-direction: column;
+  gap: 2.1333vw;
+}
+
+.fn-pl {
+  display: flex;
+  align-items: center;
+  gap: 3.2vw;
+  padding: 3.2vw 4vw;
+  border-radius: 4vw;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06);
+}
+.fn-pl.me { box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.55); }
+.fn-pl.off { opacity: 0.5; }
+
+.fn-pl-n {
+  width: 7vw;
+  font-size: 2.9333vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+.fn-pl-name {
+  flex: 1 1 auto;
+  font-size: 3.4667vw;
+  font-weight: 500;
+  color: #23262d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fn-pl-host {
+  font-size: 2.4vw;
+  color: #8a5f18;
+  padding: 0.4vw 1.6vw;
+  border-radius: 999px;
+  background: rgba(181, 137, 63, 0.14);
+}
+
+.fn-lobby-btns {
+  flex: 0 0 auto;
+  padding: 4vw 0 6vw;
+  display: flex;
+}
+.fn-lobby-btns .btn { width: 100%; }
+
+/* ---------------- ③ 牌桌 ---------------- */
+
+.fn-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 房号缩在右上角，随时能报给别人 */
+.fn-code {
+  font-size: 3.2vw;
+  font-weight: 600;
+  letter-spacing: 0.8vw;
+  color: rgba(35, 38, 45, 0.5);
+}
+
+/* 「我」那一格：细金边，扫一眼就知道自己是哪个座位 */
+.fd-seat.me {
+  outline: 0.2667vw solid rgba(181, 137, 63, 0.55);
+  outline-offset: 0.2667vw;
+}
+.fd-seat.off { opacity: 0.45; }
+
+/* 名字比单机那份大一点点（2.4vw → 2.7vw）：联机是靠昵称认人的，
+   单机只靠座位号。长了就省略号 —— 服务端允许 8 个字的昵称，
+   真放开写会把座位撑高、把骰子挤出去（12 人桌上试过）。 */
+.page-findnet .fd-n {
+  font-size: 2.7vw;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 还没摇的座位：内圈一道金边，意思是「你该点我」 */
+.fd-seat.todo {
+  box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.45),
+              0 0.8vw 2vw rgba(35, 38, 45, 0.06);
+}
+.fd-seat.todo .fd-d.empty { background: rgba(255, 255, 255, 0.58); }
+
+/* 不是自己该动的时候，用一句话代替按钮 —— 空着一块会让人以为界面卡了 */
+.fn-wait {
+  padding: 3.2vw 0;
+  text-align: center;
+  font-size: 3.2vw;
+  color: rgba(35, 38, 45, 0.4);
+}
+
+/* 房主的小按钮：重开一桌。做得比主按钮小一号，别抢「摇公骰」的位置 */
+.fn-mini {
+  margin: 1.3333vw auto 0;
+  padding: 1.2vw 4vw;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 2.6667vw;
+  color: rgba(35, 38, 45, 0.4);
+  text-decoration: underline;
+  text-underline-offset: 0.5333vw;
+}
+
+.fn-off {
+  position: fixed;
+  left: 50%;
+  bottom: 12vw;
+  transform: translateX(-50%);
+  padding: 1.8667vw 4.2667vw;
+  border-radius: 999px;
+  background: rgba(35, 38, 45, 0.88);
+  color: #fbf7ef;
+  font-size: 2.9333vw;
+  white-space: nowrap;
+  z-index: 40;
+}
+.fn-off[hidden] { display: none; }
+
+/* ================= 「上一桌还没打完」=================
+   350 首页那张卡的孪生兄弟（样式 token 跟 .net-resume 一致：深底、白字、右下角房号）。
+   两处长得不一样，人就会以为是两种功能。
+   它站在「房号」那块上面，所以只补一个下边距，不另起一套视觉。 */
+.fn-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 5.3333vw 0 0;
+  padding: 3.7333vw 4.8vw;
+  border: 0;
+  border-radius: 4.2667vw;
+  text-align: left;
+  color: #f4f0e9;
+  background: #23262d;
+  box-shadow: 0 1.0667vw 2.9333vw rgba(35, 38, 45, 0.22);
+  transition: transform 0.16s ease;
+}
+.fn-resume[hidden] { display: none; }
+.fn-resume:active { transform: scale(0.97); }
+
+/* 卡片出来之后，「房号」那块就别再顶着它了 */
+.fn-resume:not([hidden]) + .fn-box { margin-top: 4.2667vw; }
+
+/* 中途进来、这一把没赶上的人：压暗 + 灰标「下把」。
+   他手上是两颗空格子，要是和旁人一样亮，看着就像「怎么还不摇」。 */
+.page-findnet .fd-seat.out { opacity: 0.62; }
+.page-findnet .fd-seat.out .fd-tag {
+  display: block;
+  background: rgba(35, 38, 45, 0.42);
+  box-shadow: none;
+}
+/* 灰标不该把金圈盖掉：站到下一位时还是金底「准备」 */
+.page-findnet .fd-seat.out.next .fd-tag {
+  background: #b5893f;
+  box-shadow: 0 0.5333vw 1.2vw rgba(181, 137, 63, 0.34);
+}
