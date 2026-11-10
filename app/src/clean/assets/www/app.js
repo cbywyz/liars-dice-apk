@@ -934,13 +934,18 @@
 
    网页版没有安装包，但可以「添加到主屏幕」：加完从桌面点开是全屏、没有地址栏，
    图标也是同一个，用起来跟 APK 差别很小。装机率一直是网页版最难的一步，所以首页
-   直接给一条入口，点开按机型给步骤（iOS 和安卓的路径完全不一样，混着讲没人看得懂）。
+   直接给一条入口。
 
-   什么时候不出现：
+   点这一条会发生什么：
+     · 浏览器已经把系统安装框交过来了（安卓 Chrome / Edge 的 beforeinstallprompt）——
+       **直接弹系统框**，点「安装」图标就上桌面，中间不加任何一页。
+     · 没有这个事件（iOS、微信内置浏览器、Firefox、或 Chrome 还没触发）——
+       才打开说明页，按机型给步骤。iOS 和安卓的路径完全不一样，混着讲没人看得懂。
+     · 弹了但用户点「取消」—— 再把说明页打开，告诉人还能手动加，别让人以为没点上。
+
+   什么时候整条都不出现：
      · 已经是从桌面图标打开的（standalone / fullscreen）—— 已经在桌面上了，别啰嗦
-     · 用户点过「不用了，以后别再提醒」—— 存在 localStorage，下次不再问
-   安卓 Chrome 会把系统安装框交给我们（beforeinstallprompt），能弹就直接弹，
-   比讲三步清楚；iOS 没有这个事件，只能手把手教。 */
+     · 用户点过「不用了，以后别再提醒」—— 存在 localStorage，下次不再问 */
 
 (function () {
   'use strict';
@@ -978,7 +983,8 @@
 
   var mask = document.getElementById('a2hsMask');
   var body = document.getElementById('a2hsBody');
-  var defer = null;
+  var defer = null;        // 浏览器交给我们的安装事件，只能 prompt 一次
+  var cancelled = false;   // 用户点了系统框的「取消」，说明页要提一句
 
   function steps(title, arr, note) {
     var h = '<div class="rule-sec"><div class="rule-sec-t">' + title + '</div>';
@@ -997,6 +1003,13 @@
       '</div>' +
       '<div class="rule-lead">从桌面点开是全屏的，没有地址栏，跟装的 App 一样；' +
         '联网打开过一次之后，<strong>断网也能摇</strong>。</div>';
+
+    /* 系统框弹过又被取消：先说清楚不是没点上，再给手动路子 */
+    if (cancelled) {
+      h += '<div class="rule-note">刚才那个安装框点了「取消」。想走系统安装就' +
+        '<strong>刷新一下本页再点上面那条</strong>（浏览器一个页面只让弹一次）；' +
+        '不想刷新就照下面的步骤手动加，加完效果一样。</div>';
+    }
 
     if (inApp) {
       h += steps('先跳出微信 / QQ 的内置浏览器', [
@@ -1017,14 +1030,8 @@
       /* 网页没有权限去拨系统的「应用权限」页面（Android 不允许网页拉 settings intent），
          所以「替用户把权限开了」这件事做不到。但有一条绕过去的路：
          走浏览器的「安装应用」—— Chromium 系装的是 WebAPK，图标由系统自己放到桌面，
-         **压根不需要「桌面快捷方式」权限**。能拿到 beforeinstallprompt 就在这一页直接给按钮，
-         用户点一下、系统弹安装框、点「安装」，比去设置里翻权限快得多。 */
-      if (defer) {
-        h += '<button class="a2hs-install" id="a2hsInstall" type="button">' +
-          '<b>让浏览器直接装</b>' +
-          '<span>系统会弹一个安装框，点「安装」就好 —— 这条路不用「桌面快捷方式」权限，图标自己上桌面</span>' +
-          '</button>';
-      }
+         **压根不需要「桌面快捷方式」权限**。能拿到 beforeinstallprompt 的浏览器，
+         点首页那条就直接弹系统框了，不会走到这一页；走到这里说明只能手动加。 */
       h += steps('安卓', [
         '用任意浏览器打开本页（自带浏览器、Chrome、Edge 都行）',
         '点右上角「<strong>⋮</strong>」，或底部「<strong>≡</strong>」菜单',
@@ -1082,33 +1089,8 @@
       });
     }
 
-    /* 「让浏览器直接装」：这是这一页里唯一能真正「调起系统」的动作 ——
-       网页拿不到「创建桌面快捷方式」这种系统权限，但能请浏览器走它自己的安装流程。
-       接受就收摊；取消就把按钮改成「刚才取消了」，别让用户以为没点到。 */
-    var ib = document.getElementById('a2hsInstall');
-    if (ib) {
-      ib.addEventListener('click', function () {
-        if (!defer) return;
-        var d = defer;
-        defer = null;
-        d.prompt();
-        if (d.userChoice && d.userChoice.then) {
-          d.userChoice.then(function (r) {
-            if (r && r.outcome === 'accepted') {
-              mark();
-              bar.hidden = true;
-              close();
-              return;
-            }
-            ib.classList.add('done');
-            var t = ib.querySelector('b');
-            var s = ib.querySelector('span');
-            if (t) t.textContent = '刚才取消了';
-            if (s) s.textContent = '也可以照下面第 2 步手动加，效果一样';
-          });
-        }
-      });
-    }
+    /* 这一页里已经没有「调起系统」的按钮了 —— 能调起的那种情况在首页那一条上
+       就被直接弹掉了（见下面的 promptNow），走到这一页只可能是加不了自动安装的浏览器。 */
   }
 
   function legacyCopy(text, done) {
@@ -1135,15 +1117,53 @@
     if (mask) mask.style.display = 'none';
   }
 
-  /* 一律先开这一页：以前浏览器能装就直接弹系统框，用户看到的是一个没有上下文的
-     「安装应用？」—— 不知道装了会怎样、也不知道还有别的路。现在先给一页说明，
-     能装的话最上面就是那颗「让浏览器直接装」，点一下照样是系统框。 */
-  bar.addEventListener('click', open);
+  /* 真正「调起系统安装框」的那一下：把浏览器交过来的事件 prompt 出去，
+     用户看到的就是系统的「安装应用」框，点「安装」图标自己上桌面。
+     接受 → 收摊、记一下；取消 → 打开说明页兜底（同一个事件只能用一次，
+     所以说明页里写的是「刷新再点」而不是「再点一次」）。 */
+  function promptNow() {
+    var d = defer;
+    defer = null;
+    try {
+      d.prompt();
+    } catch (e) {
+      open();
+      return;
+    }
+    if (d.userChoice && d.userChoice.then) {
+      d.userChoice.then(function (r) {
+        if (r && r.outcome === 'accepted') {
+          mark();
+          bar.hidden = true;
+          close();
+          return;
+        }
+        cancelled = true;
+        open();
+      }, function () {
+        cancelled = true;
+        open();
+      });
+    }
+  }
+
+  /* 点首页那一条：能直接装就直接弹系统框（一步到位），不能装才给说明页。
+     系统框弹出来之前那句「装了会怎样」也没丢 —— 这条入口的副标题在拿到安装事件时
+     就换成了「点一下直接装」，点下去立刻是系统框，中间不多一层。 */
+  bar.addEventListener('click', function () {
+    if (defer) {
+      promptNow();
+      return;
+    }
+    open();
+  });
 
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     defer = e;
     bar.hidden = false;
+    var t2 = bar.querySelector('.a2hs-t2');
+    if (t2) t2.textContent = '点一下直接装 · 系统会问一次「安装」';
   });
 
   window.addEventListener('appinstalled', function () {

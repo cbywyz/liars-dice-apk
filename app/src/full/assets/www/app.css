@@ -1533,39 +1533,8 @@ body.tap-edit .die-slot:active .die {
   color: rgba(35, 38, 45, 0.46);
 }
 
-/* 「让浏览器直接装」：这一页唯一能真正调起系统的动作。
-   做成整块的主按钮（标题 + 一句解释），因为它是首选路径：走 WebAPK，
-   图标由系统放，不碰「桌面快捷方式」权限。 */
-.a2hs-install {
-  display: block;
-  width: 100%;
-  margin-top: 3.2vw;
-  padding: 3.7333vw 4.2667vw 4vw;
-  border-radius: 4.2667vw;
-  text-align: left;
-  color: #f4f0e9;
-  background: #23262d;
-}
-.a2hs-install b {
-  display: block;
-  font-size: 4vw;
-  font-weight: 600;
-  letter-spacing: 0.5333vw;
-}
-.a2hs-install span {
-  display: block;
-  margin-top: 1.0667vw;
-  font-size: 2.6667vw;
-  line-height: 1.5;
-  color: rgba(244, 240, 233, 0.6);
-}
-.a2hs-install:active { opacity: 0.86; }
-/* 用户点了系统框又取消：按钮不能还写着「直接装」，否则以为没点上 */
-.a2hs-install.done {
-  color: rgba(35, 38, 45, 0.5);
-  background: rgba(35, 38, 45, 0.07);
-}
-.a2hs-install.done span { color: rgba(35, 38, 45, 0.4); }
+/* 首页那条入口能直接弹系统安装框，所以这一页里不再需要「让浏览器直接装」大按钮；
+   原来那套 .a2hs-install 样式一并删掉，别留死代码。 */
 
 /* 安卓上「加了桌面没图标」这件事要说，但不是警告 ——
    原因是浏览器没被允许「创建桌面快捷方式」，给个权限就好的事。
