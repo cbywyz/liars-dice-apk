@@ -190,25 +190,20 @@
   }
 
   /* 随机顺子（5 颗）：从 1~6 里删掉一个点数，5 颗互不重复就是顺子。
-     1 是万能牌 —— 删 2/3/4/5 时留下的 1 正好顶掉缺口，
-     13456 / 12456 / 12356 / 12346 都是「万能顺」，跟 faceOf / quickState 一致。
+     1 是万能牌 —— 只删 2/3/4/5 时留下的 1 正好顶掉缺口，
+     13456 / 12456 / 12356 / 12346 这四种，跟 faceOf / quickState 一致。
      以前这里只挑 12345 / 23456，跟自己的判定自相矛盾（用户 2026-11-11 纠正）。
-     删 1 或 6 得到连顺，偶尔给一条、而且绝不连着给两次。
+
+     不掺连顺：用户 2026-11-11 连说两次「调试出来的顺子怎么都是 12345 / 23456」。
+     连顺有下面两颗固定档专门发，随机档就专心出带 1 的那种。
      6 颗只有 123456 一种；其他颗数不存在顺子，照旧退回连续排。 */
-  var lastStWasRun = false;
   function randomStraight() {
     var n = d.diceCount;
     var pool = [], i, j, tmp, drop;
     if (n === 6) {
       pool = [1, 2, 3, 4, 5, 6];
     } else if (n === 5) {
-      if (!lastStWasRun && Math.random() < 0.22) {
-        drop = Math.random() < 0.5 ? 1 : 6;
-        lastStWasRun = true;
-      } else {
-        drop = 2 + Math.floor(Math.random() * 4);
-        lastStWasRun = false;
-      }
+      drop = 2 + Math.floor(Math.random() * 4);     // 2~5：一定留 1
       for (i = 1; i <= 6; i++) if (i !== drop) pool.push(i);
     } else {
       for (var m = 0; m < n; m++) pool.push((m % 6) + 1);

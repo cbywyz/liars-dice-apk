@@ -755,6 +755,8 @@
 
       var cls = 'lr-seat';
       if (s.online === false) cls += ' off';
+      /* 自己那张卡描一圈淡金：一桌十几个人时，先认出「我在哪儿」 */
+      if (s.id === st.you) cls += ' me';
       if (se.root.className !== cls) se.root.className = cls;
     }
 
@@ -810,8 +812,11 @@
      整屏换成一列大行：一行一家，5 颗 10vw 的骰子，谁的牌一眼扫完。
      这里只画、不判 —— 够不够数写在最上面，喝多少桌上自己说。 */
   /* 顺子：5 颗点数互不重复。1 是万能牌，正好顶掉中间断掉的那一截：
-     12345 / 23456 是连顺，13456 / 12456 / 12356 / 12346 是「万能顺」，
-     都算顺子。用户 2026-11-11 明确：「只要没重复点数就是顺子，13456 也是顺子」。
+     12345 / 23456 是连顺，13456 / 12456 / 12356 / 12346 只断了一截，
+     照样算顺子。用户 2026-11-11 明确：「只要没重复点数就是顺子，13456 也是顺子」。
+
+     界面上不再分两种叫法：用户 2026-11-11 又说「标记顺子只标记顺子就好，
+     万能顺也叫顺子」—— 所以摊牌页和状态条一律只写「顺子」两个字。
 
      只做标注，不做判定：App 本来就不判牌，这里也不改任何数。
      单独拿出来是因为摊牌那一眼，一桌人看的是「谁手里有牌」，
@@ -828,14 +833,6 @@
       seen[dice[i]] = 1;
     }
     return true;
-  }
-
-  /* 万能顺：带 1、又不是 12345 那条连顺的「断一截」牌。
-     摊牌页和状态条上单独写三个字，让人一眼看出这手也是顺子。 */
-  function isWildStraight(dice) {
-    if (!isStraight(dice)) return false;
-    var s = dice.slice().sort(function (a, b) { return a - b; });
-    return s[0] === 1 && s.join(',') !== '1,2,3,4,5';
   }
 
   function paintReveal() {
@@ -865,8 +862,8 @@
          不用挤别人的位置，眼睛从名字扫到骰子一定会经过它。 */
       var tag = '';
       if (isStraight(s.dice)) {
-        tag = '<span class="lr-rv-t">' +
-              (isWildStraight(s.dice) ? '万能顺' : '顺子') + '</span>';
+        /* 一个词就够：连顺、带 1 断一截，都是顺子。 */
+        tag = '<span class="lr-rv-t">顺子</span>';
       }
       /* 掉线的人名字后面说一句：这一屏座位卡收起来了，没有别的办法看出谁不在了，
          而「谁不在了」恰恰是这一屏最常要处理的事（人走了，票凑不够，得请他出去）。 */
@@ -1053,6 +1050,21 @@
       else if (st.phase === 'call') t = '牌锁了 · 桌上叫，想开就点「开牌」';
       else if (st.phase === 'reveal') t = '摊牌 · 对完牌点「下一把」';
       el.meTag.textContent = t;
+    }
+    /* 自己连了几把顺子：圆环上那张自己的座位卡离得远，这一块才是「我的牌」，
+       所以同一个数在自己的位置上也写一遍。2 连起才出现，3 连转红 ——
+       跟座位卡、摊牌页同一套口径（用户 2026-11-11 反馈自己那份看不到）。 */
+    if (el.meSt) {
+      var msk = s.streak | 0;
+      if (msk >= 2) {
+        el.meSt.hidden = false;
+        el.meSt.textContent = '顺子 ' + msk + ' 连' + (msk >= 3 ? ' · 罚酒' : '');
+        el.meSt.className = 'lr-me-st' + (msk >= 3 ? ' hot' : '');
+      } else {
+        el.meSt.hidden = true;
+        el.meSt.textContent = '';
+        el.meSt.className = 'lr-me-st';
+      }
     }
     if (el.me) el.me.className = 'lr-me' + (s.rolled ? '' : ' lr-me-wait');
 
@@ -1264,9 +1276,9 @@
     return (p && ones) ? p : 0;
   }
 
-  /* 一手牌叫什么：正豹 / 万能豹 = 豹子，5 颗互不重复 = 顺子
-     （带 1 又断一截的写成「万能顺」），其余照念点数。
-     只用在面板那条状态条上，不是判定。 */
+  /* 一手牌叫什么：正豹 / 万能豹 = 豹子，5 颗互不重复 = 顺子，
+     其余照念点数。只用在面板那条状态条上，不是判定。
+     顺子不分连顺 / 断一截，一律写「顺子」（用户 2026-11-11 的要求）。 */
   function armName(v) {
     if (!v || v.length !== 5) return '';
     var same = true, i;
@@ -1275,7 +1287,7 @@
     if (wildLion(v)) return '豹子 · ' + v.join('');
     if (isStraight(v)) {
       var s = v.slice().sort(function (a, b) { return a - b; });
-      return (isWildStraight(v) ? '万能顺 · ' : '顺子 · ') + s.join(' ');
+      return '顺子 · ' + s.join(' ');
     }
     return v.join(' ');
   }
@@ -1384,23 +1396,19 @@
 
   /* 随机顺子：从 1~6 里删掉一个点数 = 5 颗互不重复，按吹牛规则就是顺子。
 
-     删 2 / 3 / 4 / 5 时留下 1 又断了一截 —— 1 是万能牌，正好顶掉那个缺口：
-     13456 / 12456 / 12356 / 12346，这四条就是用户要的「万能顺」。
-     删 1 或 6 得到 23456 / 12345 连顺，只让它偶尔出现、而且绝不连着出两次，
-     免得连点几下又全是五个连续数字（用户 2026-11-11 实测的就是这个）。
+     **只在 2~5 里删**，也就是每一次都留下 1：1 是万能牌，正好顶掉断掉的那一截。
+     得到的是 13456 / 12456 / 12356 / 12346 四种形态，随机一种再打散顺序。
+
+     为什么不掺连顺：用户 2026-11-11 连着两次反馈「调试出来的顺子怎么都是
+     12345 / 23456，没有别的」。之前为了「偶尔自然一点」留了 22% 概率出连顺，
+     结果连着点几下就撞上好几次，看着像随机档根本没用。
+     连顺本来就有下面两颗固定 chip 专门发，随机档就专心出带 1 的那种。
 
      最后洗牌、并保证不是升序：升序留给下面两颗固定档，
      面板才分得出「随机档 / 固定档」哪颗 chip 亮。 */
-  var lastStWasRun = false;
   function randomStraight() {
-    var drop, i, j, tmp;
-    if (!lastStWasRun && Math.random() < 0.22) {
-      drop = Math.random() < 0.5 ? 1 : 6;   // 偶尔来一条连顺
-      lastStWasRun = true;
-    } else {
-      drop = 2 + Math.floor(Math.random() * 4);   // 2~5：一定带 1 的万能顺
-      lastStWasRun = false;
-    }
+    var drop = 2 + Math.floor(Math.random() * 4);   // 2~5：一定带 1
+    var i, j, tmp;
     var pool = [];
     for (i = 1; i <= 6; i++) if (i !== drop) pool.push(i);
     for (i = pool.length - 1; i > 0; i--) {
@@ -1779,6 +1787,7 @@
       round: $('lrRound'), who: $('lrWho'), codeTag: $('lrCodeTag'),
       seats: $('lrSeats'), coreK: $('lrCoreK'), coreV: $('lrCoreV'), coreS: $('lrCoreS'),
       me: $('lrMe'), meDice: $('lrMeDice'), meName: $('lrMeName'), meTag: $('lrMeTag'),
+      meSt: $('lrMeSt'),
       cup: $('lrCup'), cupRig: $('lrCupRig'), lid: $('lrLid'), stage: $('lrRing'),
       rev: $('lrRev'), revV: $('lrRevV'), revS: $('lrRevS'), revList: $('lrRevList'),
       hint: $('lrHint'), btns: $('lrBtns'), off: $('lrOff'),
