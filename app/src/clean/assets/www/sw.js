@@ -50,6 +50,8 @@ var FILES = [
   './find.js',
   './findnet.css',
   './findnet.js',
+  './board.css',
+  './board.js',
   './manifest.webmanifest',
   './assets/audio/shake.mp3',
   './apple-touch-icon.png',

@@ -1,0 +1,428 @@
+/* ==================== 摆桌上 · 公共屏 ====================
+
+   一桌人各看各的手机，桌上没有共同焦点：「几点」「该谁」「几杯」全靠喊。
+   这台设备就摆在桌子中间，只读显示：房号、桌上的公骰、轮到谁、各家分数/杯数、
+   刚发生了什么。私密操作（摇骰、看自己的牌）还在各自手机上。
+
+   为什么是深色：它要当一块「屏」，不是在手机里再开一张纸。深底 + 大字号
+   在灯下、斜着看、隔一张桌子看都清楚，也一眼能跟手里那台手机区分开。
+
+   字号不用 vw 而用 cqh（卡片高度的百分比）：12 个人时卡片小，字跟着小；
+   4 个人时卡片大，字跟着大 —— 同一份 CSS 不用为人数分支。
+   老浏览器不认 cqh，前面那行 px 就是兜底值。 */
+
+.page-board[hidden],
+.bd-stage[hidden] { display: none; }
+.net-board[hidden] { display: none; }
+
+/* .home 是 display:flex，一样会盖掉 [hidden]：不补这句，拿房号那一屏
+   的元素（返回箭头是绝对定位，直接压在牌面上）会浮在大屏上面。 */
+.page-board .home[hidden] { display: none; }
+
+/* ---------------- 联机玩法页上那条入口 ----------------
+
+   摆桌上不是第三种玩法，是给「面对面」配的一块屏：两个人打要看、十二个人打也要看。
+   所以它不该跟上面两张玩法卡抢同一份份量 —— 一条细带子，金的、虚一点，
+   看见了就点，没注意也不碍事。 */
+
+.net-board {
+  display: flex;
+  align-items: center;
+  gap: 3.2vw;
+  width: 100%;
+  margin-top: 4.2667vw;
+  padding: 4.2667vw 5.8667vw;
+  border-radius: 4.5333vw;
+  text-align: left;
+  background: rgba(181, 137, 63, 0.06);
+  box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.26);
+}
+.net-board:active { transform: scale(0.992); background: rgba(181, 137, 63, 0.13); }
+
+.nb-ic {
+  flex: 0 0 auto;
+  width: 8.5333vw;
+  height: 8.5333vw;
+  color: #8a6a1f;
+  display: block;
+}
+.nb-ic svg { width: 100%; height: 100%; display: block; }
+
+.nb-txt { display: block; min-width: 0; }
+
+.nb-k {
+  display: block;
+  font-size: 3.7333vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+  color: #6f5518;
+}
+
+.nb-s {
+  display: block;
+  margin-top: 1.0667vw;
+  font-size: 2.9333vw;
+  line-height: 1.4;
+  color: rgba(35, 38, 45, 0.45);
+}
+
+/* ---------------- 拿房号这一屏（跟其它入口页同一套骨架） ---------------- */
+
+.bd-lead {
+  margin: 1.6vw 0 5.3333vw;
+  font-size: 3.7333vw;
+  line-height: 1.6;
+  color: rgba(35, 38, 45, 0.56);
+}
+
+.bd-box { display: flex; flex-direction: column; }
+
+.bd-lbl {
+  font-size: 3.2vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.4);
+  margin-bottom: 2.1333vw;
+}
+
+.bd-inp {
+  width: 100%;
+  height: 15.4667vw;
+  border: 0;
+  border-radius: 3.7333vw;
+  background: #fbf7ef;
+  box-shadow: inset 0 0 0 1px rgba(35, 38, 45, 0.08);
+  text-align: center;
+  font-size: 6.4vw;
+  font-weight: 600;
+  letter-spacing: 1.2vw;
+  color: #23262d;
+  font-family: inherit;
+  outline: none;
+}
+.bd-inp::placeholder { font-weight: 400; letter-spacing: 0.2vw; color: rgba(35, 38, 45, 0.28); }
+
+.bd-box .btn { margin-top: 3.2vw; }
+
+.bd-tip {
+  min-height: 5.3333vw;
+  margin-top: 2.1333vw;
+  font-size: 3.2vw;
+  line-height: 1.5;
+  color: #c2493f;
+}
+.bd-tip.ok { color: rgba(35, 38, 45, 0.45); }
+
+.bd-note {
+  margin-top: 4vw;
+  font-size: 3.2vw;
+  line-height: 1.75;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+/* ---------------- 大屏本体 ---------------- */
+
+.bd-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  /* 底部比顶部多留一点：最下面一行是「最新一条记录」，它原来正好压在屏幕边上
+     （量出来 log 底边 = 屏高 - 内边距，一点都不剩），字多一点就切掉半截。
+     多留 1.2vmin 给它，顺便躲开手机底部那条手势条。 */
+  padding: calc(2.2vmin + env(safe-area-inset-top)) 3.2vmin
+           calc(3.4vmin + env(safe-area-inset-bottom));
+  background: radial-gradient(122% 92% at 50% -12%, #2c323c 0%, #1d2027 54%, #14171c 100%);
+  color: #f4f0e9;
+  overflow: hidden;
+}
+
+.bd-top {
+  display: flex;
+  align-items: center;
+  gap: 2.4vmin;
+  flex: 0 0 auto;
+}
+
+/* 字号里的 vmax 不是随手写的：竖屏手机上 vmin 取的是宽度（390），
+   1vmax 取的是高度（844）—— 一排小字要「隔着桌子看得见」，就该跟着长边走。
+   大屏摆在桌上多半是竖着立起来的，这一条比省事重要。 */
+.bd-game {
+  flex: 0 0 auto;
+  padding: 1vmin 2.2vmin;
+  border-radius: 999px;
+  background: rgba(216, 171, 95, 0.14);
+  color: #d8ab5f;
+  font-size: clamp(11px, 1.9vmax, 20px);
+  letter-spacing: 0.12em;
+}
+
+/* 房号是这块屏最该被看见的东西：晚到的人、走开又回来的人，一眼就能对号 */
+.bd-code {
+  flex: 1 1 auto;
+  text-align: center;
+  font-size: clamp(28px, 5.4vmax, 110px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  color: #f0c982;
+  font-variant-numeric: tabular-nums;
+}
+
+.bd-x {
+  flex: 0 0 auto;
+  padding: 1.4vmin 2.6vmin;
+  border-radius: 999px;
+  background: rgba(244, 240, 233, 0.08);
+  color: rgba(244, 240, 233, 0.62);
+  font-size: clamp(11px, 1.8vmax, 18px);
+}
+.bd-x:active { opacity: 0.7; }
+
+/* 掉线时只在角上亮一颗红点：大屏不该因为网络抖一下就把整桌内容撤掉 */
+.bd-off {
+  position: absolute;
+  top: calc(2.2vmin + env(safe-area-inset-top));
+  right: 3.2vmin;
+  padding: 0.6vmin 1.6vmin;
+  border-radius: 999px;
+  background: rgba(224, 104, 92, 0.18);
+  color: #e0685c;
+  font-size: clamp(10px, 1.5vmin, 15px);
+}
+.bd-off[hidden] { display: none; }
+.bd-off { font-size: clamp(10px, 1.6vmax, 16px); }
+
+/* 桌上的公骰：350 是这一手摇出来的 7 颗，找朋友是两颗 */
+.bd-dice {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.6vmin;
+  min-height: 0;
+  margin-top: 1.4vmin;
+
+  /* 骰子边长统一由 `--ds` 定：app.css 里的 `.die` / `.pip` 整个外观
+     （圆角、侧面厚度、投影、蓝点的大小与位置）全是拿这个变量派生的。
+     11vmin 在 390 宽的竖屏上是 43px，7 颗加间距三百多，不会顶出屏幕。 */
+  --ds: clamp(18px, 11vmin, 64px);
+  /* 同卡片里那条：给骰子底下的厚度和投影留一点，别压到下面的大字 */
+  padding-bottom: calc(var(--ds) * 0.1);
+}
+.bd-dice:empty { display: none; }
+.bd-dice.two { --ds: clamp(28px, 17vmin, 120px); }
+
+/* 大屏上的骰子只有「外壳 + 摆放」，外观一个字都不另写：
+   白胚渐变、蓝点、一点和四点红、底下那层侧面厚度，全是 app.css 里 `.die` / `.pip` 的活。
+   这里只负责多大（--ds）和「躺着」的角度 —— 牌桌上的骰子也是 scaleY 压扁 0.86 的。 */
+.bd-die {
+  position: relative;
+  width: var(--ds);
+  height: var(--ds);
+  flex: 0 0 auto;
+  transform: scaleY(0.86);
+  transform-origin: 50% 100%;
+}
+/* 这一手已经收下的：压暗，跟没动过的区分开。
+   别压太狠（0.34 时红点会变灰），0.42 还能看出是几点，又明显比没动的暗一档 */
+.bd-die.taken { opacity: 0.42; }
+
+/* 卡片里那两颗（找朋友）：尺寸跟着卡片走。
+   卡片宽高比从 2 人（又宽又高）到 12 人（88px 宽）差得很远，
+   所以宽和高都要有 cqw 上限，不然 12 个人时两颗骰子会横着顶出卡片。 */
+.bd-cd {
+  display: flex;
+  justify-content: center;
+  gap: min(1.4cqh, 2.4cqw);
+  /* 卡片里的骰子也走同一个 `--ds`，只是把边长压到卡片能容下的范围。
+     俩上限缺一不可：12 人时卡片只有 88px 宽，只看高度的话两颗会横着顶出卡片。 */
+  --ds: min(15cqh, 24cqw);
+  /* app 那套骰子底下有一层「侧面厚度 + 投影」，那是画在盒子外面的，
+     不算进布局高度 —— 不留这点空，影子会直接糊到下面「摇完了」那行字上。 */
+  padding-bottom: calc(var(--ds) * 0.16);
+}
+/* 卡片里这两颗不要「落地动画」：卡片是整块重画的，谁被点到喝了一杯，
+   一桌十二张卡的骰子会跟着一起再抖一次，看着像整桌重摇。
+   顶上那一手（`.bd-dice`）留着动画 —— 那是真摇了一把，该有反馈。 */
+.bd-cd .die { animation: none; opacity: 1; }
+
+/* ---------------- 轮到谁 ---------------- */
+
+.bd-turn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2vmin;
+  margin: 2.6vmin 0 1.2vmin;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.bd-turn-k {
+  font-size: clamp(11px, 2.1vmax, 22px);
+  letter-spacing: 0.3em;
+  color: rgba(244, 240, 233, 0.45);
+}
+
+.bd-turn-n {
+  font-size: clamp(26px, 6.4vmax, 120px);
+  font-weight: 700;
+  line-height: 1.05;
+  color: #f4f0e9;
+}
+
+/* 刚刚换人 / 刚刚结算：名字闪一下金，隔着一张桌子也看得见桌子动了 */
+.bd-turn-n.hot { animation: bdHot 900ms ease-out; }
+@keyframes bdHot {
+  0% { color: #f0c982; transform: scale(1.06); }
+  100% { color: #f4f0e9; transform: scale(1); }
+}
+
+.bd-turn-s {
+  flex: 1 1 100%;
+  font-size: clamp(12px, 2.4vmax, 26px);
+  line-height: 1.4;
+  color: rgba(244, 240, 233, 0.55);
+}
+.bd-turn-s b { color: #f0c982; font-weight: 600; }
+
+/* ---------------- 各家的卡片 ---------------- */
+
+.bd-grid {
+  /* 基准给 0 而不是 auto：卡片这块是唯一能伸缩的地方，让它「只吃剩下的地方」。
+     用 auto 的话它的基准是内容高度，卡片一多就顶住不让，把下面那条记录挤出去。 */
+  flex: 1 1 0%;
+  min-height: 0;
+  display: grid;
+  gap: 1.4vmin;
+  margin-top: 1.4vmin;
+  grid-auto-rows: minmax(0, 1fr);
+}
+
+/* 人数是奇数时，最后一张铺满一整行 —— 否则右下角空一块，
+   看着像「还有人没进来」。3 个人、5 个人、7 个人都会遇上。 */
+.bd-grid > .bd-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+.bd-card {
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6vmin;
+  padding: 1vmin;
+  border-radius: 2vmin;
+  background: rgba(244, 240, 233, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(244, 240, 233, 0.07);
+  overflow: hidden;
+}
+
+/* 该他动了：整张卡镶一圈金，比在名字旁边加个箭头好认得多 */
+.bd-card.turn {
+  background: rgba(216, 171, 95, 0.14);
+  box-shadow: inset 0 0 0 2px rgba(216, 171, 95, 0.75);
+}
+
+.bd-card.off { opacity: 0.42; }
+
+.bd-name {
+  max-width: 100%;
+  font-size: 13px;
+  font-size: min(13cqh, 40cqw, 7vmin);
+  line-height: 1.15;
+  color: rgba(244, 240, 233, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bd-card.turn .bd-name { color: #f0c982; }
+
+.bd-num {
+  font-size: 26px;
+  /* 三个上限缺一不可：12 个人时卡片只有 88px 宽，字号若只看高度，
+     「350」三个字会横着顶穿到隔壁那张卡上（真试出来过）。 */
+  font-size: min(32cqh, 50cqw, 18vmin);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: #f4f0e9;
+  font-variant-numeric: tabular-nums;
+}
+/* 还没锁分的人这轮没有分数：摆一个破折号，比摆上一轮的数字诚实。
+   破折号得比数字小一号 —— 同样的大字号下它就是一根横杠，占满脸。 */
+.bd-num.dash { color: rgba(244, 240, 233, 0.26); font-size: 15px; font-size: min(14cqh, 30cqw, 8vmin); }
+.bd-num.cups { color: #f0c982; }
+
+/* 「6 杯」「400 分」的单位。
+   原来卡片中间只有一个裸数字：第一次看到的人得先研究一局才明白
+   「这个 6 是别人已经喝了六杯」，不是六分、也不是名次。
+
+   尺寸压到三成多、抬到数字上沿靠右：三位数（400）后面挂一个四成大小的「分」，
+   会重得把整个数字往左拽，看着像「分」被甩到卡片边上了。 */
+.bd-unit {
+  font-style: normal;
+  font-size: 0.38em;
+  font-weight: 700;
+  /* 数字本身的字距收到 -0.01em，单位再留大缝会显得两块东西分家 */
+  margin-left: 0.04em;
+  letter-spacing: 0;
+  opacity: 0.72;
+}
+.bd-num.cups .bd-unit { opacity: 0.82; }
+
+.bd-sub {
+  font-size: 11px;
+  font-size: min(10cqh, 34cqw, 5.4vmin);
+  line-height: 1.1;
+  color: rgba(244, 240, 233, 0.4);
+  white-space: nowrap;
+}
+
+/* ---------------- 刚发生了什么 ---------------- */
+
+.bd-log {
+  /* 也能缩。原来写 `0 0 auto`（一点都不许缩），摆不下的时候它就被整块挤出屏幕，
+     而它自己有 overflow:hidden、内容又是从上往下排的 —— 最先被切掉的正好是
+     最下面那条，也就是**最新、最亮、最该看见的那条**（截图里真撞上过：
+     「阿飞 收 4 颗 +300」只剩上半截）。
+     所以两件事一起做：允许它缩，并且把内容贴着底部排 ——
+     真挤的时候宁可让上面那两条旧记录掉出去。 */
+  flex: 0 1 auto;
+  min-height: 0;
+  justify-content: flex-end;
+  margin-top: 1.6vmin;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5vmin;
+  max-height: 22vh;
+  overflow: hidden;
+}
+
+.bd-log-i {
+  font-size: clamp(12px, 2.1vmax, 22px);
+  line-height: 1.35;
+  color: rgba(244, 240, 233, 0.34);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 最新一条最亮：抬眼一扫就知道刚才发生了什么，不用去读前三行 */
+.bd-log-i:last-child { color: rgba(244, 240, 233, 0.68); }
+
+.bd-empty {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(13px, 2.8vmax, 28px);
+  color: rgba(244, 240, 233, 0.35);
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* 横过来摆（平板 / 老手机横放）时少占点竖向空间，把高度让给卡片 */
+@media (orientation: landscape) {
+  .bd-turn { margin: 1vmin 0 0.6vmin; }
+  .bd-log { max-height: 16vh; }
+}

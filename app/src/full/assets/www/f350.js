@@ -1340,6 +1340,12 @@
       switchTo('findnet');
     });
 
+    /* 摆桌上：也不用先连，等它自己拿到房号再连 */
+    var playNetBoard = $('playNetBoard');
+    if (playNetBoard) playNetBoard.addEventListener('click', function () {
+      switchTo('board');
+    });
+
     /* 名字输入：边打边存（不等到失焦，手机上很容易直接按返回），
        清空就当没改过 —— 顶着一个空白名字上桌，别人没法喊你 */
     var nmName = $('nmName');
@@ -1417,9 +1423,10 @@
      联机现在是「首页 -> 选玩法 -> 350 大厅 -> 牌桌」，比单人那条线多一层：
      多出来的那一层是为了以后加别的联机玩法时不用动首页，也不用动 350 大厅。 */
   var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo', find: 'solo',
-                 netmodes: 'home', net: 'netmodes', findnet: 'netmodes', netgame: 'net' };
+                 netmodes: 'home', net: 'netmodes', findnet: 'netmodes', netgame: 'net',
+                 board: 'netmodes' };
   var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2, find: 2,
-                netmodes: 1, net: 2, findnet: 2, netgame: 3 };
+                netmodes: 1, net: 2, findnet: 2, netgame: 3, board: 2 };
 
   function curMode() {
     return document.body.getAttribute('data-mode') || 'home';
@@ -1440,7 +1447,8 @@
       netmodes: document.getElementById('pageNetModes'),
       net: document.getElementById('pageNet'),
       findnet: document.getElementById('pageFindNet'),
-      netgame: document.getElementById('pageNetGame')
+      netgame: document.getElementById('pageNetGame'),
+      board: document.getElementById('pageBoard')
     };
     for (var k in pages) {
       if (pages[k]) pages[k].hidden = (k !== mode);
@@ -1456,6 +1464,13 @@
     if (window.LDFindNet) {
       if (mode === 'findnet') window.LDFindNet.enter();
       else window.LDFindNet.leave();
+    }
+
+    /* 摆桌上那块屏：离开就把 socket 松开 —— 它在后台挂着也是白费电，
+       回来时 LDBoard.enter() 会按上次的房号自己重连。 */
+    if (window.LDBoard) {
+      if (mode === 'board') window.LDBoard.enter();
+      else window.LDBoard.leave();
     }
 
     /* 「联机」这层是起名的地方：每次回到这里都把当前名字摆上（清空过就重新给一个） */

@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="net.css">
 <link rel="stylesheet" href="find.css">
 <link rel="stylesheet" href="findnet.css">
+<link rel="stylesheet" href="board.css">
 </head>
 <body>
 
@@ -80,7 +81,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.16.0 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.18.0 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -153,7 +154,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.16.0</span>
+      <span class="page-ver">v1.18.0</span>
     </div>
   </div>
 </div>
@@ -217,6 +218,30 @@
           <span class="pc-sub">每人 2 颗明骰 · 摇到谁谁喝 · 2~12 人</span>
         </button>
       </div>
+
+      <!-- 摆桌上：不是第三种玩法，是给「面对面」加的一块公用屏。
+           两个人打也行、十二个人打也行，玩法页上不该多一张同等份量的卡，
+           所以做成一条薄一点的带子，挂在两张玩法卡下面。
+           主屏、副屏、pad、旧手机都行 —— 只要浏览器能开这个网页。 -->
+      <button class="net-board" id="playNetBoard" type="button">
+        <span class="nb-ic">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.2" y="5" width="17.6" height="11.4" rx="2" fill="none"
+                  stroke="currentColor" stroke-width="1.6"/>
+            <path d="M8.6 20h6.8" fill="none" stroke="currentColor"
+                  stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M12 16.4V20" fill="none" stroke="currentColor"
+                  stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="7.6" cy="10.7" r="1.1" fill="currentColor"/>
+            <circle cx="12" cy="10.7" r="1.1" fill="currentColor"/>
+            <circle cx="16.4" cy="10.7" r="1.1" fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="nb-txt">
+          <span class="nb-k">摆桌上 · 公共屏</span>
+          <span class="nb-s">一台设备摆桌中间，只看不玩、不占座位</span>
+        </span>
+      </button>
 
       <div class="net-more">更多联机玩法还在做</div>
     </div>
@@ -296,7 +321,67 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.16.0</span>
+    <span class="page-ver">v1.18.0</span>
+  </div>
+</div>
+
+<!-- ==================== 摆桌上 · 公共屏 ====================
+     一桌人各看各的手机，「几点」「该谁」「几杯」全靠喊。这台设备摆在桌子中间，
+     只读显示这些；摇骰、看自己的牌还在各自手机上。
+
+     它跟真玩家走同一条 WebSocket，但握手只发 {t:'watch'}：不进座位、不算在线人数、
+     也不算进重开 / 踢人投票的分母（服务端那边有注释，这条错了整桌就重开不了）。 -->
+<div class="page page-solo page-board" id="pageBoard" hidden>
+
+  <!-- ① 拿房号 -->
+  <div class="home" id="bdGate">
+    <button class="nav-back" id="bdBack" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">摆桌上</div>
+        <div class="home-t2">TABLE SCREEN</div>
+      </div>
+
+      <div class="bd-lead">一台设备摆桌子中间，抬眼就能看见<br>谁该摇、各家几杯、刚发生了什么</div>
+
+      <div class="bd-box">
+        <div class="bd-lbl">房号</div>
+        <input class="bd-inp" id="bdCode" inputmode="numeric" maxlength="6"
+               placeholder="4 位数字" autocomplete="off" autocorrect="off">
+        <button class="btn primary" id="bdGo" type="button">摆上桌</button>
+        <div class="bd-tip" id="bdTip"></div>
+      </div>
+
+      <div class="bd-note">这台设备只看不玩：不占座位、不能摇骰、不参与投票<br>
+        私密操作（摇骰、看自己的牌）还在各自手机上</div>
+
+      <div class="foot">
+        <span class="page-ver">v1.18.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 大屏：只读，全屏，深色 -->
+  <div class="bd-stage" id="bdStage" hidden>
+    <div class="bd-top">
+      <span class="bd-game" id="bdGame">350</span>
+      <span class="bd-code" id="bdCodeBig">----</span>
+      <button class="bd-x" id="bdExit" type="button">退出</button>
+    </div>
+    <div class="bd-off" id="bdOff" hidden>重连中</div>
+    <div class="bd-dice" id="bdDice"></div>
+    <div class="bd-turn">
+      <span class="bd-turn-k" id="bdTurnK">连接中</span>
+      <span class="bd-turn-n" id="bdTurnN">…</span>
+      <span class="bd-turn-s" id="bdTurnS"></span>
+    </div>
+    <div class="bd-grid" id="bdGrid"></div>
+    <div class="bd-log" id="bdLog"></div>
   </div>
 </div>
 
@@ -386,7 +471,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.16.0</span>
+    <span class="page-ver">v1.18.0</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -464,7 +549,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.16.0</span>
+      <span class="page-ver">v1.18.0</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -536,7 +621,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.16.0</span>
+    <span class="page-ver">v1.18.0</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -593,7 +678,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.16.0</span>
+    <span class="page-ver">v1.18.0</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -643,7 +728,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.16.0</span>
+        <span class="page-ver">v1.18.0</span>
       </div>
     </div>
   </div>
@@ -725,7 +810,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.16.0</span>
+      <span class="page-ver">v1.18.0</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -748,6 +833,7 @@
       </div>
     </div>
   </div>
+
 
 </div>
 
@@ -795,6 +881,7 @@
 <script src="findnet.js"></script>
 <script src="f350.js"></script>
 <script src="net.js"></script>
+<script src="board.js"></script>
 
 <!-- 页签开太久会一直跑老脚本：手机上常见「关掉再开是新的，切回那个页签还是老的」。
      App 不会这样（APK 一装就是整包替换），网页只能自己发现。这里对一下线上的构建号，
