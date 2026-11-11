@@ -1275,7 +1275,8 @@
     { id: 'lion', short: '豹子', name: '随机豹子' },
     { id: 'tap', short: '改点', name: '点骰改点' },
     { id: 'ost', short: '他顺', name: '他人随机顺子' },
-    { id: 'olion', short: '他豹', name: '他人随机豹子' }
+    { id: 'olion', short: '他豹', name: '他人随机豹子' },
+    { id: 'ogood', short: '他好', name: '他人随机好牌' }
   ];
   var DBG_Z_DEF = ['st', 'tap', 'lion'];
   var dbg = { tap: false, zone: false, z: DBG_Z_DEF.slice() };
@@ -1539,6 +1540,22 @@
     return out;
   }
 
+  /* 随机「好牌」：三张同点 + 一张 1（万能）+ 一张别的点数，比如 3 3 3 1 5。
+     用户 2026-11-11 定的形态，简称「他好」。第四张不给同点 —— 3 3 3 3 1 就是豹子了，
+     一眼看出被安排；3 3 3 1 5 够硬又像随手摇的。杂牌取 2~6 里除掉 v 的那四个。 */
+  function randomGood() {
+    var v = 2 + Math.floor(Math.random() * 5);   // 2~6
+    var others = [], i, j, tmp;
+    for (i = 2; i <= 6; i++) if (i !== v) others.push(i);
+    var x = others[Math.floor(Math.random() * others.length)];
+    var out = [v, v, v, 1, x];
+    for (i = out.length - 1; i > 0; i--) {
+      j = Math.floor(Math.random() * (i + 1));
+      tmp = out[i]; out[i] = out[j]; out[j] = tmp;
+    }
+    return out;
+  }
+
   /* 装填：只在自己这张桌子上、还没摇的时候装。服务端会再判一遍。
      摇不了的场合也给一下短震 —— 不然「点了没反应」和「点了没生效」分不清。 */
   function armDice(v, pat) {
@@ -1559,7 +1576,8 @@
   function otherArm(kind) {
     var st = S.st;
     if (!st || st.phase === 'lobby' || st.phase === 'over') { buzz(12); return; }
-    buzz(kind === 'lion' ? 45 : 22);
+    /* 三种手感分开：顺子一下短、好牌一下中、豹子一下长 */
+    buzz(kind === 'lion' ? 45 : (kind === 'good' ? 32 : 22));
     send({ t: 'larmOther', kind: kind });
     setTimeout(paintDbg, 8300);      // 回执那一行 8 秒后自己收掉
   }
@@ -1570,7 +1588,9 @@
     if (id === 'st') armDice(randomStraight(), 22);
     else if (id === 'lion') armDice(randomLion(), 45);
     else if (id === 'tap') setDbg('tap', !dbg.tap);
-    else if (id === 'ost' || id === 'olion') otherArm(id === 'ost' ? 'st' : 'lion');
+    else if (id === 'ost') otherArm('st');
+    else if (id === 'olion') otherArm('lion');
+    else if (id === 'ogood') otherArm('good');
   }
 
   /* 面板里那三行 chip：一行一个格子，每行五颗功能，点哪颗就把这一格换成它 */
@@ -1666,6 +1686,11 @@
       if (!dbgArm()) return;
       if (window.LDDev) window.LDDev.keep();
       otherArm('lion');
+    });
+    click(el.otherGood, function () {
+      if (!dbgArm()) return;
+      if (window.LDDev) window.LDDev.keep();
+      otherArm('good');
     });
 
     /* 三格配置：点哪颗 chip，这一格就换成哪个功能（存本地，下次打开还在） */
@@ -1980,7 +2005,7 @@
       dbg: $('lrDbg'), dbgX: $('lrDbgX'), zone: $('lrZone'),
       force: $('lrForce'), fsText: $('lrFsText'),
       lionRow: $('lrLionRow'), straightRow: $('lrStraightRow'),
-      otherSt: $('lrOtherSt'), otherLion: $('lrOtherLion'),
+      otherSt: $('lrOtherSt'), otherLion: $('lrOtherLion'), otherGood: $('lrOtherGood'),
       zCfg0: $('lrZCfg0'), zCfg1: $('lrZCfg1'), zCfg2: $('lrZCfg2'),
       zoneSub: $('lrZoneSub'),
       swTap: $('lrSwTap'), swZone: $('lrSwZone'), swSnd: $('lrSwSnd')
