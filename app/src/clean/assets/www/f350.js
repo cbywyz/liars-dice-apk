@@ -1315,7 +1315,7 @@
     var hg = $('hdGo');
     if (hg) hg.addEventListener('click', handoffGo);
 
-    /* 三层导航，各管各的：首页选模式、单人页选玩法、玩法页只负责玩。
+    /* 三层导航，各管各的：首页选模式、单机页选玩法、玩法页只负责玩。
        以前把「350 玩法」塞在玩法页底栏，等于让玩家在玩法之间横跳，
        现在统一退回上一层去挑，结构才立得住。 */
     var solo = $('modeSolo');
@@ -1416,7 +1416,7 @@
     }
 
     // 启动一律停在首页：先选单机 / 联机，再进玩法。
-    // 上次玩哪个玩法只在「单人模式」里生效（ld_last_play），别在这里直接跳过去。
+    // 上次玩哪个玩法只在「单机模式」里生效（ld_last_play），别在这里直接跳过去。
     applyPage('home');
     /* 刷新时可能还带着 #f350 之类的旧 hash，直接改成 #home，
        否则第一下返回会先跳回那个旧页面，看着像乱跳 */
@@ -1426,7 +1426,7 @@
   }
 
   /* 每一层往上退到哪：玩法页 -> 选玩法，选玩法 -> 首页，首页没有上一级。
-     联机现在是「首页 -> 选玩法 -> 350 大厅 -> 牌桌」，比单人那条线多一层：
+     联机现在是「首页 -> 选玩法 -> 350 大厅 -> 牌桌」，比单机那条线多一层：
      多出来的那一层是为了以后加别的联机玩法时不用动首页，也不用动 350 大厅。 */
   var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo', find: 'solo',
                  netmodes: 'home', net: 'netmodes', findnet: 'netmodes', liarnet: 'netmodes',
@@ -1443,7 +1443,7 @@
     document.body.setAttribute('data-mode', mode);
 
     /* 用 id 取，不按类名找：联机那张选玩法页复用了 .page-solo 的版式，
-       querySelector('.page-solo') 会先命中它，单人就再也切不回去了。 */
+       querySelector('.page-solo') 会先命中它，单机就再也切不回去了。 */
     var pages = {
       home: document.getElementById('pageHome'),
       solo: document.getElementById('pageSolo'),

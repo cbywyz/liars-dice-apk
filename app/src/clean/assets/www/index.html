@@ -34,7 +34,7 @@
     </div>
 
     <div class="home-cards">
-      <!-- 单人：一台手机轮流玩，现有两个玩法都在这里 -->
+      <!-- 单机：一台手机轮流玩，三个玩法都在这里（吹牛 / 350 / 找朋友） -->
       <button class="mode-card" id="modeSolo">
         <span class="mc-top">
           <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
@@ -44,7 +44,7 @@
             <circle cx="15.4" cy="12" r="1.5" fill="currentColor"/>
             <circle cx="8.6" cy="15.4" r="1.5" fill="currentColor"/>
           </svg>
-          <span class="mc-title">单人模式</span>
+          <span class="mc-title">单机模式</span>
         </span>
         <span class="mc-sub">一台手机，大家轮着玩</span>
       </button>
@@ -62,7 +62,7 @@
           </svg>
           <span class="mc-title">联机模式</span>
         </span>
-        <span class="mc-sub">各看各的手机 · 现在先支持潮汕 350</span>
+        <span class="mc-sub">各看各的手机 · 吹牛 / 350 / 找朋友</span>
       </button>
     </div>
 
@@ -82,13 +82,13 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.24.2 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.3 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
 </div>
 
-<!-- ==================== 单人模式：选玩法 ==================== -->
+<!-- ==================== 单机模式：选玩法 ==================== -->
 <div class="page page-solo" id="pageSolo" hidden>
 
   <div class="home">
@@ -101,8 +101,8 @@
     <!-- 标题 + 卡片包一层：让这一组在整页里垂直居中，别都挤在顶上 -->
     <div class="solo-body">
       <div class="home-head">
-        <div class="home-t1">单人</div>
-        <div class="home-t2">SOLO</div>
+        <div class="home-t1">单机</div>
+        <div class="home-t2">OFFLINE</div>
       </div>
 
       <div class="home-cards">
@@ -155,16 +155,16 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.24.2</span>
+      <span class="page-ver">v1.24.3</span>
     </div>
   </div>
 </div>
 
 <!-- ==================== 联机：先选玩法 ====================
      点首页「联机模式」先到这层，而不是直接掉进 350 的开房页。
-     理由是以后还会加别的联机玩法（吹牛联机、斗地主联机…）：
-     多摆一张 .play-card 就行，首页和下面那页大厅都不用动。
-     版式直接复用单人页那套（.page-solo / .play-card），所以两者看起来是一家的。 -->
+     现在这层摆三张卡（吹牛 / 350 / 找朋友），以后再加也只需多摆一张 .play-card：
+     首页和下面那页大厅都不用动。
+     版式直接复用单机页那套（.page-solo / .play-card），所以两者看起来是一家的。 -->
 <div class="page page-solo page-netmodes" id="pageNetModes" hidden>
 
   <div class="home">
@@ -206,7 +206,7 @@
             </svg>
             <span class="pc-title">吹牛 · 暗骰</span>
           </span>
-          <span class="pc-sub">每人 5 颗只有自己看得见 · 叫点 / 斋 / 劈 · 2~12 人</span>
+          <span class="pc-sub">每人 5 颗只有自己看得见 · 2~12 人</span>
         </button>
 
         <button class="play-card" id="playNet350">
@@ -265,7 +265,6 @@
         </span>
       </button>
 
-      <div class="net-more">更多联机玩法还在做</div>
     </div>
   </div>
 </div>
@@ -343,7 +342,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.2</span>
+    <span class="page-ver">v1.24.3</span>
   </div>
 </div>
 
@@ -383,7 +382,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.2</span>
+        <span class="page-ver">v1.24.3</span>
       </div>
     </div>
   </div>
@@ -495,7 +494,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.2</span>
+    <span class="page-ver">v1.24.3</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -573,7 +572,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.24.2</span>
+      <span class="page-ver">v1.24.3</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -645,7 +644,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.2</span>
+    <span class="page-ver">v1.24.3</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -702,7 +701,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.2</span>
+    <span class="page-ver">v1.24.3</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -752,7 +751,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.24.2</span>
+        <span class="page-ver">v1.24.3</span>
       </div>
     </div>
   </div>
@@ -836,7 +835,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.24.2</span>
+      <span class="page-ver">v1.24.3</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -911,7 +910,7 @@
       </div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.2</span>
+        <span class="page-ver">v1.24.3</span>
       </div>
     </div>
   </div>
@@ -1034,7 +1033,7 @@
     <div class="fd-btns" id="lrBtns"></div>
 
     <div class="foot">
-      <span class="page-ver">v1.24.2</span>
+      <span class="page-ver">v1.24.3</span>
       <button class="mode-link" id="lrLogBtn" type="button">记录</button>
       <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
       <button class="mode-link" id="lrRule2" type="button">玩法说明</button>
