@@ -189,26 +189,33 @@
     };
   }
 
+  /* 随机顺子（5 颗）：从 1~6 里删掉一个点数，5 颗互不重复就是顺子。
+     1 是万能牌 —— 删 2/3/4/5 时留下的 1 正好顶掉缺口，
+     13456 / 12456 / 12356 / 12346 都是「万能顺」，跟 faceOf / quickState 一致。
+     以前这里只挑 12345 / 23456，跟自己的判定自相矛盾（用户 2026-11-11 纠正）。
+     删 1 或 6 得到连顺，偶尔给一条、而且绝不连着给两次。
+     6 颗只有 123456 一种；其他颗数不存在顺子，照旧退回连续排。 */
+  var lastStWasRun = false;
   function randomStraight() {
-    /* 顺子跟着骰子数量走：
-       5 颗只有 12345 / 23456 两种；6 颗只有 123456 一种；
-       其他数量根本不存在顺子 —— 退回「从 1 开始连续排」，别生成半截假顺子。 */
     var n = d.diceCount;
-    var pool;
+    var pool = [], i, j, tmp, drop;
     if (n === 6) {
       pool = [1, 2, 3, 4, 5, 6];
     } else if (n === 5) {
-      /* 以前是从 1~6 里随机删一个数 —— 删到 2/3/4/5 得到的是
-         13456、12456 这种「断一截」的牌，根本不是顺子。
-         这里先选好是哪一种，再打乱顺序。 */
-      pool = Math.random() < 0.5 ? [1, 2, 3, 4, 5] : [2, 3, 4, 5, 6];
+      if (!lastStWasRun && Math.random() < 0.22) {
+        drop = Math.random() < 0.5 ? 1 : 6;
+        lastStWasRun = true;
+      } else {
+        drop = 2 + Math.floor(Math.random() * 4);
+        lastStWasRun = false;
+      }
+      for (i = 1; i <= 6; i++) if (i !== drop) pool.push(i);
     } else {
-      pool = [];
       for (var m = 0; m < n; m++) pool.push((m % 6) + 1);
     }
-    for (var i = pool.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = pool[i];
+    for (i = pool.length - 1; i > 0; i--) {
+      j = Math.floor(Math.random() * (i + 1));
+      tmp = pool[i];
       pool[i] = pool[j];
       pool[j] = tmp;
     }
@@ -236,7 +243,7 @@
 
   /* 骰盅下方那三格的总闸，默认关。
      平时它就是一块普通桌面（怎么点都不会误触发），
-     要用时在点数设置里打开，直到再关掉为止。 */
+     要用时在调试功能里打开，直到再关掉为止。 */
   var HOTZONE_KEY = 'ld_hotzone_on';
   var memHotZone = false;
 
@@ -607,7 +614,8 @@
     lh += '</div>';
     el.lionRow.innerHTML = lh;
 
-    // 顺子：5 颗是 12345 / 23456 两种，6 颗只有 123456，其他数量不存在顺子
+    // 顺子：5 颗互不重复就算（12345 / 13456 都算），6 颗只有 123456；
+    // 下面两颗固定档仍只发排好的 12345 / 23456，其他数量不存在顺子
     var sn = d.diceCount;
     var noStraight = sn !== 5 && sn !== 6;
     el.straightRow.innerHTML =
@@ -903,7 +911,7 @@
       setData({
         state: 'open',
         revealed: true,
-        forceOn: false,   // 开盖了：本局作弊到此为止，下次摇骰恢复真随机
+        forceOn: false,   // 开盖了：本局装填到此为止，下次摇骰恢复真随机
         lidStyle: lidStyle(1, false),
         hint: fi.text,
         diceFace: fi.kind
@@ -1075,7 +1083,7 @@
     return !d.shaking && !d.isLocked && (d.state === 'idle' || d.state === 'closed');
   }
 
-  /* 三格总闸：开/关只在点数设置里做，同样不弹文字 */
+  /* 三格总闸：开/关只在调试功能里做，同样不弹文字 */
   function setHotZone(on) {
     saveHotZone(on);
     setData({ hotZoneOn: !!on });
@@ -1127,7 +1135,7 @@
     setData({ panel: true });
     /* 面板是贴着底部弹出来的，长按时手指正好在它上面 ——
        松手（touchend）会把面板上的按钮当成一次点击，
-       于是「刚打开面板就自动点了一个作弊项」。
+       于是「刚打开面板就自动点了一个调试项」。
        这里挡掉这次触摸剩下的点击，手指抬起后自动恢复。 */
     if (el.sheet) {
       el.sheet.style.pointerEvents = 'none';
@@ -1141,7 +1149,7 @@
     setData({ panel: false });
   }
 
-  /* ================= 作弊 ================= */
+  /* ================= 调试功能的三个动作 ================= */
 
   /* 只「装填」，绝不碰当前这一把。
      点了立刻改结果的话，旁边人一眼就能看出「还没摇，点数自己变了」；
@@ -1786,7 +1794,7 @@
 /* ================= 隐藏开关（所有玩法的暗门都由它统一调度） =================
 
    为什么要有这一层：
-   作弊项本来是「长按标题 1.2 秒」直接弹出来的。手机往桌上一放，谁来都能按两下，
+   这些开关本来是「长按标题 1.2 秒」直接弹出来的。手机往桌上一放，谁来都能按两下，
    看见了就学会了 —— 这东西藏是藏不住的，只能让它别在别人手里顺手撞见。
 
    为什么不用密码：这是纯前端，密码就写在 js 里，看源码就知道了。

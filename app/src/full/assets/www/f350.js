@@ -1340,6 +1340,12 @@
       switchTo('findnet');
     });
 
+    /* 吹牛联机：同找朋友，连接由它自己 enter() 里建（要先有房号） */
+    var playNetLiar = $('playNetLiar');
+    if (playNetLiar) playNetLiar.addEventListener('click', function () {
+      switchTo('liarnet');
+    });
+
     /* 摆桌上：也不用先连，等它自己拿到房号再连 */
     var playNetBoard = $('playNetBoard');
     if (playNetBoard) playNetBoard.addEventListener('click', function () {
@@ -1423,10 +1429,10 @@
      联机现在是「首页 -> 选玩法 -> 350 大厅 -> 牌桌」，比单人那条线多一层：
      多出来的那一层是为了以后加别的联机玩法时不用动首页，也不用动 350 大厅。 */
   var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo', find: 'solo',
-                 netmodes: 'home', net: 'netmodes', findnet: 'netmodes', netgame: 'net',
-                 board: 'netmodes' };
+                 netmodes: 'home', net: 'netmodes', findnet: 'netmodes', liarnet: 'netmodes',
+                 netgame: 'net', board: 'netmodes' };
   var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2, find: 2,
-                netmodes: 1, net: 2, findnet: 2, netgame: 3, board: 2 };
+                netmodes: 1, net: 2, findnet: 2, liarnet: 2, netgame: 3, board: 2 };
 
   function curMode() {
     return document.body.getAttribute('data-mode') || 'home';
@@ -1447,6 +1453,7 @@
       netmodes: document.getElementById('pageNetModes'),
       net: document.getElementById('pageNet'),
       findnet: document.getElementById('pageFindNet'),
+      liarnet: document.getElementById('pageLiarNet'),
       netgame: document.getElementById('pageNetGame'),
       board: document.getElementById('pageBoard')
     };
@@ -1464,6 +1471,12 @@
     if (window.LDFindNet) {
       if (mode === 'findnet') window.LDFindNet.enter();
       else window.LDFindNet.leave();
+    }
+
+    /* 吹牛联机同理：它自己管三屏和 socket，这里只叫它一声 */
+    if (window.LDLiarNet) {
+      if (mode === 'liarnet') window.LDLiarNet.enter();
+      else window.LDLiarNet.leave();
     }
 
     /* 摆桌上那块屏：离开就把 socket 松开 —— 它在后台挂着也是白费电，
@@ -1820,6 +1833,59 @@
     note: RULES.find.note
   };
 
+  /* 吹牛联机：规矩比别的玩法多得多，这一页得写得能让人边喝边查。
+     写的时候按「桌上会被问到的顺序」排：怎么叫 → 斋 → 破斋 → 开 → 劈 → 抢开 → 转向/点人。 */
+  /* 2026-11-11 用户把玩法砍到只剩「线上只负责给骰子」：
+     摇 → 开始（锁） → 面对面叫 → 开 → 摊牌核对 → 2/3 人点下一把。
+     门槛、先叫、轮到谁、转向、点人、抢开翻倍、认半杯、劈 —— 一律从这一页删掉，
+     因为程序已经不判了，写在这儿只会让人以为还有这些规矩。
+     顺手修了个老毛病：这里原来每一条都写成 ['标题','正文'] 两个元素的数组，
+     而上面那个渲染器只认字符串 —— 拼出来是「谁先叫,第一把程序不点人…」，多一个逗号。 */
+  RULES.liarnet = {
+    title: '吹牛 · 联机怎么玩',
+    lead: '一人一台手机进同一个房号。这一版<strong>只做一件事：把骰子发出去</strong>。' +
+      '摇完就锁，然后把全桌摊开给大家核对 —— 怎么叫、谁先叫、喝多少，' +
+      '桌上面对面说，线上一个字都不记。',
+    steps: [
+      ['开一桌', '点「开一桌」拿一个 4 位房号，念给桌上的人。名字在「联机」首页起。'],
+      ['摇 · 摇完就锁', '点「摇 · 5 颗」。点数在服务器摇，摇完这一把就定了 —— ' +
+        '<strong>不用再按「开始」，摇完自己就锁</strong>，也摇不了第二次。'],
+      ['面对面叫', '<strong>最后一家摇完，牌当场锁住</strong>，桌子中间从「各自摇」跳到「开牌」。' +
+        '这时候放下手机：该叫几个、该谁叫，桌上说。手机只管亮着给人核对。'],
+      ['开牌 · 2/3', '谁不信谁点「开牌」，<strong>够 2/3 的人点了就摊</strong>' +
+        '（三家人要 2 票、六家人要 4 票）。不用等所有人到齐，剩下的人跟着看就行。'],
+      ['摊牌', '一屏摊开：一行一家，5 颗大骰子，顶上只报两个数 —— 「全场一共几颗」' +
+        '和「1~6 各几个」。<strong>App 不判输赢</strong>，够不够数抬眼看牌，自己数。摊完不自动洗。'],
+      ['下一把 · 2/3', '对完牌点「下一把」，<strong>也是够 2/3 才重新摇</strong>。' +
+        '有人还想再对两眼，票没够就一直摊着。'],
+      ['点名字请人出去', '<strong>点座位上那个名字</strong>就弹一句确认，把占着位子的人请走。' +
+        '已经掉线的人谁都能请；人还在线的，只有房主能请。']
+    ],
+    rules: [
+      '<strong>为什么不用单机版</strong>：大家坐在一起，单机版其实也能玩，' +
+        '只是它没法把骰子同步出去 —— 得挨个拿手机核对。这一版只多两件事：摇完锁牌、把全桌摊开。',
+      '<strong>摇完就是认账</strong>：一人一把只摇一次，摇完不能反悔。' +
+        '所以这一步没有「开始」按钮 —— <strong>最后一家摇完，牌自己就锁了</strong>。' +
+        '有人一直不摇，全桌都进不了下一步，这时候点他名字请他出去。',
+      '<strong>2/3 只算在线的人</strong>：谁手机掉线了不该卡住整桌。' +
+        '分母永远是「现在在线的几家」，不是开局时登记的几家。',
+      '<strong>摊牌只展示、不判</strong>：够不够数、谁输，App 一个字都不说。' +
+        '线上唯一给的数字是「全场一共几颗」和「1~6 各几个」，剩下的抬头看牌、张嘴说。',
+      '<strong>叫点全靠嘴</strong>：没有起叫门槛、没有轮到谁、没有转向、没有对赌倒计时。' +
+        '上一版手机上那一整套叫点面板（几个几、斋、开）这一版整个拆掉了。',
+      '<strong>掉线不卡桌</strong>：掉线的人还坐在位子上，他那个「没摇」不算进分母；' +
+        '回来了点「上一桌还没打完」回原位。真不回来了，点名字请出去，座位就空出来。',
+      '<strong>踢人的分寸</strong>：掉线的人谁都能踢（人都不在了，不用等房主）；' +
+        '还在线的人只有房主能踢，免得桌上互相乱踢。没有投票、没有倒计时，一下就是一下。'
+    ],
+    drinks: [
+      '默认输的一方喝 1 杯。',
+      '谁先叫、叫到几算过、一杯还是半杯 —— 全在桌上说，App 不参与。',
+      '要按自己的量改就开桌前说好。'
+    ],
+    note: '线上只负责发骰子：发牌、摇完锁住、摊开给大家核对。<strong>规矩、顺序、罚酒都在桌上说</strong>。'
+  };
+
   function openRules(key) {
     var r = RULES[key];
     var mask = $('ruleMask');
@@ -1935,7 +2001,55 @@
   }
 
   // 给外部（index.html 的首次进入）用
-  window.F350 = { switchTo: switchTo, openPDrop: openPDrop, rules: openRules };
+  /* ---------------- 退出这一桌：三套联机玩法共用一层确认 ----------------
+
+     「←」是暂时离开（座位留着、回来续上），右上角那颗「退出」才是真的离座。
+     按钮上只写 data-quit=<模块名>，绑定统一放这儿，三个玩法不用各写一套弹层；
+     收尾（清房号、关连接、切页）由各自模块的 quit() 负责。 */
+  var quitCb = null;
+
+  function confirmQuit(cb) {
+    var mask = $('quitMask');
+    if (!mask) { if (cb) cb(); return; }
+    quitCb = cb || null;
+    mask.hidden = false;
+  }
+
+  function bindQuit() {
+    var mask = $('quitMask'), yes = $('quitYes'), no = $('quitNo');
+    if (!mask) return;
+    var close = function () { mask.hidden = true; quitCb = null; };
+    if (yes) yes.addEventListener('click', function () {
+      var f = quitCb;
+      close();
+      if (f) f();
+    });
+    if (no) no.addEventListener('click', close);
+    mask.addEventListener('click', function (e) { if (e.target === mask) close(); });
+
+    var bs = document.querySelectorAll('[data-quit]');
+    for (var i = 0; i < bs.length; i++) {
+      (function (b) {
+        b.addEventListener('click', function () {
+          var g = b.getAttribute('data-quit');
+          confirmQuit(function () {
+            if (g === 'netgame' && window.LDNet) window.LDNet.quit();
+            else if (g === 'findnet' && window.LDFindNet) window.LDFindNet.quit();
+            else if (g === 'liarnet' && window.LDLiarNet) window.LDLiarNet.quit();
+          });
+        });
+      })(bs[i]);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindQuit);
+  } else {
+    bindQuit();
+  }
+
+  window.F350 = { switchTo: switchTo, openPDrop: openPDrop, rules: openRules,
+                  confirmQuit: confirmQuit };
 
   /* 只在 ?test=1 时挂出来：自动化测试要能指定点数，
      否则「摇到豹子」「摇到爆」这种分支根本没法稳定复现。 */

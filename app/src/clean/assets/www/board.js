@@ -123,7 +123,7 @@
       /* 握手回话里就带着玩法：先把角标写对，别等第一份 state 回来才从 350 改成找朋友 */
       if (m.game) {
         S.game = m.game;
-        if (el.game) el.game.textContent = m.game === 'find' ? '找朋友' : '350';
+        if (el.game) el.game.textContent = gameName(m.game);
       }
       return;
     }
@@ -178,15 +178,29 @@
   }
 
   function isFind(st) { return st && st.game === 'find'; }
+  function isLiar(st) { return st && st.game === 'liar'; }
+
+  /* 角标上那个玩法名。服务端给的标识是 l350 / find / liar 三个，别再多造一张映射表 */
+  function gameName(g) {
+    return g === 'find' ? '找朋友' : (g === 'liar' ? '吹牛' : '350');
+  }
+
+  /* 名字是玩家自己敲的，要塞进 innerHTML 的那几处一律过一遍 */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
 
   function render() {
     var st = S.st;
     if (!st) return;
 
     if (el.codeBig) el.codeBig.textContent = st.code || S.code || '----';
-    if (el.game) el.game.textContent = isFind(st) ? '找朋友' : '350';
+    if (el.game) el.game.textContent = gameName(st.game);
 
     if (isFind(st)) renderFind(st);
+    else if (isLiar(st)) renderLiar(st);
     else render350(st);
   }
 
@@ -336,6 +350,83 @@
     paintLog(st.log);
   }
 
+  /* ---------- 吹牛：暗骰，所以摊牌之前大屏上不该出现任何点数 ----------
+
+     三个玩法里只有这块屏的中间骰子区是空的：骰子是暗的，大屏摆什么都等于替人开牌。
+     所以它只做三件事 —— 几家摇完了、开牌票几张、摊开之后全桌一共有几个几点。
+
+     大屏不判输赢（2026-11-11 之后线上彻底不判）：摊牌这一段只报「一共几颗」和
+     「1~6 各几个」两个客观数，够不够数、谁喝，桌上自己看。 */
+  /* 顺子：5 颗连成一条（1-2-3-4-5 / 2-3-4-5-6）。跟手机端 paintReveal 同一个判法，
+     只标不判 —— 大屏上五颗点挨个认更慢，贴上两个字全桌都省事。 */
+  function isStraight(dice) {
+    if (!dice || dice.length !== 5) return false;
+    var v = dice.slice().sort(function (a, b) { return a - b; });
+    for (var i = 1; i < v.length; i++) if (v[i] !== v[0] + i) return false;
+    return v[0] === 1 || v[0] === 2;
+  }
+
+  function renderLiar(st) {
+    var seats = st.seats || [];
+    var rd = st.roll || { done: 0, all: seats.length };
+    var op = st.open || null;
+
+    if (el.dice && el.dice.__sig !== 'none') {
+      el.dice.__sig = 'none';
+      el.dice.textContent = '';
+      el.dice.className = 'bd-dice';      /* 空了之后 `.bd-dice:empty` 自己藏起来 */
+    }
+
+    var k = '吹牛', n = '', s = '';
+    if (!st.started) {
+      k = '等人齐';
+      n = seats.length + ' 人';
+      s = '满 2 人就能开 · 房号念一声';
+    } else if (st.phase === 'roll') {
+      /* 这一阶段大屏唯一有用的事：还差谁没摇 */
+      k = '各自摇';
+      n = rd.done + '/' + rd.all;
+      s = '都摇完牌自己就锁 · 不用再按一下';
+    } else if (st.phase === 'call') {
+      k = '开牌票';
+      n = (op ? op.done : 0) + '/' + (op ? op.need : 1);
+      s = '面对面叫 · 够 <b>2/3</b> 的人点了就摊';
+    } else if (st.phase === 'reveal') {
+      k = '摊牌';
+      n = (st.total | 0) + ' 颗';
+      var t = st.tally || [];
+      var parts = [];
+      for (var m = 0; m < 6; m++) if (t[m]) parts.push((m + 1) + ' × ' + t[m]);
+      s = parts.length ? parts.join(' · ') : '一颗都没有';
+    }
+    paintTurn(k, n, s, st.started ? st.phase : 'lobby');
+
+    var rows = [];
+    for (var j = 0; j < seats.length; j++) {
+      var p = seats[j];
+      var sub;
+      if (st.phase === 'reveal') sub = isStraight(p.dice) ? '顺子' : (p.rolled ? '摊开' : '没摇');
+      else if (p.rolled) sub = '摇了';
+      else sub = '还没摇';
+      rows.push({
+        name: p.name,
+        /* 吹牛没有「分数」这个数：卡片中间平时是空的，摊牌之后摆他的 5 颗骰子 */
+        noNum: true,
+        dice: (st.phase === 'reveal' && p.dice && p.dice.length) ? p.dice : null,
+        five: true,
+        sub: sub,
+        off: p.online === false
+      });
+    }
+    paintGrid(rows, colsFor(seats.length));
+    paintLog(st.log);
+  }
+
+  function nameOf(seats, i) {
+    var p = seats[i];
+    return p ? p.name : '—';
+  }
+
   function dsum(c) { return c ? (c[0] | 0) + (c[1] | 0) : 0; }
 
   function hitNames(st) {
@@ -379,7 +470,7 @@
     if (!el.grid) return;
     var sig = cols + '|' + rows.map(function (r) {
       return [r.name, r.num, r.unit || '', r.sub, r.turn ? 1 : 0, r.off ? 1 : 0, r.dash ? 1 : 0,
-        r.cups ? 1 : 0, r.dice ? r.dice.join('') : ''].join('~');
+        r.cups ? 1 : 0, r.dice ? r.dice.join('') : '', r.noNum ? 1 : 0, r.lose ? 1 : 0].join('~');
     }).join('|');
     if (el.grid.__sig === sig) return;
     el.grid.__sig = sig;
@@ -389,27 +480,30 @@
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i];
       var card = document.createElement('div');
-      card.className = 'bd-card' + (r.turn ? ' turn' : '') + (r.off ? ' off' : '');
+      card.className = 'bd-card' + (r.turn ? ' turn' : '') + (r.off ? ' off' : '') + (r.lose ? ' lose' : '');
       var nm = document.createElement('div');
       nm.className = 'bd-name';
       nm.textContent = r.name;
-      var nu = document.createElement('div');
-      nu.className = 'bd-num' + (r.dash ? ' dash' : '') + (r.cups ? ' cups' : '');
-      nu.textContent = r.num;
-      /* 单位挂在数字里、用 em 缩到四成多 —— 这样卡片缩放的那三个上限
-         （cqh / cqw / vmin）管的是「6杯」整个宽度，不会数字缩了单位却不缩 */
-      if (r.unit) {
-        var un = document.createElement('i');
-        un.className = 'bd-unit';
-        un.textContent = r.unit;
-        nu.appendChild(un);
-      }
       card.appendChild(nm);
-      card.appendChild(nu);
-      /* 各家自己的两颗（找朋友才有）：还没摇的画成空位 */
+      /* 吹牛的卡片没有那个大数字（它没有「分数」可摆），名字下面直接是骰子 */
+      if (!r.noNum) {
+        var nu = document.createElement('div');
+        nu.className = 'bd-num' + (r.dash ? ' dash' : '') + (r.cups ? ' cups' : '');
+        nu.textContent = r.num;
+        /* 单位挂在数字里、用 em 缩到四成多 —— 这样卡片缩放的那三个上限
+           （cqh / cqw / vmin）管的是「6杯」整个宽度，不会数字缩了单位却不缩 */
+        if (r.unit) {
+          var un = document.createElement('i');
+          un.className = 'bd-unit';
+          un.textContent = r.unit;
+          nu.appendChild(un);
+        }
+        card.appendChild(nu);
+      }
+      /* 各家自己的骰子：找朋友那两颗一直摊着；吹牛只有摊牌之后才有 */
       if (r.dice) {
         var dr = document.createElement('div');
-        dr.className = 'bd-cd';
+        dr.className = 'bd-cd' + (r.five ? ' five' : '');
         for (var d = 0; d < r.dice.length; d++) {
           var v = r.dice[d] | 0;
           var de = dieEl(v, false);

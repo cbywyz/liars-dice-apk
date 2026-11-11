@@ -1748,3 +1748,90 @@ button[disabled] { opacity: 1; }
   line-height: 1.5;
   color: rgba(35, 38, 45, 0.4);
 }
+
+/* ---------------- 退出这一桌（三套联机玩法共用） ----------------
+
+   左上角「←」是「暂时离开」（关连接、留座位，回来还能续上）；
+   右上角这颗「退出」才是真的离座。两件事摆在同一行、长得不一样，
+   省得有人点完 ← 回来发现自己还坐在桌上。 */
+.nav-quit {
+  flex: 0 0 auto;
+  height: 8.8vw;
+  padding: 0 2.66vw;
+  border: 0;
+  border-radius: 4.4vw;
+  font: inherit;
+  font-size: 2.9333vw;
+  font-weight: 600;
+  letter-spacing: 0.2667vw;
+  white-space: nowrap;
+  color: #b8452f;
+  /* 不透明：圆环座位那圈虚线会从半透明底透出来，红底上一条斜线很脏 */
+  background: #fbe9e7;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+.nav-quit:active { transform: scale(0.94); opacity: 0.78; }
+
+.quit-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8vw;
+  background: rgba(28, 30, 36, 0.42);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+/* display:flex 会盖掉 UA 的 [hidden]，得自己再关一次 */
+.quit-mask[hidden] { display: none; }
+.quit-box {
+  width: 100%;
+  max-width: 76vw;
+  display: flex;
+  flex-direction: column;
+  gap: 2.6667vw;
+  padding: 7.4667vw 6.4vw 6.4vw;
+  border-radius: 4.8vw;
+  background: #fdfaf3;
+  box-shadow: 0 3vw 9vw rgba(35, 38, 45, 0.28);
+  text-align: center;
+}
+.quit-t { font-size: 5.3333vw; font-weight: 600; color: #23262d; }
+.quit-s { font-size: 3.2vw; line-height: 1.65; color: rgba(35, 38, 45, 0.66); }
+.quit-hint { font-size: 2.6667vw; line-height: 1.6; color: rgba(35, 38, 45, 0.4); }
+.quit-box .btn { width: 100%; }
+
+/* ---------------- 在线状态点（联机座位卡三家统一） ----------------
+
+   350 那排座位卡一直写着「绿点 · 在线 / 红点 · 离线」；
+   找朋友、吹牛的圆环座位卡太小，塞不下两个字，以前只有掉线时把整张卡压暗 ——
+   不看颜色深浅根本分不出「在线」和「离线」。补一颗常显的小点：
+   绿 = 在线，红 = 离线，加一圈白边，深色「当前手」卡片上也看得清。 */
+.lr-seat::after,
+.fd-seat::after {
+  content: '';
+  position: absolute;
+  top: 1.0667vw;
+  right: 1.0667vw;
+  width: 1.6vw;
+  height: 1.6vw;
+  border-radius: 50%;
+  background: #3aa76d;
+  box-shadow: 0 0 0 0.4vw rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+.lr-seat.off::after,
+.fd-seat.off::after { background: #c2493f; }
+
+/* 350 顶栏要同时摆「重开 / 房号 / 退出」三颗，比另两家多一颗。
+   .nav-right 是贴右边绝对定位的，多一颗就往左长 —— 不收紧的话最左那颗
+   正好压住副标题 THREE FIFTY。只收这一页，别动另外两家。 */
+.page-netgame .nav-right { gap: 1.2vw; }
+.page-netgame .nav-right .redo-btn {
+  padding: 0 2.4vw;
+  font-size: 2.8vw;
+}
+.page-netgame .nav-right .nav-quit { padding: 0 2.2vw; }

@@ -526,6 +526,8 @@
     /* 被请出去：以前找朋友根本踢不了人，这条消息从来没到过。
        现在要认它 —— 不然座位上的人凭空消失，他还以为手机网络抽了，
        会一直点重连。说清楚，然后把座位记录清掉，别让「上一桌」卡在首页。 */
+    /* 自己点「退出」：服务端已经把座位摘掉了，这儿收尾 */
+    if (m.t === 'quitok') { finishQuit(); return; }
     if (m.t === 'kicked') {
       var msg = m.msg || '你被请出了这一桌';
       try { localStorage.removeItem(SEAT_KEY + S.code); } catch (e) {}
@@ -643,6 +645,33 @@
     S.kickUntil = 0;
     showOff(false);
     render();
+  }
+
+  /* ---------------- 主动退出这一桌 ----------------
+
+     跟「← 暂时离开」是两件事：这里要真把座位让出来。服务端收到 {t:'quit'}
+     会走摘人流程（座位重排、公骰轮次修正），回一句 quitok；本地还得把
+     房号和座位 token 一起清掉，不然回首页又弹出「上一桌还没打完」。 */
+  function finishQuit() {
+    if (!S.quitting) return;
+    S.quitting = false;
+    clearTimeout(S.quitTimer);
+    var code = S.code;
+    if (code) { try { localStorage.removeItem(SEAT_KEY + code); } catch (e) {} }
+    clearLast();
+    leaveAll();
+    if (window.F350 && window.F350.switchTo) window.F350.switchTo('netmodes');
+  }
+
+  function quitRoom() {
+    if (S.quitting) return;
+    if (!S.code) {
+      if (window.F350 && window.F350.switchTo) window.F350.switchTo('netmodes');
+      return;
+    }
+    S.quitting = true;
+    if (!send({ t: 'quit' })) { finishQuit(); return; }
+    S.quitTimer = setTimeout(finishQuit, 900);
   }
 
   function createRoom() {
@@ -979,7 +1008,7 @@
 
       var cu = document.createElement('span');
       cu.className = 'who-c';
-      cu.textContent = (s.cups | 0) + ' 杯' + (off ? ' · 掉线' : '');
+      cu.textContent = (s.cups | 0) + ' 杯 · ' + (off ? '离线' : '在线');
       row.appendChild(cu);
 
       /* 自己那一行不给按钮：踢自己请点左上角的返回 */
@@ -1122,7 +1151,7 @@
     if (el.back2) el.back2.addEventListener('click', function () {
       if (new Date().getTime() - (S.exitAt || 0) > 2500) {
         S.exitAt = new Date().getTime();
-        flash('再点一次 ← 就退出这一桌（座位会没）');
+        flash('再点一次 ← 就暂时离开（座位留着，回来能续上）');
         return;
       }
       S.exitAt = 0;
@@ -1357,6 +1386,7 @@
   window.LDFindNet = {
     enter: enter,
     leave: leave,
+    quit: quitRoom,
     /* 给自动化测试：读当前状态 / 直接发一条协议 */
     state: function () { return S.st; },
     send: function (o) { return send(o); },

@@ -50,6 +50,8 @@ var FILES = [
   './find.js',
   './findnet.css',
   './findnet.js',
+  './liarnet.css',
+  './liarnet.js',
   './board.css',
   './board.js',
   './manifest.webmanifest',

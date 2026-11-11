@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="net.css">
 <link rel="stylesheet" href="find.css">
 <link rel="stylesheet" href="findnet.css">
+<link rel="stylesheet" href="liarnet.css">
 <link rel="stylesheet" href="board.css">
 </head>
 <body>
@@ -81,7 +82,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.18.0 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.0 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -154,7 +155,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.18.0</span>
+      <span class="page-ver">v1.24.0</span>
     </div>
   </div>
 </div>
@@ -188,6 +189,26 @@
       </div>
 
       <div class="home-cards">
+        <!-- 吹牛：跟单机那个吹牛不是一回事。单机是一台手机传一圈，
+             联机是各看各的暗骰 —— 这个玩法本来就该一人一台手机，
+             一台机器上「你自己看」是装出来的，一人一台才是真的。 -->
+        <button class="play-card" id="playNetLiar">
+          <span class="pc-top">
+            <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3.4" y="3.4" width="10.2" height="10.2" rx="2.2"
+                    fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <circle cx="6.9" cy="6.9" r="1" fill="currentColor"/>
+              <circle cx="10.1" cy="10.1" r="1" fill="currentColor"/>
+              <rect x="10.4" y="10.4" width="10.2" height="10.2" rx="2.2"
+                    fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <circle cx="13.6" cy="13.6" r="1" fill="currentColor"/>
+              <circle cx="17.4" cy="17.4" r="1" fill="currentColor"/>
+            </svg>
+            <span class="pc-title">吹牛 · 暗骰</span>
+          </span>
+          <span class="pc-sub">每人 5 颗只有自己看得见 · 叫点 / 斋 / 劈 · 2~12 人</span>
+        </button>
+
         <button class="play-card" id="playNet350">
           <span class="pc-top">
             <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
@@ -217,6 +238,7 @@
           </span>
           <span class="pc-sub">每人 2 颗明骰 · 摇到谁谁喝 · 2~12 人</span>
         </button>
+
       </div>
 
       <!-- 摆桌上：不是第三种玩法，是给「面对面」加的一块公用屏。
@@ -321,7 +343,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.18.0</span>
+    <span class="page-ver">v1.24.0</span>
   </div>
 </div>
 
@@ -361,7 +383,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.18.0</span>
+        <span class="page-ver">v1.24.0</span>
       </div>
     </div>
   </div>
@@ -392,7 +414,7 @@
 <div class="page page-netgame" id="pageNetGame" hidden>
 
   <div class="nav">
-    <button class="nav-back" id="ngBack" aria-label="退出房间">
+    <button class="nav-back" id="ngBack" aria-label="暂时离开 · 座位留着">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
       </svg>
@@ -413,6 +435,8 @@
       <button class="redo-btn ng-redo" id="ngRedo" type="button">重开</button>
       <!-- 房号常驻右上角：中途有人掉线重进，不用去翻聊天记录 -->
       <button class="redo-btn ng-code" id="ngCode" type="button" title="房号">----</button>
+      <!-- 退出这一桌：跟「← 暂时离开」分开。见 body 末尾那层确认 -->
+      <button class="nav-quit" data-quit="netgame" type="button">退出</button>
     </div>
   </div>
 
@@ -471,7 +495,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.18.0</span>
+    <span class="page-ver">v1.24.0</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -549,7 +573,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.18.0</span>
+      <span class="page-ver">v1.24.0</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -558,7 +582,7 @@
   <!-- 隐藏面板：长按标题打开 -->
   <div class="mask" id="mask" style="display:none">
     <div class="sheet" id="sheet">
-      <span class="sheet-title">点数设置</span>
+      <span class="sheet-title">调试功能</span>
       <span class="sheet-sub">仅本机生效 · 点了只装填，摇一摇才生效 · 仅一次</span>
 
       <div class="force-state" id="forceState">
@@ -670,7 +694,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.18.0</span>
+    <span class="page-ver">v1.24.0</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -727,7 +751,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.18.0</span>
+    <span class="page-ver">v1.24.0</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -777,7 +801,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.18.0</span>
+        <span class="page-ver">v1.24.0</span>
       </div>
     </div>
   </div>
@@ -785,7 +809,7 @@
   <!-- ② 大厅 -->
   <div class="fn-lobby" id="fnLobby" hidden>
     <div class="nav">
-      <button class="nav-back" id="fnQuit" aria-label="离开这一桌">
+      <button class="nav-back" id="fnQuit" aria-label="暂时离开 · 座位留着">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
         </svg>
@@ -795,6 +819,7 @@
         <span class="t2">LOBBY</span>
       </div>
       <div class="nav-right">
+        <button class="nav-quit" data-quit="findnet" type="button">退出</button>
         <button class="fn-copy" id="fnCopy" type="button">复制房号</button>
       </div>
     </div>
@@ -812,7 +837,7 @@
   <!-- ③ 牌桌 -->
   <div class="fn-table" id="fnTable" hidden>
     <div class="nav">
-      <button class="nav-back" id="fnBack2" aria-label="返回大厅">
+      <button class="nav-back" id="fnBack2" aria-label="暂时离开 · 座位留着">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
         </svg>
@@ -826,6 +851,7 @@
         <span class="t2">联机 · 明骰</span>
       </div>
       <div class="nav-right">
+        <button class="nav-quit" data-quit="findnet" type="button">退出</button>
         <span class="fn-code" id="fnCodeTag">0000</span>
       </div>
     </div>
@@ -861,7 +887,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.18.0</span>
+      <span class="page-ver">v1.24.0</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -935,9 +961,277 @@
   </div>
 </div>
 
+<!-- ==================== 吹牛 · 联机（每人一台手机，暗骰） ====================
+     为什么必须联机：暗骰的整个玩法建立在「只有我看得见我这 5 颗」上。
+     一台手机传一圈做不到这件事 —— 递到你手上时，上一个人的牌还在屏幕上。
+     一人一台手机才成立，点数在服务器摇，谁也改不了自己的牌。
+
+     三屏：拿房号 → 大厅 → 牌桌。桌子几何复用 find.css 的 .fd-ring（跟找朋友同一个圆），
+     骰子复用 app.css 的 .die / .pip（跟 350、跟公共屏同一颗骰子）。 -->
+<div class="page page-solo page-liarnet" id="pageLiarNet" hidden>
+
+  <!-- ① 拿房号 -->
+  <div class="home" id="lrGate">
+    <button class="nav-back" id="lrBack" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">吹牛 · 联机</div>
+        <div class="home-t2">LIAR'S DICE</div>
+      </div>
+
+      <div class="lr-who">以 <b id="lrWhoName">你</b> 的身份进房 · 名字在「联机」首页改</div>
+
+      <button class="fn-resume" id="lrResume" type="button" hidden>
+        <span class="nr-left">
+          <span class="nr-kicker">上一桌还没打完</span>
+          <span class="nr-sub" id="lrResumeSub">点一下回到原位</span>
+        </span>
+        <span class="nr-code" id="lrResumeCode">----</span>
+      </button>
+
+      <div class="lr-box">
+        <div class="fn-lbl">房号</div>
+        <input class="fn-inp" id="lrCode" inputmode="numeric" maxlength="6"
+               placeholder="4 位数字" autocomplete="off" autocorrect="off">
+        <button class="btn primary" id="lrJoin" type="button">进房</button>
+        <button class="btn ghost" id="lrNew" type="button">开一桌（2~12 人）</button>
+        <div class="fn-tip" id="lrTip"></div>
+      </div>
+
+      <div class="lr-secret">
+        每人 <b>5 颗暗骰</b>，只有自己看得见 —— 别人的牌连手机都拿不到，
+        开的那一刻才一起摊开。桌上公开的只有「谁叫了什么」。
+      </div>
+
+      <div class="foot">
+        <span class="page-ver">v1.24.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 大厅 -->
+  <div class="lr-lobby" id="lrLobby" hidden>
+    <div class="nav">
+      <button class="nav-back" id="lrQuit" aria-label="暂时离开 · 座位留着">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+        </svg>
+      </button>
+      <div class="nav-title">
+        <span class="t1">大厅</span>
+        <span class="t2">LOBBY</span>
+      </div>
+      <div class="nav-right">
+        <button class="nav-quit" data-quit="liarnet" type="button">退出</button>
+        <button class="fn-copy" id="lrCopy" type="button">复制房号</button>
+      </div>
+    </div>
+
+    <div class="lr-lobby-body">
+      <div class="lr-bigcode" id="lrLobbyCode">----</div>
+      <div class="lr-lobby-tip" id="lrLobbyTip">正在进房…</div>
+      <div class="lr-plist" id="lrLobbyList"></div>
+      <div class="lr-lobby-btns">
+        <button class="btn primary" id="lrStart" type="button" disabled>开局</button>
+        <button class="lr-mini" id="lrRule" type="button">玩法说明</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 牌桌 -->
+  <div class="lr-table" id="lrTable" hidden>
+    <div class="nav">
+      <button class="nav-back" id="lrBack2" aria-label="暂时离开 · 座位留着">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+        </svg>
+      </button>
+      <div class="sound-btn" id="lrSound" role="button" aria-label="音效">
+        <span class="sound-ic" id="lrSoundIc">🔊</span>
+      </div>
+      <div class="nav-title">
+        <span class="t1">吹牛</span>
+        <span class="t2">联机 · 暗骰</span>
+      </div>
+      <div class="nav-right">
+        <button class="nav-quit" data-quit="liarnet" type="button">退出</button>
+        <span class="lr-code" id="lrCodeTag">0000</span>
+      </div>
+    </div>
+
+    <div class="fd-top">
+      <span class="fd-round" id="lrRound">第 1 局</span>
+      <span class="fd-who" id="lrWho">—</span>
+    </div>
+
+    <!-- 圆环：座位 + 中间那张桌子。
+         桌子（.lr-core）只说一句话 —— 摇的时候说「摇了几家、开始了几家」，
+         叫的时候说「现在叫到几」，摊牌说实际个数。倒计时条已经拆掉了：
+         这一局什么时候结束由桌上说了算（2026-11-11 玩法减法）。 -->
+    <div class="fd-stage">
+      <div class="fd-ring" id="lrRing">
+        <div class="fd-core lr-core" id="lrCore">
+          <div class="lr-core-k" id="lrCoreK">开叫</div>
+          <div class="lr-core-v" id="lrCoreV">—</div>
+          <div class="lr-core-s" id="lrCoreS"></div>
+        </div>
+        <div id="lrSeats"></div>
+      </div>
+    </div>
+
+    <!-- 自己那 5 颗单独摆一排大的：座位卡上的小方块是给「看别人」用的，
+         坐在桌前，眼睛盯的是自己这点牌。 -->
+    <!-- 自己那 5 颗盖在盅里：点一下开盖看，再点一下合上（照单机版那套搬过来的）。
+         摊牌那一刻不再靠这块 —— 整屏换成 lrRev 那张大表。
+
+         盅摆在**右边**、说明摆在左边（2026-11-11 用户：「右边比较符合人体的手指习惯」）。
+         单手拿手机，拇指的自然落点就是右下角 —— 掀盖这个最常做的动作不该在最左边。 -->
+    <div class="lr-me" id="lrMe">
+      <div class="lr-me-txt">
+        <span class="lr-me-k">我的牌</span>
+        <span class="lr-me-name" id="lrMeName">—</span>
+        <span class="lr-me-tag" id="lrMeTag"></span>
+      </div>
+
+      <div class="lr-cup" id="lrCup" role="button" aria-label="骰盅 · 点一下开盖">
+        <div class="lr-cup-s">
+          <div class="cup-rig" id="lrCupRig">
+            <div class="cup-body"></div>
+            <div class="cup-mouth"><div class="mouth-rim"></div></div>
+            <div class="lr-cup-dice" id="lrMeDice"></div>
+            <div class="cup-rim"></div>
+            <div class="lid-holder" id="lrLid">
+              <div class="lid">
+                <div class="lid-side"></div>
+                <div class="lid-top"><div class="lid-ring"></div><div class="lid-gloss"></div></div>
+                <div class="knob"><div class="knob-hole"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 摊牌：只做展示。一行一家，5 颗 10vw 的大骰子 —— 小方块在真桌上根本认不清 -->
+    <div class="lr-rev" id="lrRev" hidden>
+      <div class="lr-rev-head">
+        <div class="lr-rev-k">全场一共</div>
+        <div class="lr-rev-v" id="lrRevV">—</div>
+        <div class="lr-rev-s" id="lrRevS"></div>
+      </div>
+      <div class="lr-rev-list" id="lrRevList"></div>
+    </div>
+
+    <div class="fd-hint" id="lrHint"></div>
+    <div class="fd-btns" id="lrBtns"></div>
+
+    <div class="foot">
+      <span class="page-ver">v1.24.0</span>
+      <button class="mode-link" id="lrLogBtn" type="button">记录</button>
+      <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
+      <button class="mode-link" id="lrRule2" type="button">玩法说明</button>
+    </div>
+
+    <!-- 本局记录 / 桌上的人：跟找朋友那块弹层同一套 .lg-* 类名。
+         350 和找朋友一直都有这两个入口，吹牛这边服务端也一直下发 log，
+         只是前端没画出来 —— 2026-11-11 用户：「看看吹牛对比其他还少了什么，记录？人员？」
+         记录是「刚才谁点了开牌」，人员是「谁在线、谁摇了、能不能请出去」。 -->
+    <div class="lg-mask" id="lrLog" hidden>
+      <div class="lg-sheet">
+        <div class="lg-tabs">
+          <button class="lg-tab is-on" id="lrTabLog" type="button">本局记录</button>
+          <button class="lg-tab" id="lrTabWho" type="button">桌上的人</button>
+        </div>
+        <div class="lg-body" id="lrLogList"></div>
+        <div class="lg-body" id="lrWhoList" hidden></div>
+        <button class="lg-x" id="lrLogX" type="button">知道了</button>
+      </div>
+    </div>
+
+    <div class="lr-off" id="lrOff" hidden>连接断了 · 正在重连</div>
+
+    <!-- 调试功能（暗门）
+         两道门，跟单机、找朋友那两套一模一样：
+           · 总开关在首页页脚那行版本号上连点 7 下（window.LDDev，全站只有这一个）
+           · 长按上面那两行字 1.2 秒 → 弹出面板
+         三格隐形区就是用户 2026-11-11 在截图里圈出来的那条竖空当（盅左边）：
+         上 = 随机顺子 · 中 = 点骰改点开关 · 下 = 随机豹子。平时它是空气。 -->
+    <div class="lr-zone" id="lrZone">
+      <i data-k="st"></i><i data-k="tap"></i><i data-k="lion"></i>
+    </div>
+
+    <div class="lr-dbg" id="lrDbg" hidden>
+      <div class="lr-dbg-sheet">
+        <span class="lr-dbg-t">调试功能</span>
+        <span class="lr-dbg-s">只在这台手机上生效 · 点了只装填，摇一摇才出点 · 仅一次</span>
+
+        <div class="force-state" id="lrForce">
+          <div class="fs-dot"></div>
+          <span class="fs-text" id="lrFsText">未装填 · 点下面任一项，摇一摇才生效</span>
+        </div>
+
+        <div class="quick">
+          <div class="quick-head">
+            <span class="quick-title">一键豹子</span>
+            <span class="quick-tip">随机形态 · 摇一摇生效</span>
+          </div>
+          <div id="lrLionRow"></div>
+          <div class="quick-row" id="lrStraightRow"></div>
+        </div>
+
+        <div class="tapbox">
+          <div class="tapbox-head">
+            <div class="tapbox-text">
+              <span class="tapbox-title">开盖后点骰改点</span>
+              <span class="tapbox-sub">掀开后连点两下同一颗骰子，点数 +1 · 长期有效</span>
+            </div>
+            <label class="sw"><input type="checkbox" id="lrSwTap"><span class="track"></span></label>
+          </div>
+        </div>
+
+        <div class="tapbox">
+          <div class="tapbox-head">
+            <div class="tapbox-text">
+              <span class="tapbox-title">骰盅左边三格</span>
+              <span class="tapbox-sub">上 顺子 · 中 点骰改点 · 下 豹子</span>
+            </div>
+            <label class="sw"><input type="checkbox" id="lrSwZone"><span class="track"></span></label>
+          </div>
+        </div>
+
+        <div class="switch-row">
+          <span>音效</span>
+          <label class="sw"><input type="checkbox" id="lrSwSnd"><span class="track"></span></label>
+        </div>
+
+        <button class="btn primary lr-dbg-x" id="lrDbgX" type="button">完成</button>
+      </div>
+    </div>
+
+    <!-- 叫点面板：从底下推上来，不盖整屏 —— 叫点要一边看桌子上的阶梯一边改个数 -->
+    <!-- 点座位上那个名字 → 这一句确认（2026-11-11 用户：「有些人离开了，还一直占位卡死」）。
+         能不能请由服务端 kickPlayerLiar 说了算：掉线的人谁都能请，在线的人只有房主能请。
+         弹层样式整个借找朋友那套（net.css 的 .ng-kick），同一个动作长得一样才对；
+         「请出房间」用 danger 红 —— 这一下真会把人送走。 -->
+    <div class="ng-kick" id="lrKick" hidden>
+      <div class="ng-kick-box">
+        <span class="ng-kick-name" id="lrKickName"></span>
+        <span class="ng-kick-sub" id="lrKickSub"></span>
+        <button class="btn primary ng-kick-ok danger" id="lrKickGo" type="button">请出房间</button>
+        <button class="btn ghost ng-kick-no" id="lrKickNo" type="button">算了</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="f3-mask" id="f3Mask" style="display:none"></div>
 
-<!-- ==================== 玩法说明（两个玩法共用，内容按玩法填） ==================== -->
+<!-- ==================== 玩法说明（几个玩法共用，内容按玩法填） ==================== -->
 <div class="rule-mask" id="ruleMask" style="display:none">
   <div class="rule-sheet">
     <div class="rule-head">
@@ -977,6 +1271,7 @@
 <script src="app.js"></script>
 <script src="find.js"></script>
 <script src="findnet.js"></script>
+<script src="liarnet.js"></script>
 <script src="f350.js"></script>
 <script src="net.js"></script>
 <script src="board.js"></script>
@@ -1035,5 +1330,20 @@
   });
 })();
 </script>
+<!-- ==================== 退出这一桌（三套联机玩法共用） ====================
+
+     左上角「←」是「暂时离开」：关掉连接、座位留着，凭房号回来还能续上。
+     想真的走（让出座位、桌上的人接着玩），以前没有任何按钮 ——
+     2026-11-11 用户：「所有联机版的都没有退出按钮，都没办法自主退出游戏」。
+     这一层由 f350.js 统一开关，三个模块只管各自收尾。 -->
+<div class="quit-mask" id="quitMask" hidden>
+  <div class="quit-box">
+    <span class="quit-t">退出这一桌？</span>
+    <span class="quit-s">座位会让出来，桌上的人接着玩<br>退了就不能凭房号回到原位了</span>
+    <span class="quit-hint">只是暂时离开？点左上角 ←<br>座位留着，回来还能续上</span>
+    <button class="btn primary" id="quitYes" type="button">退出这一桌</button>
+    <button class="btn ghost" id="quitNo" type="button">算了</button>
+  </div>
+</div>
 </body>
 </html>

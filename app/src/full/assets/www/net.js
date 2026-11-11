@@ -551,6 +551,8 @@
       return;
     }
     /* 被请出房间：别装成「网络抽了」在那儿一直重连，说清楚然后回大厅 */
+    /* 自己点「退出」：服务端已经把座位摘掉了，这儿收尾 */
+    if (m.t === 'quitok') { finishQuit(); return; }
     if (m.t === 'kicked') {
       toast(m.msg || '你被请出了房间');
       try { localStorage.removeItem(seatKey(S.code)); } catch (e) {}
@@ -1366,6 +1368,29 @@
     refreshResume();
   }
 
+  /* ---------------- 主动退出这一桌 ----------------
+
+     goLobby() 是「暂时离开」：关连接、留座位，首页还会摆「上一桌还没打完」。
+     这颗「退出」要真离座：先发 {t:'quit'}，服务端摘人后回 quitok，
+     本地把座位 token 与房号一起清掉，再走 goLobby 收线切页。 */
+  function finishQuit() {
+    if (!S.quitting) return;
+    S.quitting = false;
+    clearTimeout(S.quitTimer);
+    var code = S.code;
+    if (code) { try { localStorage.removeItem(seatKey(code)); } catch (e) {} }
+    clearLast();
+    goLobby();
+  }
+
+  function quitRoom() {
+    if (S.quitting) return;
+    if (!S.code) { goLobby(); return; }
+    S.quitting = true;
+    if (!send({ t: 'quit' })) { finishQuit(); return; }
+    S.quitTimer = setTimeout(finishQuit, 900);
+  }
+
   function enterRoom(code) {
     S.code = code;
     S.state = null;
@@ -1630,6 +1655,7 @@
     open: open,
     leave: leave,
     goLobby: goLobby,
+    quit: quitRoom,
     /* 给自动化测试用：能读当前桌面，也能直接发一条协议 */
     state: function () { return S.state; },
     send: function (o) { return send(o); }

@@ -1,0 +1,801 @@
+/* ==========================================================================
+   吹牛 · 联机版（每人一台手机，暗骰）—— 只补「开房 / 大厅 / 牌桌」这一层。
+
+   跟找朋友（findnet.css）的关系：圆桌那套几何（.fd-stage / .fd-ring / .fd-hint /
+   .fd-btns）整块复用，人一进这个玩法就认得出来「这还是那张桌子」。
+   差别只有一处、但很关键：**别人的骰子是盖着的**。找朋友是明骰，人人摊开；
+   吹牛要的是「只有自己看得见自己的」，所以座位卡里那排骰子分两种画法。
+
+   骰子本身不另画一套：吃 app.css 的 .die / .pip（白胚、蓝点、一点四点红、
+   底下那层厚边），只把 --ds 改小。同一台手机上，吹牛的骰子和 350 的骰子
+   必须是同一颗东西 —— 上次公共屏就是因为另画了一套米白配深灰的，像另一个 App。
+
+   尺寸照旧 vw（750 宽设计稿 → 1vw = 7.5px）。
+   ========================================================================== */
+
+/* .page 是 display:flex，会盖过 [hidden] 的默认 display:none */
+.page-liarnet[hidden] { display: none; }
+.page-liarnet .lr-lobby[hidden],
+.page-liarnet .lr-table[hidden],
+.page-liarnet .home[hidden] { display: none; }
+
+/* ---------------- ① 拿房号 ---------------- */
+
+.lr-box {
+  margin: 8vw 6vw 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.6667vw;
+}
+
+.page-liarnet .lr-who {
+  margin: 5.3333vw 6vw 0;
+  font-size: 2.6667vw;
+  letter-spacing: 0.2vw;
+  text-align: center;
+  color: rgba(35, 38, 45, 0.4);
+}
+.page-liarnet .lr-who b { color: #23262d; font-weight: 600; }
+
+/* 「暗骰」这三个字得先说清：一桌人第一次玩，最怕的是以为别人的点数自己看得见，
+   或者反过来，以为别人看得见自己的。 */
+.lr-secret {
+  margin: 2vw 6vw 0;
+  padding: 3.2vw 4vw;
+  border-radius: 3.2vw;
+  background: rgba(35, 38, 45, 0.055);
+  font-size: 2.6667vw;
+  line-height: 1.65;
+  color: rgba(35, 38, 45, 0.56);
+}
+.lr-secret b { color: #23262d; font-weight: 600; }
+
+/* ---------------- ② 大厅 ---------------- */
+
+.lr-lobby {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lr-lobby-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 2vw 6vw 0;
+}
+
+.lr-bigcode {
+  font-size: 13.3333vw;
+  font-weight: 600;
+  letter-spacing: 3.2vw;
+  text-indent: 3.2vw;
+  text-align: center;
+  color: #23262d;
+  line-height: 1.1;
+}
+
+.lr-lobby-tip {
+  margin-top: 1.6vw;
+  font-size: 2.9333vw;
+  text-align: center;
+  color: rgba(35, 38, 45, 0.42);
+}
+
+.lr-plist {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 5.3333vw;
+  display: flex;
+  flex-direction: column;
+  gap: 2.1333vw;
+}
+.lr-pl {
+  display: flex;
+  align-items: center;
+  gap: 3.2vw;
+  padding: 3.2vw 4vw;
+  border-radius: 4vw;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06);
+}
+.lr-pl.me { box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.55); }
+.lr-pl.off { opacity: 0.5; }
+
+.lr-pl-n {
+  width: 7vw;
+  font-size: 2.9333vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+.lr-pl-name {
+  flex: 1 1 auto;
+  font-size: 3.4667vw;
+  font-weight: 500;
+  color: #23262d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lr-pl-host {
+  font-size: 2.4vw;
+  color: #8a5f18;
+  padding: 0.4vw 1.6vw;
+  border-radius: 999px;
+  background: rgba(181, 137, 63, 0.14);
+}
+
+.lr-pl-go {
+  font-size: 2.4vw;
+  color: rgba(35, 38, 45, 0.36);
+}
+
+.lr-lobby-btns {
+  flex: 0 0 auto;
+  padding: 4vw 0 6vw;
+  display: flex;
+  flex-direction: column;
+  gap: 2.4vw;
+}
+
+/* ---------------- ③ 牌桌 ---------------- */
+
+.lr-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* 圆桌直径。原来 92vw 铺满，现在下面要留出骰盅的位置，
+     收到 80vw；矮屏（老机型）按屏高再收一档，不然盅会被挤出去。 */
+  --lr-ring: min(80vw, 42vh);
+}
+
+.lr-table .fd-ring {
+  width: var(--lr-ring);
+  padding-top: var(--lr-ring);
+}
+
+.lr-code {
+  font-size: 3.2vw;
+  font-weight: 600;
+  letter-spacing: 0.8vw;
+  color: rgba(35, 38, 45, 0.5);
+}
+
+/* 座位卡：比找朋友那张窄一点，因为里面要横着排 5 颗骰子。
+   窄是为了 12 个人也塞得下（圆环周长 ÷ 12 ≈ 18.7vw）——
+   超过 9 个人时 CSS 里的 .lr-seats.dense 会把卡片和骰子一起缩一号。 */
+.lr-seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 19.4vw;
+  padding: 0.53vw 0.4vw 0.8vw;
+  box-sizing: border-box;
+  border-radius: 2.4vw;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07),
+              0 0.8vw 2vw rgba(35, 38, 45, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4vw;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 摊牌时输的那位：再重一层红 */
+.lr-seat.off { opacity: 0.45; }
+
+/* 名字后面那个小尾巴：这一把谁摇了、谁还没摇。
+   摇完就锁（不再有「按开始」这一下），所以只有两种状态 ——
+   眼睛要找的是那个「没摇」的：他不动，全桌都开不了牌。
+   字小一半、颜色轻，不跟名字抢；名字太长的时候 .lr-n 自己的省略号会把它吃掉。 */
+.lr-rd {
+  font-style: normal;
+  margin-left: 0.8vw;
+  font-size: 1.9vw;
+  line-height: 1;
+  letter-spacing: 0;
+  color: #b8382e;
+}
+/* 摇了的压淡一档：他已经没事了，别再抢眼睛 */
+.lr-rd.w { color: rgba(35, 38, 45, 0.3); }
+
+.lr-n {
+  font-size: 2.5vw;
+  line-height: 1.2;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #3a3f49;
+}
+
+/* 他最后叫的那一手：桌上所有人都看得见的一行（点数本身看不见，但「叫了什么」是公开的） */
+.lr-say {
+  font-size: 2.2vw;
+  line-height: 1.2;
+  letter-spacing: 0.1vw;
+  color: rgba(35, 38, 45, 0.34);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lr-say.has { color: #8a5f18; }
+/* 连顺：这一行本来是空的（叫点拆掉之后没话可说），正好放「顺子 N 连」。
+   2 连起才出现；3 连起转红 —— 桌上规矩是连续 3 把顺子罚酒，间断不算。 */
+.lr-say.st { color: #8a5f18; font-weight: 600; }
+.lr-say.st.hot { color: #b8382e; font-weight: 700; }
+
+.lr-dice {
+  display: flex;
+  gap: 0.5vw;
+  /* 骰子的厚度和投影画在盒子外面、不算布局高度 —— 底下不留这一截，
+     影子会糊到下一行字上（公共屏那次踩过，牌桌上一样会踩）。 */
+  padding-bottom: calc(var(--ds) * 0.2);
+  --ds: 3vw;
+}
+
+/* 盖着的那颗：同一副骨架、同一层厚度，只是没有点数、压暗一点。
+   别改成「一块空白的方框」—— 一摊牌尺寸会跳，全桌的座位卡跟着抖一下。 */
+.lr-die.down {
+  background: linear-gradient(152deg, #dbcfb6 0%, #d0c2a4 60%, #c3b290 100%);
+  box-shadow: 0 0.05em 0 #b9a884, 0 0.07em 0.03em rgba(90, 70, 45, 0.2),
+    0 0.15em 0.2em rgba(0, 0, 0, 0.16),
+    inset 0 0.04em 0.06em rgba(255, 255, 255, 0.7);
+}
+.lr-die.down .pip { display: none; }
+
+/* 他还没摇：连盖子都不算。用 filter 而不是 opacity —— .die 的入场动画
+   是 opacity 0→1 + fill both，普通 opacity 声明会被动画一直盖着，写了没用。 */
+.lr-die.faint { filter: opacity(0.42); }
+
+/* 一颗骰子：几何全交给 app.css 的 .die，这里只定边长。
+   座位卡上的这颗只有 3vw（约 11px）—— 它存在是为了「数得清几颗、看得出点数」，
+   真正要盯着看的是底下自己那 5 颗 6.6vw 的。再大就塞不下 12 个人了。 */
+.lr-die {
+  --ds: 3vw;
+  flex: 0 0 auto;
+  width: var(--ds);
+  height: var(--ds);
+}
+
+/* 9 个人以上是另一套密度：卡片窄一圈、骰子小一号，先保住「不撞车」 */
+.lr-seats.dense .lr-seat { width: 15vw; padding: 0.53vw 0.27vw 0.8vw; }
+.lr-seats.dense .lr-dice { --ds: 2.4vw; gap: 0.3vw; }
+.lr-seats.dense .lr-die { --ds: 2.4vw; }
+.lr-seats.dense .lr-n { font-size: 2.2vw; }
+.lr-seats.dense .lr-say { font-size: 1.9vw; }
+
+/* ---------------- 中间那张桌子 ----------------
+   用户原话：「中间的桌子也留着，稍后再看看桌子有什么用」。
+   用上了，一共三种用法，全靠这一块圆盘：
+     叫点阶段  → 现在叫到几，谁叫的，往上三手
+     对赌阶段  → 劈到几倍了，还剩几秒，谁在决定
+     摊牌阶段  → 实际几个，谁喝几杯
+   三种都在这一个位置上换字，不另开面板 —— 桌上只该有一处「现在的局面」。 */
+.lr-core {
+  gap: 0.6vw;
+  padding: 3vw;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.lr-core-k {
+  font-size: 2.2vw;
+  letter-spacing: 0.6vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+.lr-core-v {
+  font-size: 5.2vw;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.2vw;
+  color: #23262d;
+}
+
+.lr-core-s {
+  font-size: 2.2vw;
+  line-height: 1.35;
+  color: rgba(35, 38, 45, 0.42);
+  max-width: 100%;
+}
+
+/* 对赌的倍数：这一块要压得住场，坐对面的人抬头就能看见 */
+.lr-core-x {
+  font-size: 9vw;
+  font-weight: 700;
+  line-height: 1;
+  color: #8a5f18;
+  letter-spacing: -0.2vw;
+}
+
+/* 「接着叫」：认半杯那一刻桌面上的一句话，字要比叫点小一号 —— 
+   它说的不是牌，是刚发生的事 */
+.lr-core-half {
+  font-size: 4.4vw;
+  color: #8a5f18;
+  letter-spacing: 0.4vw;
+}
+
+/* ---------------- 我这一把 ---------------- */
+
+/* 自己那 5 颗不摆了 —— 盖在盅里（见下面的 .lr-cup）。
+   坐在桌前想知道自己几点，掀盖子，跟真桌上一样。 */
+.lr-me {
+  flex: 0 0 auto;
+  display: flex;
+  /* DOM 里文字块在前、盅在后 —— 所以盅落在右边。
+     2026-11-11 用户：「右边比较符合人体的手指习惯」。别按「先盅后字」的顺序再调回来。 */
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 2vw;
+  padding: 0.6vw 0 0;
+}
+
+/* ---------------- 自己的骰盅 ----------------
+   盅的配方整个复用单机版（app.css 的 .cup-rig / .cup-body / .cup-mouth / .lid-*，
+   单位全是 vw，本来就是按屏宽长的）。那边是整屏一只 80vw 的盅，这边上方还要摆圆桌，
+   所以套一层 .lr-cup-s 用 scale(0.6) 缩到 48vw —— 配方一个字没改，
+   以后单机版调配色、调弧度，这边自动跟着变。
+
+   0.5 → 0.6（2026-11-11 用户：「下方筛盅和骰子有点小，把筛盅放大还有骰子放大」）：
+   屏上从 40vw 长到 48vw，盅里那 5 颗从 26px 长到 31px。腾出来的宽度是从左边
+   文字块扣的（.lr-me-txt 不再撑 22vw），不是把盅往屏幕外推。 */
+.lr-cup {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48vw;
+  height: 59.2vw;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* 上下拖开盖的时候别把整页带着滚 */
+  touch-action: none;
+}
+
+.lr-cup-s {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 80vw;
+  height: 98.6667vw;
+  transform: scale(0.6);
+  transform-origin: 0 0;
+}
+
+/* 盅里那 5 颗：**整块照单机版摆**（app.css 的 .dice-layer + app.js 的 slotsOf）。
+
+   用户 2026-11-11 指着单机版那张图问：「骰子都被挤出去了，为什么不学单机版的摆法」。
+   原来这边是一排 5 颗、17vw 一颗塞进 80vw 的盅里，两头直接露在盅口外面。
+   单机是 3 + 2 两层、每颗歪一点（rotate + scaleY(0.84) 压扁，看着像躺在盅里），
+   110rpx 一颗 —— 位置在 JS 里按这套数算，跟单机一个字不差。 */
+.lr-cup-dice {
+  position: absolute;
+  left: 0;
+  top: 37.3333vw;
+  width: 80vw;
+  height: 41.3333vw;
+  z-index: 2;
+  /* 平时整层是空气：手指落在盅上就是掀盖，别被骰子半路截走。
+     只有盖子掀开、这一把锁了牌之后才短暂放开（见 liarnet.js 里那个状态）——
+     盖着的时候这一层要是接手指，点盅正中间就再也掀不开了。 */
+  pointer-events: none;
+}
+
+/* 一颗一个槽：位置、大小、角度全由 JS 写在这上面（跟 .die-slot 同构） */
+.lr-dslot {
+  position: absolute;
+  width: var(--ds);
+  height: var(--ds);
+}
+
+/* 还没摇：盅里空着，压淡一点 */
+.lr-me-wait .lr-cup-dice { opacity: 0.32; }
+
+/* 摊牌了：盅和圆桌一起收起来，换大图（见 .lr-rev）。
+   .fd-stage / .lr-me 都是 display:flex，直接写 [hidden] 会被盖过去，
+   所以用 .lr-table.rev 这一层类名切，不碰 hidden。 */
+.lr-table.rev .fd-stage,
+.lr-table.rev .lr-me { display: none; }
+
+/* 左边这块只放三行字，别让它跟盅抢宽度（原来 min-width 22vw，
+   盅只能缩到 40vw）。宽度交给内容，长名字自己省略。 */
+.lr-me-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6vw;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 26vw;
+}
+
+.lr-me-k {
+  font-size: 2.4vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+.lr-me-name {
+  font-size: 3.2vw;
+  font-weight: 600;
+  color: #23262d;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lr-me-tag {
+  font-size: 2.4vw;
+  color: #8a5f18;
+}
+
+/* 矮屏（老机型 667 / 640 那一档）：盅按 48vw 长过来会顶到按钮，
+   这一档整体收一档 —— 圆环先收，盅收到 42vw（屏上还是比原来 40vw 大一截）。 */
+@media (max-height: 700px) {
+  /* 圆环再收一档，并且整体往下挪一点：两个人玩的时候座位就落在 12 点，
+     卡片有一半在圆环外面，不挪会压住「第 1 局 · 面对面叫」那一行。 */
+  .lr-table { --lr-ring: min(72vw, 34vh); }
+  .lr-table .fd-stage { padding-top: 5vh; }
+  .lr-cup { width: 42vw; height: 51.8vw; }
+  .lr-cup-s { transform: scale(0.525); }
+  .lr-me-txt { max-width: 30vw; }
+}
+
+/* 还没摇：位置占着，摆一句「点一下摇」，别让中间空一块 */
+.lr-me-wait .lr-me-dice { opacity: 0.5; }
+
+/* ---------------- 摊牌：只做展示 ----------------
+   用户 2026-11-11：「开牌之后我们只做展示，把玩家的点数放大展示出来，
+   太小人家可能看不见」。所以摊牌不再靠座位卡上那 2.2vw 的小方块，
+   整屏换成一张大表：一行一个人，5 颗 8.2vw 的骰子横着铺开。
+   圆桌这时候收起来 —— 对牌要的是「看清楚」，不是「围个圈」。 */
+.lr-rev {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 3.2vw;
+}
+
+/* 跟 .lr-seat 那几个 display 同一个坑：这里写了 display:flex，会盖过 UA 的 [hidden] */
+.lr-rev[hidden] { display: none; }
+
+.lr-rev-head {
+  flex: 0 0 auto;
+  text-align: center;
+  padding: 0.6vw 0 2vw;
+}
+
+.lr-rev-k {
+  font-size: 2.6vw;
+  letter-spacing: 0.8vw;
+  color: rgba(35, 38, 45, 0.34);
+}
+
+.lr-rev-v {
+  font-size: 11vw;
+  line-height: 1.1;
+  font-weight: 700;
+  color: #23262d;
+  letter-spacing: 0.4vw;
+}
+
+.lr-rev-v b {
+  font-size: 5vw;
+  font-weight: 600;
+  color: rgba(35, 38, 45, 0.5);
+  letter-spacing: 0;
+}
+
+.lr-rev-s {
+  font-size: 2.8vw;
+  color: #8a5f18;
+}
+
+.lr-rev-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vw;
+  padding-bottom: 1.6vw;
+  justify-content: flex-start;
+}
+
+/* 人少的时候别把五行挤在顶上、下面空一大片：居中。
+   用 safe center（内容溢出时退回顶对齐），不然 12 家会从第一行开始就被切掉。 */
+@supports (justify-content: safe center) {
+  .lr-rev-list { justify-content: safe center; }
+}
+
+.lr-rv {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  padding: 1.4vw 2.4vw;
+  border-radius: 2.6vw;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07);
+}
+
+/* 输的那位：整行描红。桌上第一眼找的就是这一行 */
+.lr-rv.lose {
+  background: rgba(192, 57, 43, 0.06);
+  box-shadow: inset 0 0 0 0.2667vw rgba(192, 57, 43, 0.55);
+}
+
+/* 开牌的人 / 被开的人：名字后面挂个小字 */
+.lr-rv.who-op { box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.6); }
+
+.lr-rv-m {
+  flex: 0 0 19vw;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4vw;
+}
+
+.lr-rv-n {
+  font-size: 3vw;
+  font-weight: 600;
+  color: #23262d;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 顺子：摊牌那一眼最先要看的东西，所以给它一块底，不是纯色字。
+   位置在名字和骰子中间那块空白 —— 那里本来就是空的，不挤任何人的位子，
+   眼睛从名字扫到骰子一定会经过它。
+
+   为什么是金底不是红底：红在满屏骰子里到处都是（1 和 4 的点就是红的），
+   贴一块红反而淹掉。金是这套 App 里「大牌」的颜色（350 的豹子也是金），
+   深金底 + 米白字，一眼就跳出来，又不会像警告。 */
+/* 掉线：名字下面挂一行灰字。不压暗整行 —— 这一屏是拿来对牌的，
+   人走了他的点数还在数里，压暗了反而看不清。 */
+.lr-rv-off {
+  font-size: 2.4vw;
+  font-style: normal;
+  color: rgba(35, 38, 45, 0.4);
+  white-space: nowrap;
+}
+
+/* 连顺：名字下面一行小字，跟掉线同一列 —— 不跟骰子抢宽度。
+   3 连起转红并写「罚酒」：这条规矩在桌上，程序只负责把牌面数清楚。 */
+.lr-rv-st {
+  font-size: 2.4vw;
+  font-style: normal;
+  color: #8a5f18;
+  white-space: nowrap;
+}
+.lr-rv-st.hot { color: #b8382e; font-weight: 700; }
+
+.lr-rv-t {
+  flex: 0 0 auto;
+  padding: 0.8vw 1.6vw;
+  border-radius: 1.2vw;
+  background: #8a5f18;
+  color: #fdf4e3;
+  font-size: 3vw;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.4vw;
+  white-space: nowrap;
+  box-shadow: 0 0.6vw 1.6vw rgba(138, 95, 24, 0.28);
+}
+
+.lr-rv-d {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.6vw;
+}
+
+/* 10vw（375 屏上 37.5px）—— 用户说太小看不见，这个尺寸老人也认得出点数 */
+.lr-rv-d .lr-die { --ds: 10vw; }
+
+/* 人多的时候（9 家以上）骰子小一号，不然一行铺不下 */
+.lr-rev.dense .lr-rv-d .lr-die { --ds: 7vw; }
+.lr-rev.dense .lr-rv-m { flex: 0 0 17vw; }
+
+/* 摇骰按钮：这一下全桌都会等，所以它比「叫点」大一号 */
+.lr-roll {
+  width: 100%;
+  padding: 5.3333vw 0;
+  border: 0;
+  border-radius: 4vw;
+  background: #23262d;
+  color: #fbf7ef;
+  font: inherit;
+  font-size: 4.5333vw;
+  font-weight: 600;
+  letter-spacing: 0.8vw;
+  box-shadow: 0 1.2vw 3vw rgba(35, 38, 45, 0.22);
+}
+.lr-roll:active { transform: scale(0.985); }
+.lr-roll[disabled] { opacity: 0.4; }
+
+/* ---------------- 请人出去 ----------------
+
+   点座位上那个名字就弹一句确认。弹层整个借找朋友那套（net.css 的 .ng-kick）——
+   同一个动作长得一样才对。
+
+   座位本身**不做任何「可点」的提示**：350 和找朋友都是点卡片就弹，
+   这里跟它们保持一致。一圈虚线画在名字下面反而像排版出了问题（试过，撤了）。 */
+
+/* ---------------- 小东西 ---------------- */
+
+.lr-wait {
+  padding: 3.2vw 0;
+  text-align: center;
+  font-size: 3.2vw;
+  color: rgba(35, 38, 45, 0.4);
+}
+
+.lr-mini {
+  margin: 1.3333vw auto 0;
+  padding: 1.2vw 4vw;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 2.6667vw;
+  color: rgba(35, 38, 45, 0.4);
+  text-decoration: underline;
+  text-underline-offset: 0.5333vw;
+}
+
+.lr-off {
+  position: fixed;
+  left: 50%;
+  bottom: 12vw;
+  transform: translateX(-50%);
+  padding: 1.8667vw 4.2667vw;
+  border-radius: 999px;
+  background: rgba(35, 38, 45, 0.88);
+  color: #fbf7ef;
+  font-size: 2.9333vw;
+  white-space: nowrap;
+  z-index: 40;
+}
+.lr-off[hidden] { display: none; }
+
+/* ---------------- 调试功能（暗门） ----------------
+
+   两道门：首页页脚版本号连点 7 下（window.LDDev）+ 长按牌桌顶上那两行字 1.2 秒。
+   总闸关着的时候，这条三格连手指都不接（pointer-events:none），面板也打不开 ——
+   跟单机、找朋友那两套是同一个规矩。
+
+   三格的位置是用户 2026-11-11 在截图里圈出来的：盅左边那条竖着的空当，
+   上 = 随机顺子 · 中 = 点骰改点 · 下 = 随机豹子。
+   为什么不照单机摆在盅下面横着切三格：联机版盅下面就是「摇 · 5 颗」那颗大按钮，
+   横着切一定会压在按钮上，点摇骰顺手就装填了。 */
+
+.lr-table { position: relative; }
+
+.lr-zone {
+  position: absolute;
+  left: 5vw;
+  top: 46%;
+  width: 20vw;
+  height: 34%;
+  display: flex;
+  flex-direction: column;
+  /* 要压在盅和骰子上面：这两样都带手势（掀盖 / 点骰），
+     压在下面的话手指落不到三格上 —— 用户 2026-11-11 实测「2、3 两格没反应」 */
+  z-index: 8;
+  /* 总闸没开就是空气 */
+  pointer-events: none;
+}
+.lr-zone.on { pointer-events: auto; }
+/* 摊牌页整块收起来：那一屏左列就是名字（点它请人出去），
+   三格再杵在这儿只会挡住踢人；何况摊开了也装填不了。 */
+.lr-table.rev .lr-zone { display: none; }
+.lr-zone i {
+  flex: 1 1 0;
+  display: block;
+  /* 必须 inherit：子元素写成 auto 会把父级的 pointer-events:none 顶掉，
+     于是「总闸没开」的这条竖带照样接手指，还压在摊牌大表那列名字上
+     （2026-11-11 截图脚本当场撞上：点「阿珍」被 <i data-k="tap"> 拦了）。 */
+  pointer-events: inherit;
+  /* 点下去不要有蓝框、不要选中文字 */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* 面板：贴着底部弹出来，跟单机那张 .sheet 一个长相。
+   类名不复用 .sheet/.mask（单机那套），也不叫 .dbg-（找朋友那套，纯净版会整段剪掉）。 */
+.lr-dbg {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(20, 22, 26, 0.42);
+}
+.lr-dbg[hidden] { display: none; }
+
+.lr-dbg-sheet {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3.2vw;
+  padding: 5.3333vw 6.4vw 6.4vw;
+  border-radius: 5.3333vw 5.3333vw 0 0;
+  background: #fdfaf3;
+  box-shadow: 0 -2vw 6vw rgba(35, 38, 45, 0.18);
+  /* 面板里现在是单机那整套（状态条 + 豹子 + 顺子 + 三个开关），
+     矮屏放不下 —— 让它自己滚，别把「完成」那颗按钮顶出屏幕。 */
+  max-height: 88vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.lr-dbg-t {
+  font-size: 4.8vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+  color: #23262d;
+}
+.lr-dbg-s {
+  margin-top: -2vw;
+  font-size: 2.6667vw;
+  line-height: 1.5;
+  color: rgba(35, 38, 45, 0.45);
+}
+.lr-dbg-row {
+  display: flex;
+  align-items: center;
+  gap: 2.6667vw;
+  padding: 3.2vw 3.7333vw;
+  border-radius: 3.2vw;
+  background: rgba(35, 38, 45, 0.05);
+}
+.lr-dbg-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.0667vw;
+}
+.lr-dbg-k {
+  flex: 0 1 auto;
+  font-size: 3.4667vw;
+  color: #23262d;
+}
+/* 三格那句说明：竖着排在开关左边，别跟标题挤成一行 ——
+   「骰盅左边三格」六个字加一句话，横着放一定会折成两三行（第一版就是这么折的） */
+.lr-dbg-h {
+  font-size: 2.4vw;
+  line-height: 1.4;
+  color: rgba(35, 38, 45, 0.42);
+}
+.lr-dbg-x {
+  margin-top: 1.0667vw;
+  padding: 4.2667vw 0;
+  font-size: 3.7333vw;
+}
+
+/* 点骰改点开着的时候，按一下那颗骰子给一线几乎看不见的反馈 ——
+   别人看不出来，自己知道点中了（跟单机那套一致）。 */
+body.lr-tap-edit .lr-dslot .die:active { filter: brightness(1.08); }
+
+/* 只有「此刻真的能改点」（盖子已掀开 + 锁了牌 + 调试开着）时，盅里那 5 颗
+   才接手指。开关开着但盖子还盖着的时候，这一层必须仍是空气 —— 否则点盅
+   正中间的手指落在骰子上，掀盖手势被让位判断吞掉，盖子就再也打不开了。
+   （liarnet.js 的 tapEditLive / syncTapEdit 负责切这个类名。） */
+body.lr-tap-live .lr-cup-dice,
+body.lr-tap-live .lr-dslot,
+body.lr-tap-live .lr-dslot .die { pointer-events: auto; }
