@@ -82,7 +82,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.24.3 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.4 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -155,7 +155,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.24.3</span>
+      <span class="page-ver">v1.24.4</span>
     </div>
   </div>
 </div>
@@ -342,7 +342,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.3</span>
+    <span class="page-ver">v1.24.4</span>
   </div>
 </div>
 
@@ -382,7 +382,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.3</span>
+        <span class="page-ver">v1.24.4</span>
       </div>
     </div>
   </div>
@@ -494,7 +494,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.3</span>
+    <span class="page-ver">v1.24.4</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -572,7 +572,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.24.3</span>
+      <span class="page-ver">v1.24.4</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -693,7 +693,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.3</span>
+    <span class="page-ver">v1.24.4</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -750,7 +750,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.3</span>
+    <span class="page-ver">v1.24.4</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -800,7 +800,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.24.3</span>
+        <span class="page-ver">v1.24.4</span>
       </div>
     </div>
   </div>
@@ -886,7 +886,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.24.3</span>
+      <span class="page-ver">v1.24.4</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -1008,7 +1008,7 @@
       </div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.3</span>
+        <span class="page-ver">v1.24.4</span>
       </div>
     </div>
   </div>
@@ -1131,7 +1131,7 @@
     <div class="fd-btns" id="lrBtns"></div>
 
     <div class="foot">
-      <span class="page-ver">v1.24.3</span>
+      <span class="page-ver">v1.24.4</span>
       <button class="mode-link" id="lrLogBtn" type="button">记录</button>
       <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
       <button class="mode-link" id="lrRule2" type="button">玩法说明</button>
@@ -1159,16 +1159,17 @@
          两道门，跟单机、找朋友那两套一模一样：
            · 总开关在首页页脚那行版本号上连点 7 下（window.LDDev，全站只有这一个）
            · 长按上面那两行字 1.2 秒 → 弹出面板
-         三格隐形区就是用户 2026-11-11 在截图里圈出来的那条竖空当（盅左边）：
-         上 = 随机顺子 · 中 = 点骰改点开关 · 下 = 随机豹子。平时它是空气。 -->
+         三格隐形区就是用户 2026-11-11 在截图里圈出来的那条竖空当（盅左边）。
+         每一格绑什么**不写死**：面板里「三格 · 点一下换功能」自己排（2026-11-11 追加），
+         data-z 只是格子的序号 0/1/2，具体跑哪个功能由 liarnet.js 的 dbg.z 决定。 -->
     <div class="lr-zone" id="lrZone">
-      <i data-k="st"></i><i data-k="tap"></i><i data-k="lion"></i>
+      <i data-z="0"></i><i data-z="1"></i><i data-z="2"></i>
     </div>
 
     <div class="lr-dbg" id="lrDbg" hidden>
       <div class="lr-dbg-sheet">
         <span class="lr-dbg-t">调试功能</span>
-        <span class="lr-dbg-s">只在这台手机上生效 · 点了只装填，摇一摇才出点 · 仅一次</span>
+        <span class="lr-dbg-s">只在本局生效 · 点了只装填，摇一摇才出点 · 仅一次</span>
 
         <div class="force-state" id="lrForce">
           <div class="fs-dot"></div>
@@ -1182,6 +1183,31 @@
           </div>
           <div id="lrLionRow"></div>
           <div class="quick-row" id="lrStraightRow"></div>
+        </div>
+
+        <!-- 装填别人：随机挑一位还没摇的，只改他那一手 —— 自己的牌不动 -->
+        <div class="quick lr-other">
+          <div class="quick-head">
+            <span class="quick-title">装填别人</span>
+            <span class="quick-tip">随机挑一位还没摇的 · 只改他那一手</span>
+          </div>
+          <div class="quick-row">
+            <div class="qchip wide hot" id="lrOtherSt">他人随机顺子</div>
+            <div class="qchip wide hot" id="lrOtherLion">他人随机豹子</div>
+          </div>
+        </div>
+
+        <!-- 三格自定义：三行，每行五个功能，点一下换一个。
+             以前三格写死「上顺子 / 中改点 / 下豹子」，现在想放哪个放哪个 ——
+             连「装填别人」也能排进去。 -->
+        <div class="zcfg">
+          <div class="zcfg-head">
+            <span class="quick-title">三格 · 点一下换功能</span>
+            <span class="quick-tip">上 1 · 中 2 · 下 3</span>
+          </div>
+          <div class="zcfg-row" data-z="0"><span class="zcfg-k">1</span><div class="zcfg-chips" id="lrZCfg0"></div></div>
+          <div class="zcfg-row" data-z="1"><span class="zcfg-k">2</span><div class="zcfg-chips" id="lrZCfg1"></div></div>
+          <div class="zcfg-row" data-z="2"><span class="zcfg-k">3</span><div class="zcfg-chips" id="lrZCfg2"></div></div>
         </div>
 
         <div class="tapbox">
@@ -1198,7 +1224,7 @@
           <div class="tapbox-head">
             <div class="tapbox-text">
               <span class="tapbox-title">骰盅左边三格</span>
-              <span class="tapbox-sub">上 顺子 · 中 点骰改点 · 下 豹子</span>
+              <span class="tapbox-sub" id="lrZoneSub">上 顺子 · 中 点骰改点 · 下 豹子</span>
             </div>
             <label class="sw"><input type="checkbox" id="lrSwZone"><span class="track"></span></label>
           </div>

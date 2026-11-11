@@ -805,9 +805,75 @@
   color: rgba(35, 38, 45, 0.42);
 }
 .lr-dbg-x {
+  /* 面板现在比一屏长（多了「装填别人」和三格配置），「完成」钉在面板底部：
+     不用先滚到底才能关，手机上这一步很烦。 */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   margin-top: 1.0667vw;
   padding: 4.2667vw 0;
   font-size: 3.7333vw;
+  background: #fdfaf3;
+  box-shadow: 0 -1.6vw 3.2vw rgba(253, 250, 243, 0.92);
+}
+
+/* ---------- 三格自定义（2026-11-11 追加） ----------
+
+   以前三格写死「上顺子 / 中改点 / 下豹子」，现在面板里三行 chip 各挑各的。
+   每行：左边一个格号，右边五颗功能 chip 平分剩下的宽度。 */
+.zcfg {
+  margin-top: 2.4vw;
+  padding: 2.4vw 2.6667vw 2.6667vw;
+  border-radius: 2.6667vw;
+  background: rgba(35, 38, 45, 0.04);
+}
+.zcfg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 1.6vw;
+}
+.zcfg-row {
+  display: flex;
+  align-items: center;
+}
+.zcfg-row + .zcfg-row { margin-top: 1.4vw; }
+.zcfg-k {
+  flex: none;
+  width: 5.3333vw;
+  height: 5.3333vw;
+  line-height: 5.3333vw;
+  margin-right: 1.6vw;
+  text-align: center;
+  border-radius: 1.3333vw;
+  font-size: 2.9333vw;
+  color: rgba(35, 38, 45, 0.5);
+  background: rgba(35, 38, 45, 0.07);
+}
+.zcfg-chips {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+}
+.zchip {
+  flex: 1 1 0;
+  width: auto;
+  height: 7.2vw;
+  line-height: 7.2vw;
+  margin-left: 1.0667vw;
+  border-radius: 1.6vw;
+  font-size: 2.8vw;
+  letter-spacing: 0;
+}
+.zchip:first-child { margin-left: 0; }
+
+/* 状态条第二行：刚给别人装填了谁。跟自己的装填状态分开写，别混成一句 */
+.fs-hit {
+  display: block;
+  margin-top: 0.8vw;
+  font-style: normal;
+  font-size: 2.6667vw;
+  color: #8a6a2c;
 }
 
 /* 点骰改点开着的时候，按一下那颗骰子给一线几乎看不见的反馈 ——

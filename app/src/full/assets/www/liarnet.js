@@ -1266,10 +1266,31 @@
      用户实测「1 有震动也有效，2 和 3 没震动」，说明那两下根本没进到 handler。
      现在每个 <i data-k> 自己接 pointerdown，落哪块就是哪块，不再算坐标。 */
   var DBG_KEY = 'ld_liar_dbg';
-  var dbg = { tap: false, zone: false };
+  /* 能排进三格的功能清单 —— **这个数组的顺序就是面板里的顺序**。
+     用户 2026-11-11：「开关 1 2 3 可在面板中自定义，可给已有功能增加排序」：
+     想调顺序、或者在中间插一项，只改这里；三格的默认值和面板都会跟着走。
+     short 是给面板 chip 和「上/中/下」那一行用的，name 是完整叫法。 */
+  var DBG_ACTS = [
+    { id: 'st', short: '顺子', name: '随机顺子' },
+    { id: 'lion', short: '豹子', name: '随机豹子' },
+    { id: 'tap', short: '改点', name: '点骰改点' },
+    { id: 'ost', short: '他顺', name: '他人随机顺子' },
+    { id: 'olion', short: '他豹', name: '他人随机豹子' }
+  ];
+  var DBG_Z_DEF = ['st', 'tap', 'lion'];
+  var dbg = { tap: false, zone: false, z: DBG_Z_DEF.slice() };
   var TAP_GAP = 420;          // 点骰改点：两下之间的最大间隔
   var tapAt = 0, tapI = -1;
   var DBG_STRAIGHTS = [[1, 2, 3, 4, 5], [2, 3, 4, 5, 6]];
+
+  function actOf(id) {
+    for (var i = 0; i < DBG_ACTS.length; i++) if (DBG_ACTS[i].id === id) return DBG_ACTS[i];
+    return null;
+  }
+  function actOfShort(id) {
+    var a = actOf(id);
+    return a ? a.short : '—';
+  }
 
   function dbgArm() { return !!(window.LDDev && window.LDDev.on()); }
 
@@ -1291,7 +1312,15 @@
   function loadDbg() {
     try {
       var o = JSON.parse(localStorage.getItem(DBG_KEY) || 'null');
-      if (o) { dbg.tap = !!o.tap; dbg.zone = !!o.zone; }
+      if (o) {
+        dbg.tap = !!o.tap;
+        dbg.zone = !!o.zone;
+        /* 三格配置：老版本存的是「开关」没有 z，读不到就用默认值。
+           只收认识的 id，坏值当没配过 —— 不然一格点下去什么也不做，还查不出来。 */
+        if (Object.prototype.toString.call(o.z) === '[object Array]') {
+          for (var i = 0; i < 3; i++) if (actOf(o.z[i])) dbg.z[i] = o.z[i];
+        }
+      }
     } catch (e) {}
   }
 
@@ -1300,11 +1329,15 @@
   }
 
   /* 告诉服务端「我这台开着调试功能」。断线重连后要再报一次 ——
-     服务端只记在内存里的那个玩家身上，重连是新的一轮。 */
+     服务端只记在内存里的那个玩家身上，重连是新的一轮。
+
+     2026-11-11 起只要总闸开着就报 on：面板里「随机顺子 / 装填别人」这些
+     点一下就走，不必先把两个开关拨开 —— 以前只认 tap / zone，
+     只点面板上那颗「随机顺子」会被服务端拒掉（"调试功能没开"）。 */
   function tellDbg() {
     if (!S.ws || S.ws.readyState !== 1) return;
     try {
-      S.ws.send(JSON.stringify({ t: 'ldbg', on: dbgArm() && !!(dbg.tap || dbg.zone) }));
+      S.ws.send(JSON.stringify({ t: 'ldbg', on: dbgArm() }));
     } catch (e) {}
   }
 
@@ -1411,15 +1444,21 @@
     syncTapEdit();
 
     /* 装填状态以服务端那手为准（liarPub 里的 dbg.arm），本地不猜 ——
-       「点了到底有没有效」这件事必须有个地方能看见，不然只能靠猜。 */
+       「点了到底有没有效」这件事必须有个地方能看见，不然只能靠猜。
+       hit 是「刚给别人塞了一手」的回执：8 秒后自己收掉，别一直挂在那儿。 */
     var v = (S.st && S.st.dbg && S.st.dbg.arm) || null;
-    if (el.force) el.force.classList.toggle('armed', !!v);
+    var hit = (S.st && S.st.dbg && S.st.dbg.hit) || null;
+    if (hit && Date.now() - (hit.at || 0) > 8000) hit = null;
+    if (el.force) el.force.classList.toggle('armed', !!v || !!hit);
     if (el.fsText) {
-      el.fsText.textContent = v
+      var line = v
         ? '已装填 · ' + armName(v) + ' · 摇一摇生效，仅一次'
         : '未装填 · 点下面任一项，摇一摇才生效';
+      el.fsText.innerHTML = esc(line) +
+        (hit ? '<i class="fs-hit">已装填给 ' + esc(hit.name) + ' · ' + esc(hit.act) + '</i>' : '');
     }
     paintChips(v);
+    paintZoneCfg();
   }
 
   function setDbg(k, v) {
@@ -1511,6 +1550,51 @@
     send({ t: 'larm', dice: v });
   }
 
+  /* 装填别人：随机挑一位还没摇的，只改他那一手。
+     挑人放在服务端（客户端只看得见「谁摇了」，看不见别人点数），
+     回执也只回给发起者 —— 被挑中的人只会觉得「这一把运气好」。 */
+  function otherArm(kind) {
+    var st = S.st;
+    if (!st || st.phase !== 'roll') { buzz(12); return; }
+    buzz(kind === 'lion' ? 45 : 22);
+    send({ t: 'larmOther', kind: kind });
+    setTimeout(paintDbg, 8300);      // 回执那一行 8 秒后自己收掉
+  }
+
+  /* 三格里每一格真正做的事。加新功能 = DBG_ACTS 加一项 + 这里补一条，
+     面板的 chip、三格说明、「上/中/下」文案都会自动跟着变。 */
+  function runAct(id) {
+    if (id === 'st') armDice(randomStraight(), 22);
+    else if (id === 'lion') armDice(randomLion(), 45);
+    else if (id === 'tap') setDbg('tap', !dbg.tap);
+    else if (id === 'ost' || id === 'olion') otherArm(id === 'ost' ? 'st' : 'lion');
+  }
+
+  /* 面板里那三行 chip：一行一个格子，每行五颗功能，点哪颗就把这一格换成它 */
+  function paintZoneCfg() {
+    for (var i = 0; i < 3; i++) {
+      var box = el['zCfg' + i];
+      if (!box) continue;
+      if (!box.getAttribute('data-built')) {
+        var h = '';
+        for (var k = 0; k < DBG_ACTS.length; k++) {
+          h += '<div class="qchip zchip" data-a="' + DBG_ACTS[k].id + '">' +
+               DBG_ACTS[k].short + '</div>';
+        }
+        box.innerHTML = h;
+        box.setAttribute('data-built', '1');
+      }
+      var chips = box.querySelectorAll('.zchip');
+      for (var j = 0; j < chips.length; j++) {
+        chips[j].classList.toggle('on', chips[j].getAttribute('data-a') === dbg.z[i]);
+      }
+    }
+    if (el.zoneSub) {
+      el.zoneSub.textContent = '上 ' + actOfShort(dbg.z[0]) +
+        ' · 中 ' + actOfShort(dbg.z[1]) + ' · 下 ' + actOfShort(dbg.z[2]);
+    }
+  }
+
   function bindDbg() {
     var click = function (node, fn) { if (node) node.addEventListener('click', fn); };
 
@@ -1569,34 +1653,67 @@
       armDice(k === 0 ? randomStraight() : DBG_STRAIGHTS[k - 1].slice(), 22);
     });
 
+    /* 装填别人：随机挑一位还没摇的。挑人、出牌都在服务端，这里只发两个字。 */
+    click(el.otherSt, function () {
+      if (!dbgArm()) return;
+      if (window.LDDev) window.LDDev.keep();
+      otherArm('st');
+    });
+    click(el.otherLion, function () {
+      if (!dbgArm()) return;
+      if (window.LDDev) window.LDDev.keep();
+      otherArm('lion');
+    });
+
+    /* 三格配置：点哪颗 chip，这一格就换成哪个功能（存本地，下次打开还在） */
+    for (var zi = 0; zi < 3; zi++) {
+      (function (i) {
+        var box = el['zCfg' + i];
+        if (!box) return;
+        box.addEventListener('click', function (e) {
+          var c = e.target.closest ? e.target.closest('[data-a]') : null;
+          if (!c || !dbgArm()) return;
+          var id = c.getAttribute('data-a');
+          if (!actOf(id)) return;
+          dbg.z[i] = id;
+          saveDbg();
+          paintDbg();
+          buzz(18);
+          if (window.LDDev) window.LDDev.keep();
+        });
+      })(zi);
+    }
+
     /* 三格：每块自己接手指。以前是在容器上按 clientY 算落在哪一格 ——
        手机上点下面两格根本没进 handler（用户 2026-11-11 实测），
        所以改成 pointerdown 直接落在哪块算哪块，再不依赖坐标。
-       震动节奏三格各不相同：顺子一下短、点骰改点两下、豹子一下长。 */
+
+       2026-11-11 第三轮：格子里的功能**不再写死**，落在第几格（data-z 0/1/2）
+       就去 dbg.z 里取那一格绑的功能，交给 runAct 执行。 */
     if (el.zone) {
       var zAt = 0;
-      var zFire = function (key) {
+      var zFire = function (idx) {
         if (!dbgArm() || !dbg.zone) return;
+        if (!(idx >= 0 && idx < 3)) return;
         var now = Date.now();
         if (now - zAt < 260) return;      // pointerdown 之后紧跟的那次 click 不重复算
         zAt = now;
         if (window.LDDev) window.LDDev.keep();
-        if (key === 'st') armDice(randomStraight(), 22);
-        else if (key === 'tap') setDbg('tap', !dbg.tap);
-        else if (key === 'lion') armDice(randomLion(), 45);
+        runAct(dbg.z[idx]);
       };
       var zKey = function (e) {
         var n = e.target;
-        while (n && n !== el.zone && !n.getAttribute('data-k')) n = n.parentNode;
-        return n && n !== el.zone ? n.getAttribute('data-k') : null;
+        while (n && n !== el.zone && n.getAttribute('data-z') === null) n = n.parentNode;
+        if (!n || n === el.zone) return -1;
+        return parseInt(n.getAttribute('data-z'), 10);
       };
       el.zone.addEventListener('pointerdown', function (e) {
         var k = zKey(e);
-        if (k) { e.preventDefault(); zFire(k); }
+        if (k >= 0) { e.preventDefault(); zFire(k); }
       });
       el.zone.addEventListener('click', function (e) {
         var k = zKey(e);
-        if (k) zFire(k);
+        if (k >= 0) zFire(k);
       });
     }
 
@@ -1860,6 +1977,9 @@
       dbg: $('lrDbg'), dbgX: $('lrDbgX'), zone: $('lrZone'),
       force: $('lrForce'), fsText: $('lrFsText'),
       lionRow: $('lrLionRow'), straightRow: $('lrStraightRow'),
+      otherSt: $('lrOtherSt'), otherLion: $('lrOtherLion'),
+      zCfg0: $('lrZCfg0'), zCfg1: $('lrZCfg1'), zCfg2: $('lrZCfg2'),
+      zoneSub: $('lrZoneSub'),
       swTap: $('lrSwTap'), swZone: $('lrSwZone'), swSnd: $('lrSwSnd')
     };
     if (!el.gate) return;       // 页面上没有这一页（被裁剪过 / 旧版缓存）
