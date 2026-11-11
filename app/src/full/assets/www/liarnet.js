@@ -499,10 +499,11 @@
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'who-x' + (k ? ' is-on' : '');
-        b.textContent = k
-          ? (voted && s.online !== false && !isHost() ? '已投 ' : '同意 ') +
-            k.yes.length + '/' + k.need
-          : (s.online === false || isHost() ? '请出去' : '发起投票');
+        /* 房主和掉线的人永远直接请，不显示票数 —— 他们点下去本来就绕过投票 */
+        b.textContent = (s.online === false || isHost())
+          ? '请出去'
+          : k ? (voted ? '已投 ' : '同意 ') + k.yes.length + '/' + k.need
+              : '发起投票';
         b.setAttribute('data-i', String(i));
         row.appendChild(b);
       }
