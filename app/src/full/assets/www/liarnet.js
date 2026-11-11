@@ -1455,7 +1455,8 @@
         ? '已装填 · ' + armName(v) + ' · 摇一摇生效，仅一次'
         : '未装填 · 点下面任一项，摇一摇才生效';
       el.fsText.innerHTML = esc(line) +
-        (hit ? '<i class="fs-hit">已装填给 ' + esc(hit.name) + ' · ' + esc(hit.act) + '</i>' : '');
+        (hit ? '<i class="fs-hit">已装填给 ' + esc(hit.name) + ' · ' + esc(hit.act) +
+               (hit.next ? ' · 下一把生效' : ' · 这一把生效') + '</i>' : '');
     }
     paintChips(v);
     paintZoneCfg();
@@ -1552,10 +1553,12 @@
 
   /* 装填别人：随机挑一位还没摇的，只改他那一手。
      挑人放在服务端（客户端只看得见「谁摇了」，看不见别人点数），
-     回执也只回给发起者 —— 被挑中的人只会觉得「这一把运气好」。 */
+     回执也只回给发起者 —— 被挑中的人只会觉得「这一把运气好」。
+     2026-11-11 补：对方已经摇过的时候也能点，服务端会排到下一把
+     （原来这里只认 phase === 'roll'，而正常打牌你点面板的时候早过了这一段）。 */
   function otherArm(kind) {
     var st = S.st;
-    if (!st || st.phase !== 'roll') { buzz(12); return; }
+    if (!st || st.phase === 'lobby' || st.phase === 'over') { buzz(12); return; }
     buzz(kind === 'lion' ? 45 : 22);
     send({ t: 'larmOther', kind: kind });
     setTimeout(paintDbg, 8300);      // 回执那一行 8 秒后自己收掉

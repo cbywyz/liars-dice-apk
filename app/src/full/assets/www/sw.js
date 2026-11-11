@@ -103,12 +103,22 @@ function isCode(req, url) {
 }
 
 /* 断网 / 超时时的退路：先按原样的 URL 找（ignoreSearch 让 ?v= 也能对上），
-   再退到 index.html，最后退到根路径。 */
+   再退到 index.html，最后退到根路径。
+
+   **只在本版缓存（CACHE）里找，不能用全局的 caches.match。**
+   全局那个是全 origin 搜的：部署刚完、新页面已经从网上下来了，
+   而 liarnet.js 因为慢被这条退路接住时，拿到的可能是上一版缓存里那份 ——
+   于是「新 HTML + 旧脚本」：面板里的三格配置画出来了却不接手指，
+   三格本身也全哑（旧脚本认 data-k，新页面写的是 data-z）。
+   用户 2026-11-11 就是这么快开着看一眼撞上的。
+   缓存名里带构建号，所以「本版缓存」里的文件一定和这份 HTML 同版。 */
 function fallback(req) {
-  return caches.match(req, { ignoreSearch: true }).then(function (hit) {
-    if (hit) return hit;
-    return caches.match('./index.html').then(function (h2) {
-      return h2 || caches.match('./');
+  return caches.open(CACHE).then(function (c) {
+    return c.match(req, { ignoreSearch: true }).then(function (hit) {
+      if (hit) return hit;
+      return c.match('./index.html').then(function (h2) {
+        return h2 || c.match('./');
+      });
     });
   });
 }
