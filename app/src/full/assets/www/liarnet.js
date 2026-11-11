@@ -490,17 +490,32 @@
       cu.textContent = what + ' · ' + (off ? '离线' : '在线');
       row.appendChild(cu);
 
-      /* 自己那一行不给按钮：想退出请点右上角「退出」 */
+      /* 自己那一行不给按钮：想退出请点右上角「退出」。
+         跟 350 / 找朋友一样，在线的人非房主也能点 —— 按钮上直接写清是「发起投票」，
+         不然按下去只是挂一张票，人会以为没反应。 */
       if (!mine && canKick(i)) {
+        var k = kickVote(s);
+        var voted = votedByMe(k);
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = 'who-x';
-        b.textContent = '请出去';
+        b.className = 'who-x' + (k ? ' is-on' : '');
+        b.textContent = k
+          ? (voted && s.online !== false && !isHost() ? '已投 ' : '同意 ') +
+            k.yes.length + '/' + k.need
+          : (s.online === false || isHost() ? '请出去' : '发起投票');
         b.setAttribute('data-i', String(i));
         row.appendChild(b);
       }
       box.appendChild(row);
     }
+
+    /* 跟找朋友那张一模一样的一句：说明按钮点下去到底会发生什么 */
+    var tip = document.createElement('div');
+    tip.className = 'who-tip';
+    tip.textContent = isHost()
+      ? '你是房主：点「请出去」当场生效，不用别人同意。'
+      : '点「发起投票」：在线的三分之二同意才请得出去，45 秒没人接着点就作废。';
+    box.appendChild(tip);
   }
 
   function setTab(tab) {
@@ -779,7 +794,8 @@
      用户 2026-11-11：「刚刚说的可以踢人的功能还没加上」—— 功能在，但他没找到。
 
      所以改成在底栏上方留一句常驻小字，只有「现在真的点得动」的时候才出现。
-     什么时候点得动，跟 canKick 一条线：掉线的人谁都能点，在线的人只有房主能点。
+     什么时候点得动，跟 canKick 一条线：除了自己，谁都能点开 ——
+     掉线的人直接请走，在线的人是发起投票（房主则是直接请）。
 
      摊牌那一屏也算：那一屏整块换成了大表，座位卡根本不在屏幕上，
      以前这里把 reveal 排除掉，结果「有人走了卡在摊牌页」时一个能点的名字都没有
@@ -793,7 +809,8 @@
         if (canKick(i)) {
           msg = st.phase === 'reveal'
             ? '点牌桌上那个名字 · 可以请人出去'
-            : '点座位上那个名字 · 可以请人出去';
+            : (isHost() ? '点座位上那个名字 · 可以请人出去'
+                        : '点座位上那个名字 · 可以投票请人出去');
           break;
         }
       }
@@ -1139,31 +1156,66 @@
 
      能请谁跟服务端 kickPlayerLiar 一条线，不在本地另立一套：
        · 已经掉线的，谁点都能请出去（人都不在了，不用等房主）
-       · 还在线的，只有房主能请（别让人互相乱踢）
+       · 还在线的，房主直接请；其他人点一下是**发起投票**，
+         在线的三分之二同意才请得出去（2026-11-11 用户要求跟 350 / 找朋友一致）
 
-     点座位 → 弹一句确认 → 发一条 kick。没有投票、没有倒计时。 */
+     点座位 → 弹一句确认 → 发一条 kick；自己已经投过的那张再点一次是撤回。 */
   var KICK_AT = -1;
 
+  /* 除了自己，谁都能点开 —— 能不能真的请走，由服务端 kickPlayerLiar 判。
+     以前这里写着「在线的人只有房主能点」，普通玩家打开「桌上的人」一个按钮都没有，
+     用户 2026-11-11 直接报了这条。 */
   function canKick(i) {
     var st = S.st;
     if (!st || !st.started) return false;
     var me = myIdx();
     if (me < 0 || i === me) return false;
-    var s = st.seats && st.seats[i];
-    if (!s) return false;
-    return s.online === false || isHost();
+    return !!(st.seats && st.seats[i]);
+  }
+
+  /* 这张票现在挂在哪、我投过没有 */
+  function kickVote(s) {
+    var st = S.st;
+    if (!st || !st.kick || !s || st.kick.target !== s.id) return null;
+    return st.kick;
+  }
+
+  function votedByMe(k) {
+    var st = S.st;
+    return !!(k && k.yes && st && k.yes.indexOf(st.you) >= 0);
   }
 
   function openKick(i) {
     var st = S.st;
     if (!st || !canKick(i)) return;
     var s = st.seats[i];
+    var k = kickVote(s);
+    var mine = votedByMe(k);
+    var host = st.host === st.you;
     KICK_AT = i;
-    if (el.kickName) el.kickName.textContent = s.name;
+
+    if (el.kickName) {
+      el.kickName.textContent = s.name + (s.online === false ? ' · 掉线' : '');
+    }
     if (el.kickSub) {
-      el.kickSub.textContent = s.online === false
-        ? '已经掉线了 · 请出去，座位就空出来'
-        : '人还在线 · 请出去之后他就回不到这一桌';
+      if (s.online === false) {
+        el.kickSub.textContent = '已经掉线了 · 请出去，座位就空出来';
+      } else if (host) {
+        el.kickSub.textContent = '你是房主：点一下直接请出去，不用别人同意';
+      } else if (mine) {
+        el.kickSub.textContent = '已经有 ' + k.yes.length + '/' + k.need +
+          ' 人同意 · 点一下撤回你那一票';
+      } else if (k) {
+        el.kickSub.textContent = '已经有 ' + k.yes.length + '/' + k.need +
+          ' 人同意 · 点一下算你同意（45 秒没人接着点就作废）';
+      } else {
+        el.kickSub.textContent = '发起投票：在线的三分之二同意才请得出去，45 秒没人接着点就作废';
+      }
+    }
+    if (el.kickGo) {
+      el.kickGo.textContent = (mine && !host && s.online !== false) ? '撤回我这一票'
+        : (s.online === false || host) ? '请出去'
+        : (k ? '同意请出去' : '发起投票');
     }
     if (el.kick) el.kick.hidden = false;
   }
@@ -1176,11 +1228,15 @@
   function doKick() {
     var st = S.st;
     var i = KICK_AT;
+    var s = st && st.seats && i >= 0 ? st.seats[i] : null;
+    var k = kickVote(s);
+    var mine = votedByMe(k);
+    var host = st && st.host === st.you;
     closeKick();
-    if (!st || i < 0) return;
-    var s = st.seats[i];
     if (!s) return;
     buzz(14);
+    /* 自己投过、又不是房主（房主本来就不投票）：再点一次是撤回 */
+    if (mine && !host && s.online !== false) { send({ t: 'unvotekick' }); return; }
     send({ t: 'kick', pid: s.id });
   }
 
