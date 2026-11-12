@@ -1352,21 +1352,12 @@
       openKick(parseInt(n.getAttribute('data-i'), 10));
     });
 
-    /* 音效开关：跟 350 / 找朋友同一颗组件、同一份状态 */
-    if (el.sound) {
-      el.sound.addEventListener('click', function () {
-        if (window.LDSnd) {
-          var on = window.LDSnd.toggle();
-          if (el.soundIc) el.soundIc.textContent = on ? '🔊' : '🔇';
-        }
-      });
-      if (el.soundIc && window.LDSnd) {
-        el.soundIc.textContent = window.LDSnd.isOn() ? '🔊' : '🔇';
-      }
-      window.addEventListener('ldsound', function (ev) {
-        if (el.soundIc && ev.detail) el.soundIc.textContent = ev.detail.on ? '🔊' : '🔇';
-      });
-    }
+    /* 音效开关：**这里一颗 click 都不能绑**（2026-11-12 用户：「点击后好像也没有关闭声音」）。
+       snd.js 的 paint() 已经给全站每一颗 .sound-btn 挂了点击（setOn(!on)），
+       这里以前又挂了一次 toggle() —— 同一下点进去开关两回，正负抵消，
+       状态原地不动、图标也还是 🔊，看着就像按钮是假的。
+       350 / 找朋友没这毛病，正是因为它们没有自己再绑。
+       图标同样不用管：setOn() 末尾会 paint() 一遍，五颗 🔊 一起变。 */
 
     /* 玩法说明：跟别的玩法同一张弹层（f350.js 的 openRules） */
     click(el.rule, function () {
