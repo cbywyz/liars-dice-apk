@@ -400,6 +400,47 @@
 .p-card.on.off .p-name { color: rgba(255, 255, 255, 0.5); }
 .p-card.on.off .p-score { color: rgba(255, 255, 255, 0.55); }
 
+/* ---- 自己那张卡：粗金边 + 金名字 +「我」牌 ----------------------------
+
+   原来 350 这张条子上**没有任何「我」的标记**：只有「轮到谁」会翻成深色卡，
+   别人轮到时自己那张和别人的一模一样，只能顺着念昵称找（用户 2026-11-12：
+   「可能有人会忘记自己是哪一个了」）。
+
+   金边用 outline 不用 box-shadow：这张卡还要用底色表示「轮到谁 / 掉线 / 已锁」，
+   那几条规则整条写 box-shadow，先加的会被后面盖掉；outline 谁也不碰。 */
+.p-card.me {
+  /* **outline 的宽度是向下取整到整像素的**（border 不取整）：
+     0.5333vw 算出来是 1.999875px，落到屏幕上只有 1px，米色底上还是太淡；
+     给 0.6667vw（375 上 2.5px）才真的画出 2px 来 */
+  outline: 0.6667vw solid #c2943f;
+  outline-offset: 0.1333vw;
+}
+.p-card.me .p-name { color: #8a5f18; font-weight: 700; }
+.p-card.me .p-score { color: #7a5a1e; }
+
+/* 轮到我：底色是深色卡，金名字得提亮一档，否则糊在 #23262d 上 */
+.p-card.me.on .p-name { color: #f0d79a; }
+.p-card.me.on .p-score { color: #fff; }
+/* 我掉线了：金边留着，字淡一档，别跟「在线」抢 */
+.p-card.me.off .p-name { color: rgba(138, 95, 24, 0.72); }
+
+/* 昵称单独一层：4 列宽的卡放不下 8 个字的昵称，省略在名字那一层，
+   「我」牌在它前面缩不掉 */
+.page-netgame .p-name { min-width: 0; overflow: hidden; }
+.page-netgame .p-nm {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 350 这张卡只有 82px 宽（4 列），「我」牌得比另外两家再小一号，
+   不然昵称那一半空间全被它吃掉，12 人桌上名字只剩两个字 */
+.page-netgame .me-tag {
+  font-size: 1.9vw;
+  padding: 0 0.65vw;
+  margin-right: 0.55vw;
+}
+
 /* ---------------- 把人请出去 ----------------
    每张玩家卡都能点：房主点谁谁走，其他人点谁算发起一个申请，得凑够
    三分之二。整张卡可点而不是只点名字 —— 2.6vw 的字在手机上按不准，

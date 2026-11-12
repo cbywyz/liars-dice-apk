@@ -552,8 +552,14 @@
 
       var nm = document.createElement('span');
       nm.className = 'who-n';
-      nm.textContent = s.name + (mine ? '（我）' : '') +
-                       (s.id === st.host ? ' · 房主' : '');
+      /* 自己那一行：名字前面挂同一颗「我」牌（以前是名字后面跟一句「（我）」） */
+      if (mine) {
+        var mt = document.createElement('i');
+        mt.className = 'me-tag';
+        mt.textContent = '我';
+        nm.appendChild(mt);
+      }
+      nm.appendChild(document.createTextNode(s.name + (s.id === st.host ? ' · 房主' : '')));
       row.appendChild(nm);
 
       var cu = document.createElement('span');
@@ -816,7 +822,9 @@
       if (st.phase === 'roll') {
         mark = s.rolled ? '<i class="lr-rd w">摇了</i>' : '<i class="lr-rd n">没摇</i>';
       }
-      var nm = esc(s.name) + (s.id === st.you ? '（我）' : '') + mark;
+      /* 自己那颗「我」牌挂在名字**前面**：.lr-n 是 ellipsis 截断的，
+         挂后面昵称一长就被截掉，正好把「我在哪儿」弄丢了 */
+      var nm = (s.id === st.you ? '<i class="me-tag">我</i>' : '') + esc(s.name) + mark;
       if (se.n.innerHTML !== nm) se.n.innerHTML = nm;
 
       /* 骰子：**只有摊牌那一刻**座位上才报点数。
@@ -963,10 +971,12 @@
         ? '<i class="lr-rv-st' + (sk >= 3 ? ' hot' : '') + '">顺子 ' + sk + ' 连' +
           (sk >= 3 ? ' · 罚' : '') + '</i>'
         : '';
-      /* 自己那一行跟着描金：这一屏一列五六行，光靠「（我）」两个字找不到自己。 */
+      /* 自己那一行跟着描金：这一屏一列五六行，光靠文字找不到自己。
+         「我」还是那颗实底金牌，挂名字前面（跟牌桌、跟另外两家同一个样子）。 */
       h += '<div class="lr-rv' + (s.id === st.you ? ' me' : '') + '" data-i="' + i + '">' +
         '<div class="lr-rv-m">' +
-          '<span class="lr-rv-n">' + esc(s.name) + (s.id === st.you ? '（我）' : '') + '</span>' +
+          '<span class="lr-rv-n">' + (s.id === st.you ? '<i class="me-tag">我</i>' : '') +
+            esc(s.name) + '</span>' +
           off + stk +
         '</div>' + tag +
         '<div class="lr-rv-d" data-k="' + (s.dice ? s.dice.join('-') : '') + '">';

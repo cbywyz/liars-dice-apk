@@ -784,14 +784,15 @@
       if (n >= 10) s.style.width = '16.2vw';
 
       s.innerHTML =
-        '<span class="fd-n"></span>' +
+        '<span class="fd-n"><i class="me-tag" hidden>我</i><span class="fd-nx"></span></span>' +
         '<span class="fd-dice" data-k=""></span>' +
         '<span class="fd-cups"></span>' +
         '<span class="fd-tag">指名</span>';
 
       el.seats.appendChild(s);
       seatEls.push({ root: s, n: s.querySelector('.fd-n'), box: s.querySelector('.fd-dice'),
-                     cups: s.querySelector('.fd-cups'), tag: s.querySelector('.fd-tag') });
+                     cups: s.querySelector('.fd-cups'), tag: s.querySelector('.fd-tag'),
+                     nx: s.querySelector('.fd-nx'), mt: s.querySelector('.me-tag') });
     }
   }
 
@@ -831,7 +832,9 @@
       se.root.classList.toggle('me', s.id === st.you);
       se.root.classList.toggle('off', s.online === false);
       se.root.classList.toggle('todo', st.phase === 'ready' && !settled(s) && !outOf(s));
-      se.n.textContent = s.name + (s.id === st.you ? ' · 我' : '');
+      /* 名字前面那颗「我」牌：常驻节点只切 hidden，别每次重画都重建 */
+      se.mt.hidden = s.id !== st.you;
+      se.nx.textContent = s.name;
       se.cups.textContent = s.cups ? s.cups + ' 杯' : '';
       se.cups.classList.toggle('has', s.cups > 0);
       paintDice(se.box, s.dice, size, true);
@@ -992,7 +995,14 @@
 
       var nm = document.createElement('span');
       nm.className = 'who-n';
-      nm.textContent = s.name + (mine ? '（我）' : '');
+      /* 自己那一行：名字前面挂同一颗「我」牌（以前是名字后面跟一句「（我）」） */
+      if (mine) {
+        var mt = document.createElement('i');
+        mt.className = 'me-tag';
+        mt.textContent = '我';
+        nm.appendChild(mt);
+      }
+      nm.appendChild(document.createTextNode(s.name));
       row.appendChild(nm);
 
       var cu = document.createElement('span');

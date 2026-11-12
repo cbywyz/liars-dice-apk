@@ -915,6 +915,9 @@
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
         ':' + (p.lion || 0);
     }).join('|') + '#' + s.turn + '#' + s.phase
+      /* s.you 也得算进 key：刚进桌那次「哪张是我」是后到的，
+         不重画就一直是别人那张亮金边 */
+      + '#' + s.you
       + '#' + (s.kick ? s.kick.target + ':' + s.kick.yes.length + '/' + s.kick.need : '');
 
     if (el.strip.getAttribute('data-key') === key) return;
@@ -930,12 +933,27 @@
         + (i === s.turn && s.phase !== 'over' ? ' on' : '')
         + (p.locked ? ' done' : '')
         + (p.online === false ? ' off' : '')
-        + (asking ? ' asking' : '');
+        + (asking ? ' asking' : '')
+        /* 自己那张：粗金边 + 名字前面挂「我」牌。
+           350 以前**一点标记都没有**，只有「轮到谁」的深色卡 ——
+           别人轮到时自己的卡和别人的长得一模一样，只能靠念昵称认人。 */
+        + (p.id === s.you ? ' me' : '');
       div.setAttribute('data-pid', p.id);
 
       var nm = document.createElement('div');
       nm.className = 'p-name';
-      nm.textContent = p.name;
+      if (p.id === s.you) {
+        var mt = document.createElement('i');
+        mt.className = 'me-tag';
+        mt.textContent = '我';
+        nm.appendChild(mt);
+      }
+      /* 昵称单独一层：卡只有 4 列宽，8 个字的昵称得在这儿省略，
+         不然会把「我」牌顶出卡外（挂载顺序就是「我」在前、名字在后） */
+      var ntx = document.createElement('span');
+      ntx.className = 'p-nm';
+      ntx.textContent = p.name;
+      nm.appendChild(ntx);
 
       /* 在线状态：绿点 · 在线 / 红点 · 离线。
          以前只有「掉线」那两个字挂在名字后面，还得先认出「没字 = 在线」；

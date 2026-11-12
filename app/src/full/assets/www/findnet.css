@@ -201,19 +201,36 @@
   color: rgba(35, 38, 45, 0.5);
 }
 
-/* 「我」那一格：细金边，扫一眼就知道自己是哪个座位 */
+/* 自己那一格：粗实金边 + 金名字 + 名字前面一颗「我」牌。
+   原来只有 0.2667vw、55% 透明度的淡金细边，米色底上几乎看不出来
+   （用户 2026-11-12：「可能有人会忘记自己是哪一个了」）。
+   这里还是用 outline 而不是 box-shadow：座位卡的底色与阴影被
+   「轮到谁 / 被点到 / 待摇 / 下把」那几条规则整条写着 box-shadow，
+   挤进去会被后面那条覆盖，outline 谁也不碰。 */
 .fd-seat.me {
-  outline: 0.2667vw solid rgba(181, 137, 63, 0.55);
-  outline-offset: 0.2667vw;
+  /* 跟 350 同一个数：outline 宽度向下取整，写 0.5333vw（1.999875px）只剩 1px，
+     0.6667vw 才落成屏幕上的 2px */
+  outline: 0.6667vw solid #c2943f;
+  outline-offset: 0.1333vw;
 }
+.fd-seat.me .fd-n { color: #8a5f18; font-weight: 700; }
+/* 轮到我：座位翻成深色卡，金名字得提亮一档 */
+.fd-seat.me.now .fd-n { color: #f0d79a; }
 .fd-seat.off { opacity: 0.45; }
 
 /* 名字比单机那份大一点点（2.4vw → 2.7vw）：联机是靠昵称认人的，
    单机只靠座位号。长了就省略号 —— 服务端允许 8 个字的昵称，
-   真放开写会把座位撑高、把骰子挤出去（12 人桌上试过）。 */
+   真放开写会把座位撑高、把骰子挤出去（12 人桌上试过）。
+   省略交给里面那层 .fd-nx，外面这一层是「我」牌 + 名字的横排。 */
 .page-findnet .fd-n {
-  font-size: 2.7vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   max-width: 100%;
+  font-size: 2.7vw;
+}
+.page-findnet .fd-nx {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

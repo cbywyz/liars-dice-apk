@@ -2221,6 +2221,35 @@ body.tap-edit .die-slot:active .die {
 }
 .lg-tab.is-on { background: #23262d; color: #fff; }
 
+/* ---- 「我」牌：三家联机牌桌共用同一颗 --------------------------------
+
+   以前三家各写各的：350 压根没标，找朋友是名字后面跟一句同色的「· 我」，
+   吹牛是「（我）」—— 都是跟名字一个颜色的大白话，一桌十几个人、名字又被截断，
+   扫一眼根本挑不出自己（用户 2026-11-12：「有人会忘记自己是哪一个了」）。
+
+   现在统一成一颗**实底金的小牌**：金底白字，跟旁边的米白底反差够大，
+   远看是一块色块，近看才读「我」，两级都成立。
+   只挂在名字最前面 —— 三个名字容器（.fd-n / .lr-n / .p-nm）都是
+   ellipsis 截断的，挂后面名字一长就被截没了。 */
+.me-tag {
+  display: inline-block;
+  flex: 0 0 auto;
+  margin-right: 0.8vw;
+  padding: 0 0.9vw;
+  border-radius: 999px;
+  background: #c2943f;
+  color: #fff;
+  font-size: 2.05vw;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0;
+  vertical-align: 0.04em;
+}
+/* 这三家的牌桌上「我」是常驻的，只有离开座位/切页时才收起来；
+   写死 display:inline-block 会盖掉 [hidden] 的默认 display:none，得单独压一下 */
+.me-tag[hidden] { display: none; }
+
 /* 桌上的人：一行一个，右边那颗是「请出去 / 发起投票」 */
 .who-row {
   display: flex;
