@@ -142,17 +142,6 @@
   var S = { timer: null, toastTimer: null, lastTapIdx: -1, lastTapAt: 0,
             shake: null };
 
-  /* 桌上那 7 颗正在滚的句柄（null = 没在滚）。
-     它一真，renderDice() 就不许重建 —— 重建会把 7 颗的 f3drop 入场动画
-     全部重播一遍，看着就是「点一下整盘骰子重新掉一次」，正是用户嫌的那个过程。 */
-  var rollAnim = null;
-
-  /* 依次落定的节奏：第 1 颗 1.15 秒停，之后每 175ms 落一颗。
-     7 颗全部落定 = 1.15 + 6×0.175 ≈ 2.2 秒，落在用户要的 2~4 秒里。
-     350 一次 7 颗，间隔再大就会拖到 3 秒以上，等的人着急。 */
-  var LAND_FIRST = 1150;
-  var LAND_GAP = 175;
-
   var el = {};
 
   /* ================= 音效 =================
@@ -380,135 +369,25 @@
   /* 交接态也要拦：桌面盖着的时候「摇一摇」不该摇得动。
      底栏那会儿本来就没这个按钮（见 renderBtns），这里再挡一道，
      免得存档恢复、语音/连点之类的路绕过去。 */
-  /* 换一张脸：点数是 1~6 时才画 pip，0 = 空位（淡影） */
-  function dieFace(dieEl, v) {
-    dieEl.innerHTML = '';
-    dieEl.classList.toggle('blank', !v);
-    if (!v) return;
-    var cells = PIPS[v] || [];
-    for (var c = 0; c < cells.length; c++) {
-      var p = document.createElement('div');
-      p.className = 'pip' + (RED[v] ? ' red' : '');
-      p.style.left = CELL[cells[c] % 3] + '%';
-      p.style.top = CELL[Math.floor(cells[c] / 3)] + '%';
-      dieEl.appendChild(p);
-    }
-  }
-
-  /* 摇这一桌：先让 7 颗一起抖、一起跳点，再一颗一颗落定。
-     用户 2026-11-12：「350 骰子有点多，可以依次停下」。
-
-     vals 在点下去那一刻就定好了，动画只决定什么时候露出来 ——
-     中途切后台把定时器冻住，回来落下的还是这一把的数，不会变成另一手牌。 */
-  function rollDiceAnim(vals, done) {
-    var layer = el.dice;
-    var n = layer ? Math.min(vals.length, layer.children.length) : 0;
-    if (!n) { done(); return; }
-
-    var slots = [], dies = [], landed = [];
-    for (var i = 0; i < n; i++) {
-      slots.push(layer.children[i]);
-      var d = slots[i].querySelector('.die');
-      dies.push(d);
-      landed.push(false);
-      if (d) {
-        d.classList.remove('land');
-        /* 起手先换一次脸：不然点下去到第一个 tick 之间还有 68ms，
-           画面静止不动，看着像「点了没反应」 */
-        dieFace(d, rollOne());
-        d.classList.add('rolling');
-      }
-    }
-
-    var tick = setInterval(function () {
-      for (var i = 0; i < n; i++) if (!landed[i] && dies[i]) dieFace(dies[i], rollOne());
-    }, 68);
-
-    function land(i) {
-      landed[i] = true;
-      var d = dies[i];
-      if (d) {
-        d.classList.remove('rolling');
-        dieFace(d, vals[i]);
-        d.classList.remove('land');
-        void d.offsetWidth;
-        d.classList.add('land');
-      }
-      /* 能计分的（1 和 5）角标在这儿补上：动画接管期间 renderDice 是跳过的，
-         等它重画就晚了，玩家会先看到一堆没标价的骰子 */
-      if (pointsOf(vals[i])) {
-        slots[i].classList.add('countable');
-        var tag = slots[i].querySelector('.f3-val');
-        if (!tag) {
-          tag = document.createElement('i');
-          tag.className = 'f3-val';
-          slots[i].appendChild(tag);
-        }
-        tag.textContent = String(pointsOf(vals[i]));
-      }
-    }
-
-    var timers = [];
-    for (var j = 0; j < n; j++) {
-      timers.push(setTimeout(land, LAND_FIRST + j * LAND_GAP, j));
-    }
-    timers.push(setTimeout(function () {
-      clearInterval(tick);
-      /* 把指纹写成「接下来 render 会算出来的那个值」，这样 done 里的 render
-         就不会重建 DOM，最后一颗落定的弹跳能留住 */
-      var key = 'rolled|';
-      for (var i = 0; i < G.hand.length; i++) key += vals[i] + ',';
-      layer.setAttribute('data-k', key);
-      rollAnim = null;
-      done();
-    }, LAND_FIRST + (n - 1) * LAND_GAP + 200));
-
-    rollAnim = {
-      stop: function () {
-        clearInterval(tick);
-        for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
-        rollAnim = null;
-      }
-    };
-  }
-
   function onRoll() {
     if (G.phase === 'bust' || G.phase === 'lion' || G.phase === 'over'
         || G.phase === 'handoff') return;
-    if (rollAnim) return;                  // 正在滚，别叠第二遍
     if (!G.hand.length) G.hand = blankHand();
 
     // 摇就是摇桌上全部骰子，不区分「上一把留下的」和「新拿回来的」
-    var n = G.hand.length;
-    var vals = [];
-    for (var i = 0; i < n; i++) vals.push(rollOne());
+    for (var i = 0; i < G.hand.length; i++) {
+      G.hand[i].v = rollOne();
+      G.hand[i].sel = false;
+    }
 
     vibrate(18);
     playShake();
-    /* 先按当前颗数把槽位摆好（点数还是上一把的），动画从这几颗开始滚 */
-    render();
-
-    /* 点数立刻落进 G.hand，动画只负责「什么时候画出来」。
-       这么排是为了两件事：
-         · ?test=1 挂出来的 __t.state() 读到的永远是这一把的真点数，
-           不会因为动画没播完就读到上一手的值；
-         · 中途切后台、锁屏把定时器冻住，这一把也不算丢。 */
-    for (var i = 0; i < n; i++) {
-      G.hand[i].v = vals[i];
-      G.hand[i].sel = false;
-    }
     G.took = false;
     G.phase = 'rolled';
     save();
+    render();
 
-    /* 占位句柄：从这一刻起 renderDice 让路，刚算出来的点数不会被提前画出去 */
-    rollAnim = { stop: function () {} };
-
-    rollDiceAnim(vals, function () {
-      rollAnim = null;
-      render();
-      evaluate();
-    });
+    evaluate();
   }
 
   function evaluate() {
@@ -741,24 +620,9 @@
     el.hint.className = 'f3-hint' + (cls ? ' ' + cls : '');
   }
 
-  /* 桌面这一盘「长什么样」的指纹：点数 + 有没有选中 + 阶段。
-     一样就不重建 DOM —— 重建会让每颗重播 f3drop（整盘重新掉一次），
-     而且会把落定那一下的弹跳掐掉。 */
-  function diceKey() {
-    var s = (G.phase || '') + '|';
-    for (var i = 0; i < G.hand.length; i++) {
-      s += (G.hand[i].v || 0) + (G.hand[i].sel ? 's' : '') + ',';
-    }
-    return s;
-  }
-
   function renderDice() {
     var layer = el.dice;
     if (!layer) return;
-    if (rollAnim) return;                  // 正在滚，这 7 颗归动画管
-    var key = diceKey();
-    if (layer.getAttribute('data-k') === key) return;
-    layer.setAttribute('data-k', key);
     layer.innerHTML = '';
     var n = G.hand.length;
     var slots = layout(n);
@@ -2195,9 +2059,6 @@
     window.F350.__t = {
       G: G,
       setHand: function (vals) {
-        /* 动画还挂着的时候直接换牌：不掐掉的话 renderDice 会让路，
-           钩子设的点数根本画不出来（看着像 setHand 失效） */
-        if (rollAnim) rollAnim.stop();
         G.hand = vals.map(function (v) { return { v: v, sel: false }; });
         G.took = false;
         G.phase = 'rolled';

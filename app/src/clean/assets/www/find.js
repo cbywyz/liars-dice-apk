@@ -89,10 +89,6 @@
   var el = {};
   var seatEls = [];
   var redoAt = 0;          // 「重开」两下确认：第一次点只记时间
-  /* 公骰正在滚的那个动画句柄（null = 没在滚）。
-     它一真，paint() 就不许重画公骰 —— 否则任何一次重绘都会把滚动的画面
-     打回静态结果，等于动画白做（跟吹牛那边 dieIn 被重播是同一类坑）。 */
-  var coreAnim = null;
   var G = {
     n: 0,
     seats: [],        // [{ dice: [a,b], cups: 0, used: 0 }]  used = 这一把摇了几次
@@ -285,22 +281,10 @@
       paintDice(se.box, st.dice, size, pop);
     }
 
-    if (coreAnim) {
-      /* 还在滚：这两颗归动画管，这里只留个「正在摇」的说法 */
-      el.core.classList.remove('idle');
-      el.coreTag.textContent = '摇骰中…';
-    } else {
-      var ckey = G.center ? G.center.join('') : '--';
-      /* 点数没变就别重写 innerHTML：落地那一下的弹跳挂在 .fd-d 上，
-         重写一次 DOM 会把动画掐掉（用户看不到「落定」那一顿） */
-      if (el.coreDice.getAttribute('data-k') !== ckey) {
-        el.coreDice.setAttribute('data-k', ckey);
-        el.coreDice.innerHTML = dieHtml(G.center ? G.center[0] : 0, '9.8667vw') +
-                                dieHtml(G.center ? G.center[1] : 0, '9.8667vw');
-      }
-      el.core.classList.toggle('idle', !G.center);
-      el.coreTag.textContent = G.center ? (dsum(G.center) + ' 点') : '公骰';
-    }
+    el.coreDice.innerHTML = dieHtml(G.center ? G.center[0] : 0, '9.8667vw') +
+                            dieHtml(G.center ? G.center[1] : 0, '9.8667vw');
+    el.core.classList.toggle('idle', !G.center);
+    el.coreTag.textContent = G.center ? (dsum(G.center) + ' 点') : '公骰';
 
     paintHint();
     paintBtns();
@@ -445,83 +429,6 @@
     save();
   }
 
-  /* ---------------- 公骰滚动 ----------------
-     用户 2026-11-12：「点摇之后不要立刻出结果，先有动起来的动作，2~4 秒，
-     第一颗先停、第二颗再停，玩家才有期待感」。
-
-     点数在点下去那一刻就已经摇好了（rollOne 先算），动画只决定「什么时候给人看」。
-     这么排还有一个好处：中途切后台、锁屏把定时器冻住，最终落下的仍是这一把
-     早就算好的那两个数，不会出现「滚完又重摇一次」的第二种牌 —— 明骰玩法里
-     这点很要紧，否则别人上一步看到的结果跟你手机上会对不上。 */
-  var CORE_LAND = [1550, 2350];   // 第一颗 / 第二颗落定的时刻（ms），全程 2.35 秒
-
-  /* 把一颗骰子的脸换成 v（九宫格那 9 个 i 直接改 class，比重建 DOM 轻） */
-  function coreFace(node, v) {
-    var on = PIPS[v] || [];
-    var kids = node.children;
-    for (var i = 0; i < 9; i++) {
-      kids[i].className = on.indexOf(i) >= 0 ? (RED[v] ? 'r' : '') : 'blank';
-    }
-    node.classList.toggle('empty', !v);
-  }
-
-  function rollCoreAnim(center, done) {
-    var box = el.coreDice;
-    if (!box) { done(center); return; }
-    box.innerHTML = dieHtml(0, '9.8667vw') + dieHtml(0, '9.8667vw');
-    box.removeAttribute('data-k');
-    var ds = [box.children[0], box.children[1]];
-    var landed = [false, false];
-
-    /* 从第一帧就得写「摇骰中…」：等下一次 paint 才改的话，
-       头两百毫秒标签还挂着「公骰」，看着像没反应 */
-    el.core.classList.remove('idle');
-    if (el.coreTag) el.coreTag.textContent = '摇骰中…';
-
-    for (var i = 0; i < 2; i++) {
-      /* 上一把落定时加的 .land 得先摘掉，不然它和 .rolling 两个动画打架 */
-      ds[i].classList.remove('land');
-      coreFace(ds[i], rollOne());
-      ds[i].classList.add('rolling');
-    }
-
-    /* 68ms 换一次脸：再快看着像闪屏，再慢就不像在滚 */
-    var tick = setInterval(function () {
-      for (var i = 0; i < 2; i++) if (!landed[i]) coreFace(ds[i], rollOne());
-    }, 68);
-
-    function land(i) {
-      landed[i] = true;
-      ds[i].classList.remove('rolling');
-      coreFace(ds[i], center[i]);
-      /* 去掉再加，强制回流一次 —— 落地这下的弹跳才会重播 */
-      ds[i].classList.remove('land');
-      void ds[i].offsetWidth;
-      ds[i].classList.add('land');
-      buzz(10);
-    }
-
-    var t1 = setTimeout(function () { land(0); }, CORE_LAND[0]);
-    var t2 = setTimeout(function () {
-      land(1);
-      clearInterval(tick);
-      /* 记成「已经是这个点数」：随后那次 paint 就不会重写 DOM，
-         落地那一顿不会被掐掉 */
-      box.setAttribute('data-k', center.join(''));
-      coreAnim = null;
-      done(center);
-    }, CORE_LAND[1]);
-
-    coreAnim = {
-      stop: function () {
-        clearInterval(tick);
-        clearTimeout(t1);
-        clearTimeout(t2);
-        coreAnim = null;
-      }
-    };
-  }
-
   function doRoll() {
     /* 公骰一起手就锁：从现在到换人为止，谁都不能再动自己的点数 */
     if (G.phase !== 'ready' && G.phase !== 'hit') return;
@@ -529,17 +436,8 @@
       flash('还有 ' + unrolled() + ' 家没摇');
       return;
     }
-    if (coreAnim) return;              // 正在滚，别叠第二遍
-
-    var center = [rollOne(), rollOne()];
+    G.center = [rollOne(), rollOne()];
     playShake();
-    rollCoreAnim(center, commitRoll);
-  }
-
-  /* 滚完才真正落下这一把：命中、加杯、阶段、音效全在这一步。
-     动画期间 G.center 还是上一把的值，没人能提前从桌面读出结果。 */
-  function commitRoll(center) {
-    G.center = center;
     G.hits = hitList(G.center, G.seats);
     for (var i = 0; i < G.hits.length; i++) {
       G.seats[G.hits[i].i].cups += cupsOf(G.hits[i].why);
@@ -598,9 +496,6 @@
   }
 
   function newGame(n) {
-    /* 换人数 / 重开时公骰还在滚的话，得先掐掉：
-       否则定时器还在往那张已经作废的桌子上写点数 */
-    if (coreAnim) coreAnim.stop();
     G.n = n;
     G.round = 1;
     G.seats = [];
