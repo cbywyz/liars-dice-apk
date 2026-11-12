@@ -636,6 +636,15 @@
 
   /* ================= 手势 ================= */
 
+  /* 触摸的坐标在 touches[0]，鼠标的坐标直接挂在事件对象上。
+     桌面浏览器不会为鼠标派发 touch 事件，所以舞台下面还补了一组 mouse 绑定；
+     两条路共用这三个 handler，取点统一走这里，别在每处各写一遍。 */
+  function gPoint(e) {
+    if (e && e.touches && e.touches.length) return e.touches[0];
+    if (e && e.changedTouches && e.changedTouches.length) return e.changedTouches[0];
+    return e;
+  }
+
   function onStageStart(e) {
     var st = d.state;
     if (st === 'shaking') return;
@@ -644,7 +653,7 @@
       setData({ state: 'closed', hint: '上把的点数 · 点「开盖」或上滑掀开' });
     }
 
-    S.startY = e.touches[0].clientY;
+    S.startY = gPoint(e).clientY;
     S.baseP = S.progress;
     S.moved = 0;
     S.grabbing = true;
@@ -654,7 +663,7 @@
     if (!S.grabbing) return;
     if (d.state === 'idle') return;
 
-    var dy = S.startY - e.touches[0].clientY; // 上滑为正
+    var dy = S.startY - gPoint(e).clientY; // 上滑为正
     if (Math.abs(dy) > S.moved) S.moved = Math.abs(dy);
 
     var p = clamp(S.baseP + (dy * S.ratio) / OPEN_DIST, 0, 1);
@@ -884,6 +893,11 @@
   }
 
   function bindEvents() {
+    /* 桌面鼠标专用：区分「真的鼠标拖拽」和「触摸结束后浏览器补发的合成鼠标事件」。
+       局部变量就够，别塞进 S —— S 的属性列表在纯净版裁剪脚本里是精确锚点。 */
+    var mouseDragging = false;
+    var lastTouchAt = 0;
+
     // 音效：顶栏那颗 🔊 由 snd.js 统一绑（五个玩法页一个写法）。
     // 这里再绑一次就是同一下点两回 —— 开了又关，看起来像没反应。
 
@@ -914,7 +928,10 @@
     // 舞台手势
     // passive 必须是 false：否则浏览器要先判断这是不是滚动，
     // 前几帧 touchmove 会被吞掉 —— 表现就是「滑一点停住，再滑才顺」
-    on(el.stage, 'touchstart', onStageStart, { passive: false });
+    on(el.stage, 'touchstart', function (e) {
+      lastTouchAt = Date.now();
+      onStageStart(e);
+    }, { passive: false });
     on(el.stage, 'touchmove', function (e) {
       if (S.grabbing) e.preventDefault();
       onStageMove(e);
@@ -926,6 +943,38 @@
     // 卡在半路，状态还停在「盖着」，只能再滑一次。
     on(document, 'touchend', function () { if (S.grabbing) onStageEnd({ type: 'touchend' }); });
     on(document, 'touchcancel', function () { if (S.grabbing) onStageEnd({ type: 'touchcancel' }); });
+
+    // 桌面鼠标：鼠标不会触发上面那套 touch 事件，所以电脑上以前只能点按钮开盖。
+    // move / up 挂 document，鼠标滑出舞台也不会把手势丢在半路；
+    // 取点走 gPoint，跟触摸完全同一套 1:1 计算、同一套松手定格。
+    on(el.stage, 'mousedown', function (e) {
+      if (e.button !== 0) return;                      // 只认左键
+      /* 触摸结束后浏览器会补一次合成 mousedown；不挡掉的话，刚松手
+         定格好的盖子会被这个假点击又翻一遍。 */
+      if (Date.now() - lastTouchAt < 700) return;
+      e.preventDefault();                             // 别开始选字 / 拖图片
+      mouseDragging = true;
+      onStageStart(e);
+    });
+    on(document, 'mousemove', function (e) {
+      if (!mouseDragging || !S.grabbing) return;
+      e.preventDefault();
+      onStageMove(e);
+    }, { passive: false });
+    /* true = 捕获阶段。document 上早就绑着 onHoldEnd（下方空白桌面的 mouseup），
+       它无条件把 S.grabbing 清成 false；如果这里等冒泡，onStageEnd 开头那句
+       `if (!S.grabbing) return` 会直接吞掉结算 —— 表现是拖得动、但松手后
+       状态不落地、点一下也不开合。捕获阶段先结算就没有这个先后顺序问题。 */
+    on(document, 'mouseup', function (e) {
+      if (!mouseDragging) return;
+      mouseDragging = false;
+      onStageEnd(e);
+    }, true);
+    on(window, 'blur', function () {
+      if (!mouseDragging) return;
+      mouseDragging = false;
+      onStageEnd({ type: 'mouseup' });
+    });
 
     // 底部按钮
     on(el.btnRow, 'click', function (e) {

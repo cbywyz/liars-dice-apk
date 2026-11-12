@@ -6,6 +6,39 @@
 > 仓库 [Releases](https://github.com/cbywyz/liars-dice-apk/releases) 里的是安卓包，发得比网页版慢。
 > 版本号在首页页脚、每个玩法页底栏都能看到。
 
+## v1.24.18 · 2026-11-12
+
+### 单机吹牛：电脑上鼠标也能拖盖子了
+
+用户反馈：「用点开打开网页，单机版的吹牛他的盖子我用鼠标无法上下滑动，
+只能点击开盖，而联机版的可以滑动，手机打开网页是全部正常」。
+
+**根因**：单机 `app.js` 的舞台手势只绑了 `touchstart / touchmove / touchend`；
+桌面鼠标不会派发 `touch` 事件，所以电脑上整套拖拽逻辑一次都没跑过。
+联机 `liarnet.js` 用的是 `pointerdown / pointermove / pointerup`，鼠标天然会触发，
+所以同一个浏览器里联机能拖、单机不能拖，手机两端又都正常。
+
+**修法**（只动单机，不动联机）：
+- 加 `gPoint(e)`：触摸取 `touches[0]`，鼠标直接取事件对象；
+  `onStageStart` / `onStageMove` 改走它，两条路共用同一套 1:1 计算、松手定格和点一下全开 / 全关。
+- 舞台补 `mousedown`，`mousemove / mouseup` 挂 `document`，鼠标滑出舞台也不会把手势丢在半路；
+  再加 `window blur` 兜底。只认左键，`mousedown` 上 `preventDefault` 防止浏览器开始选字 / 拖图片。
+- 触摸结束后浏览器会补一次合成 `mousedown`，不能让它把刚定格的盖子又翻一遍：
+  `lastTouchAt` 记时间戳，700ms 内的 `mousedown` 忽略。
+
+**踩到的坑**：`document` 上原本就绑着 `onHoldEnd`（下方空白桌面的 mouseup），
+它**无条件**把 `S.grabbing` 清成 `false`。新加的 mouseup 如果等冒泡，`onStageEnd`
+开头那句 `if (!S.grabbing) return` 会直接吞掉结算 —— 表现很迷惑：拖得动、位置也对，
+但松手后状态不落地（提示一直是「盖着」）、点一下也不开合。
+把结算绑到**捕获阶段**，抢在 `onHoldEnd` 前面就好了。回归里专门加了一条
+「松手后提示变成半开」的断言，防止只看 `lift` / `transition` 假绿。
+
+新增 `_real/_e2e_mouse_lid.py`：桌面 800 / 1280 两个视口 + 完整版 / 纯净版，
+覆盖 50% 定格、半开接着拖、98% 不吸附、点一下全开全关、形状不变形；
+另在手机视口验证触摸路径没坏、合成鼠标事件被抑制。
+原有闪烁 / 盖子 / 点骰改点 / 调试面板 / 公共屏回归全部仍绿。
+
+
 ## v1.24.17 · 2026-11-12
 
 ### 撤回 3D 骰子，恢复原来只显示一面的 2D
