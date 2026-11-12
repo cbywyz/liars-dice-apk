@@ -35,7 +35,14 @@
     st: null, alive: false, retry: 0, retryTimer: 0, pingTimer: 0, tt: 0,
     /* 投票倒计时用：服务端每次广播给的是「还剩几毫秒」，
        本地换算成一个截止时刻，按钮上的秒数才走得动 */
-    voteUntil: 0, kickUntil: 0, tickTimer: 0
+    voteUntil: 0, kickUntil: 0, tickTimer: 0,
+    /* 公骰滚动的现场：coreKey = 上一次画出去的骰值，coreAnim = 正在滚的句柄。
+       cups0 是开滚前那一刻各家杯数 —— 动画期间先按这个画，别提前把「谁喝了」亮出来。 */
+    coreKey: '', coreInit: false, coreAnim: null, cups0: null,
+    /* 这一次公骰是我按的。光靠「center 变没变」判断要不要播动画不够：
+       连着摇出同一个点数（1/36，调试「出 11」时是必然）就整个不播，
+       看着像「点了没反应」。 */
+    rollPending: false, rollPendingAt: 0
   };
 
   var el = {};
@@ -761,6 +768,78 @@
     }
   }
 
+  /* ---------------- 公骰滚动 ----------------
+     用户 2026-11-12：「点摇之后不要立刻出结果，2~4 秒，第一颗先停、第二颗再停」。
+
+     联机的点数只能来自服务器，所以这里没法「点下去先滚假牌」——
+     那样滚的东西回包后要整盘换掉，更容易看出是假的。
+     做法是：state 里 center 一变就开始滚，滚的是一直在换的随机面，
+     到点再把这一手真点数依次落下来（1.55s / 2.35s）。
+     滚动期间座位不亮「谁喝了」、杯数停在开滚前 —— 不然期待感全被剧透掉。 */
+  var CORE_LAND = [1550, 2350];
+
+  function coreFace(node, v) {
+    var on = PIPS[v] || [];
+    var kids = node.children;
+    for (var i = 0; i < 9; i++) {
+      kids[i].className = on.indexOf(i) >= 0 ? (RED[v] ? 'r' : '') : 'blank';
+    }
+    node.classList.toggle('empty', !v);
+  }
+
+  function rollCoreAnim(center, done) {
+    var box = el.coreDice;
+    if (!box) { done(); return; }
+    /* 先把上一次落定留下的 .land 摘掉再加 .rolling，
+       两个动画同时挂着一颗骰子上会打架 */
+    var ds = [box.children[0], box.children[1]];
+    if (ds[0]) ds[0].classList.remove('land');
+    if (ds[1]) ds[1].classList.remove('land');
+    var landed = [false, false];
+
+    for (var i = 0; i < 2; i++) {
+      if (!ds[i]) continue;
+      coreFace(ds[i], 1 + Math.floor(Math.random() * 6));
+      ds[i].classList.add('rolling');
+    }
+
+    var tick = setInterval(function () {
+      for (var i = 0; i < 2; i++) {
+        if (!landed[i] && ds[i]) coreFace(ds[i], 1 + Math.floor(Math.random() * 6));
+      }
+    }, 68);
+
+    function land(i) {
+      landed[i] = true;
+      if (!ds[i]) return;
+      ds[i].classList.remove('rolling');
+      coreFace(ds[i], center[i]);
+      ds[i].classList.remove('land');
+      void ds[i].offsetWidth;
+      ds[i].classList.add('land');
+    }
+
+    var t1 = setTimeout(function () { land(0); }, CORE_LAND[0]);
+    var t2 = setTimeout(function () {
+      land(1);
+      clearInterval(tick);
+      /* 记成「已经是这一手」：随后那次 paint 就不会重写 DOM，
+         最后一颗落定的弹跳能留住 */
+      box.setAttribute('data-k', center.join('|'));
+      S.coreAnim = null;
+      done();
+    }, CORE_LAND[1]);
+
+    S.coreAnim = {
+      stop: function () {
+        clearInterval(tick);
+        clearTimeout(t1);
+        clearTimeout(t2);
+        S.coreAnim = null;
+      }
+    };
+  }
+
   function buildSeats(n) {
     el.seats.innerHTML = '';
     seatEls = [];
@@ -793,6 +872,30 @@
     var st = S.st;
     if (seatEls.length !== st.seats.length) buildSeats(st.seats.length);
 
+    /* 公骰换了一手 → 开滚。
+       第一次进桌不滚（那是重连、刷新，把原来那副牌直接画出来就行）。
+       rollPending = 这一把是我按的：点数撞成一样也得滚，不然像没反应。 */
+    var ck = st.center ? st.center.join('') : '';
+    var mine = !!S.rollPending && !!ck;
+    S.rollPending = false;
+    if (!S.coreInit) {
+      S.coreInit = true;
+      S.coreKey = ck;
+    } else if (ck !== S.coreKey || mine) {
+      S.coreKey = ck;
+      if (ck) {
+        /* 开滚前把「桌面上现在显示的杯数」记下来：服务端这时候已经把
+           「谁喝了几杯」一起发过来了，直接用新值等于一边滚一边把答案摊在桌上 */
+        S.cups0 = S.cupsShown || st.seats.map(function (x) { return x.cups || 0; });
+        if (S.coreAnim) S.coreAnim.stop();
+        rollCoreAnim(ck.split('').map(Number), function () {
+          paintTable();
+          paintBtns();
+        });
+      }
+    }
+    var animating = !!S.coreAnim;
+
     var size = st.seats.length >= 10 ? '5.1vw' : '6vw';
     el.round.textContent = '第 ' + st.round + ' 轮';
     var nxWho = (st.shaker + 1) % st.seats.length;
@@ -806,7 +909,10 @@
     for (var i = 0; i < st.seats.length; i++) {
       var s = st.seats[i], se = seatEls[i];
       var hit = false;
-      for (var k = 0; k < st.hits.length; k++) if (st.hits[k].i === i) hit = true;
+      /* 公骰还在滚的时候先别把「谁对上」点亮 —— 那等于把结果提前告诉桌上 */
+      if (!animating) {
+        for (var k = 0; k < st.hits.length; k++) if (st.hits[k].i === i) hit = true;
+      }
 
       /* 快换人的时候把下一位圈出来：桌上最需要知道的就是「接下来是谁」，
          光写在提示行里，隔着半张桌子看不见（2026-11-10 用户提的） */
@@ -826,15 +932,31 @@
       se.root.classList.toggle('off', s.online === false);
       se.root.classList.toggle('todo', st.phase === 'ready' && !settled(s) && !outOf(s));
       se.n.textContent = s.name + (s.id === st.you ? ' · 我' : '');
-      se.cups.textContent = s.cups ? s.cups + ' 杯' : '';
-      se.cups.classList.toggle('has', s.cups > 0);
+      /* 滚的时候杯数停在开滚前那一帧：骰子还没落完就跳杯，等于剧透 */
+      var cv = animating ? ((S.cups0 && S.cups0[i]) || 0) : (s.cups || 0);
+      se.cups.textContent = cv ? cv + ' 杯' : '';
+      se.cups.classList.toggle('has', cv > 0);
       paintDice(se.box, s.dice, size, true);
     }
 
-    el.coreDice.innerHTML = dieHtml(st.center ? st.center[0] : 0, '9.8667vw') +
-                            dieHtml(st.center ? st.center[1] : 0, '9.8667vw');
-    el.core.classList.toggle('idle', !st.center);
-    el.coreTag.textContent = st.center ? (dsum(st.center) + ' 点') : '公骰';
+    if (animating) {
+      el.core.classList.remove('idle');
+      el.coreTag.textContent = '摇骰中…';
+    } else {
+      /* 点数没变就别重写：落定那一下的弹跳挂在 .fd-d 上，重写会把动画掐掉 */
+      var ckey = st.center ? st.center.join('|') : '--';
+      if (el.coreDice.getAttribute('data-k') !== ckey) {
+        el.coreDice.setAttribute('data-k', ckey);
+        el.coreDice.innerHTML = dieHtml(st.center ? st.center[0] : 0, '9.8667vw') +
+                                dieHtml(st.center ? st.center[1] : 0, '9.8667vw');
+      }
+      el.core.classList.toggle('idle', !st.center);
+      el.coreTag.textContent = st.center ? (dsum(st.center) + ' 点') : '公骰';
+    }
+
+    if (!animating) {
+      S.cupsShown = st.seats.map(function (x) { return x.cups || 0; });
+    }
 
     paintHint();
     paintBtns();
@@ -857,6 +979,12 @@
 
   function paintHint() {
     var st = S.st;
+    /* 公骰还在滚：这一行先不写结果。「3 点 → 阿珍喝」比骰子先出现，
+       那 2 秒的期待就白留了。 */
+    if (S.coreAnim) {
+      el.hint.innerHTML = '摇骰中…';
+      return;
+    }
     var line = '', sub = '';
     var is11 = st.center && st.center[0] === 1 && st.center[1] === 1;
 
@@ -1229,7 +1357,17 @@
       if (!b || b.disabled) return;
       var act = b.getAttribute('data-act');
       if (act === 'fshake') send({ t: 'fshake' });
-      else if (act === 'froll') send({ t: 'froll' });
+      else if (act === 'froll') {
+        /* 记一笔「这次是我摇的」：点数跟上一把撞成一样时也要播动画。
+           3 秒还没回包就作废，免得下一次别人的动作也走这条道。 */
+        S.rollPending = true;
+        var stamp = Date.now();
+        S.rollPendingAt = stamp;
+        setTimeout(function () {
+          if (S.rollPendingAt === stamp) S.rollPending = false;
+        }, 3000);
+        send({ t: 'froll' });
+      }
       else if (act === 'fskip') send({ t: 'fskip' });
       else if (act === 'fnext') send({ t: 'fnext' });
       else if (act === 'freset') {

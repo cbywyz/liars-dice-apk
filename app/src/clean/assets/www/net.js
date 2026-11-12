@@ -312,6 +312,8 @@
     sel: {},          // 本地勾中的手牌下标（只有自己能选）
     handSig: '',
     pending: '',      // 已经发出、还没回来的动作
+    rollPending: false,   // 点了摇一摇、等服务器把新点数发回来
+    rollAnim: null,       // 7 颗依次落定的句柄（非空时 renderDice 不许重建）
     ws: null,
     alive: false,
     retry: 0,
@@ -878,11 +880,120 @@
     }
   }
 
+  /* ---------------- 摇骰的过程 ----------------
+     用户 2026-11-12：「350 点一下就马上出结果，没有过程，骰子有点多可以依次停下」。
+
+     350 是明骰，点数归服务器说了算，所以没法像单机那样点下去就先滚起来 ——
+     那样滚的是一副假牌，回包还得整盘换掉，看着更乱。
+     这里的做法是：点了摇之后什么都不动，等服务器把新点数发回来（一般 100~200ms），
+     再用这一手真点数播「一起抖 → 一颗一颗落定」，全程 2.2 秒。
+     renderDice 靠 S.rollAnim 让路，落定期间不会被重建打断。 */
+  var LAND_FIRST = 1150;   // 第 1 颗什么时候停
+  var LAND_GAP = 175;      // 之后每颗的间隔（7 颗落完 ≈ 2.2 秒）
+
+  function netDieFace(dieEl, v) {
+    dieEl.innerHTML = '';
+    dieEl.classList.toggle('blank', !v);
+    if (!v) return;
+    var cells = PIPS[v] || [];
+    for (var c = 0; c < cells.length; c++) {
+      var p = document.createElement('div');
+      p.className = 'pip' + (RED[v] ? ' red' : '');
+      p.style.left = CELL[cells[c] % 3] + '%';
+      p.style.top = CELL[Math.floor(cells[c] / 3)] + '%';
+      dieEl.appendChild(p);
+    }
+  }
+
+  /* 滚动过程中换的脸：随手一个 1~6 就行。真点数由服务器定，
+     等 land() 才写进去 —— 这个函数只服务「看起来在摇」，不参与结算。 */
+  function rollOne() { return 1 + Math.floor(Math.random() * 6); }
+
+  function rollHandAnim(vals, canPick) {
+    var layer = el.dice;
+    var n = layer ? Math.min(vals.length, layer.children.length) : 0;
+    if (!n) return;
+
+    var slots = [], dies = [], landed = [];
+    for (var i = 0; i < n; i++) {
+      slots.push(layer.children[i]);
+      var d = slots[i].querySelector('.die');
+      dies.push(d);
+      landed.push(false);
+      if (d) {
+        d.classList.remove('land');
+        netDieFace(d, rollOne());
+        d.classList.add('rolling');
+      }
+    }
+
+    var tick = setInterval(function () {
+      for (var i = 0; i < n; i++) if (!landed[i] && dies[i]) netDieFace(dies[i], rollOne());
+    }, 68);
+
+    function land(i) {
+      landed[i] = true;
+      var d = dies[i];
+      if (d) {
+        d.classList.remove('rolling');
+        netDieFace(d, vals[i]);
+        d.classList.remove('land');
+        void d.offsetWidth;
+        d.classList.add('land');
+      }
+      /* 能拿分的 1 和 5 在这儿补角标：动画期间 renderDice 是让路的，
+         等它补就晚了，玩家会先看到一堆没标价的骰子 */
+      if (canPick && pointsOf(vals[i])) {
+        slots[i].classList.add('countable');
+        if (S.sel[i]) slots[i].classList.add('sel');
+        var tag = slots[i].querySelector('.f3-val');
+        if (!tag) {
+          tag = document.createElement('i');
+          tag.className = 'f3-val';
+          slots[i].appendChild(tag);
+        }
+        tag.textContent = String(pointsOf(vals[i]));
+      }
+    }
+
+    var timers = [];
+    for (var j = 0; j < n; j++) {
+      timers.push(setTimeout(land, LAND_FIRST + j * LAND_GAP, j));
+    }
+    timers.push(setTimeout(function () {
+      clearInterval(tick);
+      S.rollAnim = null;
+      /* 落完得自己收一次尾：提示行和底栏在动画期间是「摇骰中…」，
+         没有新 state 进来就不会有人来改它们 */
+      if (S.state) render();
+    }, LAND_FIRST + (n - 1) * LAND_GAP + 200));
+
+    S.rollAnim = {
+      stop: function () {
+        clearInterval(tick);
+        for (var i = 0; i < timers.length; i++) clearTimeout(timers[i]);
+        S.rollAnim = null;
+      }
+    };
+  }
+
   function renderDice() {
     var s = S.state;
     if (!el.dice) return;
+    if (S.rollAnim) return;                 // 正在依次落定，这 7 颗归动画管
     var sig = handSig() + '#' + (myTurn() ? 1 : 0) + '#' + s.round;
     if (el.dice.getAttribute('data-key') === sig) return;
+
+    /* 刚点过摇一摇、新点数回来了：先播一轮，别直接翻底牌 */
+    if (S.rollPending && el.dice.children.length === s.hand.length) {
+      S.rollPending = false;
+      el.dice.setAttribute('data-key', sig);
+      var vals = [];
+      for (var k = 0; k < s.hand.length; k++) vals.push(s.hand[k].v);
+      rollHandAnim(vals, !!myTurn() && s.phase === 'rolled');
+      return;
+    }
+
     el.dice.setAttribute('data-key', sig);
     el.dice.innerHTML = '';
 
@@ -1016,6 +1127,10 @@
 
     if (!s.started) {
       text = '';
+    } else if (S.rollAnim) {
+      /* 7 颗还在依次落定：这一行先别写「该点哪几颗」。
+         骰子没落完就把操作提示摆出来，等于告诉人「已经摇完了」 */
+      text = '摇骰中…';
     } else if (s.phase === 'over') {
       text = '一局打完 · 按分数排';
       cls = 'good';
@@ -1067,6 +1182,14 @@
 
     var list = [];
     var turn = myTurn();
+
+    /* 摇骰动画还在跑：底栏也先别摆「点骰子收分」——
+       手指这时候按下去只会点到还在滚的骰子 */
+    if (S.rollAnim) {
+      el.btns.innerHTML = '<button class="btn primary is-off" type="button" ' +
+        'data-act="none" disabled>摇骰中…</button>';
+      return;
+    }
 
     if (s.phase === 'over') {
       /* 结算时底栏一个按钮都不放。这里原本有个和「摇一摇」一样大的
@@ -1222,11 +1345,22 @@
     if (a === 'exit') { goLobby(); return; }
 
     if (a === 'roll') {
+      /* 上一把还在滚就别叠：底栏这时候本来就是「摇骰中…」，
+         这条只是兜住「消息比动画慢」的极端情况 */
+      if (S.rollAnim) return;
       /* 声音和震动跟着手指走，不等服务器 —— 摇骰这一下要有反馈，
          等 100ms 回包再响就「慢半拍」，比没声音更怪。 */
       playShake();
       vibrate(18);
       shake();
+      /* 记一笔「这次是我摇的」：新点数回来时就知道该播依次落定。
+         3 秒还没回包（断线、被拒）就作废，免得下一次别人的动作也走这条道。 */
+      S.rollPending = true;
+      var stamp = Date.now();
+      S.rollPendingAt = stamp;
+      setTimeout(function () {
+        if (S.rollPendingAt === stamp) S.rollPending = false;
+      }, 3000);
       send({ t: 'roll' }, 'roll');
       return;
     }
