@@ -106,7 +106,7 @@ jobs:
             | `liars-dice-${{ steps.ver.outputs.v }}.apk` | 完整版，图标骰子 4 点（红），带隐藏的顺子 / 豹子 / 改点 |
             | `liars-dice-clean-${{ steps.ver.outputs.v }}.apk` | 纯净版，图标骰子 6 点（蓝），没有隐藏功能 |
 
-            **网页版**（不用装、刷新即最新，iPhone 也能用）：https://dice.2582580.xyz/
+            **网页版**（不用装、刷新即最新，iPhone 也能用）：地址不公开，需要的话找作者要。
 
             本版改了什么 → [更新说明](https://github.com/cbywyz/liars-dice-apk/blob/main/docs/changelog.md)
           files: dist/*.apk
