@@ -663,6 +663,119 @@ button[disabled] { opacity: 1; }
 }
 .toast.show { opacity: 1; }
 
+/* ---------------- 踢人投票浮卡（三套联机玩法共用） ----------------
+
+   为什么要它：投票状态一直只活在「桌上的人」那个弹层里（或者吹牛的摊牌左列）。
+   不打开它，别人发起投票你根本不知道 —— 等 45 秒作废了才发觉「刚才有人要请人走」。
+
+   位置：左边那条空白。三套牌桌的中间都被座位圈 / 骰盘 / 骰盅占着，
+   只有左侧留得下人；具体 top 各页在下面几条「页级覆盖」里定
+   （`.page-netgame` / `.page-findnet` / `.lr-table`，每个牌桌的空白高度不一样，
+   写一份通用的必然压到东西）。这些数是用 `_real/_probe_votecard_many.py`
+   把卡矩形和桌上每块内容矩形求交、再逐 0.5% 扫一遍空档扫出来的，别凭眼睛改。
+   矮屏（max-height:700px）另有一档，正常屏的百分比在扁屏上不成立。
+
+   **pointer-events:none 是硬要求**：这张卡只是通知，绝不能接手指。
+   桌面上的盅、骰子、座位、三格热区都得照样能点
+   （用户 2026-11-12：「这个小卡片不能影响桌面的操作」）。
+   要投票还是走原来的入口：350 / 找朋友点「桌上的人」，吹牛点座位上的名字。
+
+   45 秒是服务端 kickLeft() 定的。本地按「这条回包说还剩多少」自己倒计时，
+   每 200ms 刷一次，到 0 就收 —— 不能等服务端再发一条，因为没人动手的时候
+   服务端根本不会推消息（pruneKick 也要等下一次动作才清）。 */
+.vcard {
+  position: absolute;
+  left: 3.8vw;
+  top: var(--vc-top, 33%);
+  width: 50vw;
+  max-width: 208px;
+  box-sizing: border-box;
+  padding: 2.4vw 3vw 2.2vw;
+  border-radius: 3.2vw;
+  background: rgba(255, 252, 246, 0.95);
+  box-shadow: 0 1.4vw 3.6vw rgba(40, 30, 16, 0.16), 0 0 0 1px rgba(40, 30, 16, 0.07);
+  z-index: 7;
+  /* 只有这一条能让它「不影响桌面操作」，别改成 auto */
+  pointer-events: none;
+  animation: vcIn 0.24s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.vcard[hidden] { display: none; }
+
+@keyframes vcIn {
+  from { opacity: 0; transform: translateX(-5vw); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.vcard-t {
+  font-size: 3.1vw;
+  line-height: 1.35;
+  color: #23262d;
+}
+.vcard-t b { font-weight: 700; color: #b8382e; }
+
+.vcard-s {
+  margin-top: 0.9vw;
+  font-size: 2.7vw;
+  line-height: 1.35;
+  color: rgba(35, 38, 45, 0.52);
+}
+
+/* 剩下的时间：条子从满走到空。比数字更直观 —— 眼睛扫一下就知道还剩多少 */
+.vcard-bar {
+  margin-top: 1.8vw;
+  height: 1vw;
+  border-radius: 0.5vw;
+  background: rgba(35, 38, 45, 0.1);
+  overflow: hidden;
+}
+.vcard-bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: #c8553d;
+  transition: width 0.25s linear;
+}
+
+/* 三张牌桌各让出一个空档。数字都是量着放的（_real/_probe_liar_rects.py 量的
+   各块矩形，+ _real/_shot_votecard.py 出的图），改之前先重跑那两个看压没压到东西：
+     · 350   —— 名字条下面那块空当会随人数换行往下走，所以钉在**底边**：
+                分数上面那一条永远空着，比钉 top 稳；
+     · 找朋友 —— 圆环下方、底部提示上方那条横带（左右外侧太窄，塞不下字）；
+     · 吹牛  —— 圆环下沿到「我的牌」那块字之间。再往上会压到左右那两张座位卡，
+                再往下会压到盅；左边只剩这一条空档，所以卡片也收窄一点。
+                45.5% 是量出来的：390×844、8 人时圆环虚线到 380、卡片 384~447、
+                「我的牌」454、盅 457 —— 上下各留几像素。47% 会贴到「我的牌」上沿。 */
+.page-netgame .vcard { top: auto; bottom: 26%; }
+.page-findnet .vcard { --vc-top: 62%; }
+.lr-table .vcard { --vc-top: 45.5%; width: 35vw; }
+
+/* 吹牛摊牌那一屏（.lr-table.rev）左列就是名字、本来就能直接点人请走，
+   这张卡再杵在那儿只会盖住名字。 */
+.lr-table.rev .vcard { display: none; }
+
+/* 矮屏（iPhone SE 那种 375×667，以及老安卓）牌桌会整体压扁，上面那三个百分比
+   就不成立了 —— 实测 26% 会切到 350 的「0 本回合」、62% 会切到找朋友的
+   「轮到谁摇公骰」。矮屏另给一组：
+     · 350  —— 抬到分数上面那条空当；
+     · 找朋友 —— 圆环下沿到底部提示之间只剩 42px，卡片得同时缩一号（去掉进度条、
+                 字号和留白各收一档，高度从 60 降到 40 上下），否则整屏没有一处放得下；
+     · 吹牛 —— 45.5% 在矮屏本来就落在干净带里（34%~50%），不用另设。 */
+@media (max-height: 700px) {
+  .page-netgame .vcard { top: 59%; bottom: auto; }
+  /* 9 个人起名字条占三行，59% 那条空当被骰盘吃掉；这种挤法只能退到分数那一行，
+     代价是盖住「N 本回合」那个数 —— 比盖住一颗骰子强。类名由 net.js 挂。 */
+  .page-netgame .vcard.vc-dense { top: auto; bottom: 19%; }
+  .page-findnet .vcard {
+    --vc-top: 57.2%;
+    padding: 1.7vw 2.8vw;
+    border-radius: 2.6vw;
+  }
+  .page-findnet .vcard-t { font-size: 2.8vw; }
+  .page-findnet .vcard-s { margin-top: 0.4vw; font-size: 2.4vw; }
+  .page-findnet .vcard-bar { display: none; }
+}
+
 /* ---------------- 骰盅下方的空白桌面 ----------------
    完全透明的一层：手指从这里起手往上滑，一样能把盖子掀开，
    不用非得按在盖子上。位置在骰盅正下方、按钮上方那片空档。 */

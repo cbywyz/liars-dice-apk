@@ -229,6 +229,59 @@
     send({ t: 'kick', pid: pid }, 'kick');
   }
 
+  /* ================= 踢人投票浮卡 =================
+
+     投票状态一直只活在「桌上的人」那个弹层里（按钮变成「同意 1/2」）。
+     不打开它，别人发起投票你根本不知道，等 45 秒作废了才发觉。
+     所以左边空白处浮一张小卡：谁要被请走、几票、还剩几秒。
+
+     卡片只是通知，pointer-events:none（见 app.css 的 .vcard）——
+     它绝不能挡桌面上任何一个能点的地方。投票入口还是原来那两个。
+
+     秒数不靠服务端推：没人动手的时候服务端根本不发消息，
+     45 秒到点也不会有哪条回包来告诉你「作废了」。所以本地按
+     「这条回包说还剩多少」（state 里的 kick.left，已经存进 S.kickUntil）
+     自己每 200ms 走一格，到 0 就收。 */
+  function voteCardOff() {
+    if (S.vcTimer) { clearInterval(S.vcTimer); S.vcTimer = 0; }
+    S.vcSpan = 0;
+    S.vcKey = '';
+    if (el.vc) el.vc.hidden = true;
+  }
+
+  function paintVoteCard() {
+    if (!el.vc || el.vc.hidden) return;
+    var k = kickNow(S.state);
+    if (!k) { voteCardOff(); return; }
+    /* 手机时间不准也不影响：kickUntil 是从服务端那句「还剩多少」算出来的 */
+    var left = S.kickUntil - Date.now();
+    if (left <= 0) { voteCardOff(); return; }
+    if (!S.vcSpan) S.vcSpan = left;
+    el.vcS.textContent = (k.mine ? '你已同意 · ' : '')
+      + k.yes + '/' + k.need + ' 人同意 · ' + Math.ceil(left / 1000) + ' 秒';
+    el.vcBar.style.width =
+      Math.max(0, Math.min(100, (left / S.vcSpan) * 100)) + '%';
+  }
+
+  function syncVoteCard() {
+    var k = kickNow(S.state);
+    if (!k) { voteCardOff(); return; }
+    if (!el.vc) return;
+    /* 换了被请的人、或换了个发起人 = 新的一次投票：重新滑进来，条子从头走 */
+    var key = k.target + '|' + k.by;
+    var fresh = key !== S.vcKey;
+    S.vcKey = key;
+    if (fresh) S.vcSpan = Math.max(1000, S.kickUntil - Date.now());
+    var p = playerById(S.state, k.target);
+    el.vcWho.textContent = p ? p.name : '—';
+    if (fresh) {
+      el.vc.hidden = false;
+      vibrate(12);
+    }
+    paintVoteCard();
+    if (!S.vcTimer) S.vcTimer = setInterval(paintVoteCard, 200);
+  }
+
   /* ================= 跳过卡住的那一手 =================
 
      规则跟服务器同一套（src/index.js 的 canSkipBy）：只有房主点得动。
@@ -324,7 +377,12 @@
     voteUntil: 0,     // 重开投票作废的时刻（本地钟，按服务器给的和数自己算）
     voteTimer: null,
     kickUntil: 0,     // 踢人投票的作废时刻
-    kickPid: ''       // 弹层里正在说的那个人
+    kickPid: '',      // 弹层里正在说的那个人
+    /* 左边那张投票浮卡：vcSpan = 这次投票的总时长（画进度条用），
+       vcKey = 这一次投票的身份（谁被请 + 谁发起的），换了人就要重新滑进来 */
+    vcSpan: 0,
+    vcKey: '',
+    vcTimer: 0
   };
 
   var el = {};
@@ -358,6 +416,10 @@
     el.kickSub = $('ngKickSub');
     el.kickOk = $('ngKickOk');
     el.kickNo = $('ngKickNo');
+    el.vc = $('ngVote');
+    el.vcWho = $('ngVoteWho');
+    el.vcS = $('ngVoteS');
+    el.vcBar = $('ngVoteBar');
     /* 本局记录：服务端一直在记（state.log），这里只是把它摊开给人翻 */
     el.logMask = $('ngLog');
     el.logList = $('ngLogList');
@@ -581,6 +643,10 @@
         S.sel = {};
       }
       render();
+
+      /* 投票浮卡跟桌面上的一切解耦：不管现在什么阶段、面板开没开，
+         只要服务端那份 state 里还有人被投票请走，就把它画出来 */
+      syncVoteCard();
 
       /* 面板开着的时候来了新状态：跟着刷一遍。
          不刷的话别人摇完一手，你手上这份记录还停在打开那一刻。 */
@@ -817,6 +883,10 @@
   function renderStrip() {
     if (!el.strip) return;
     var s = S.state;
+    /* 9 个人起名字条就换成三行、把骰盘顶下去（375 宽一行放 4 张卡）。
+       矮屏上浮卡原来那条空当就没了，只能在 CSS 里换成「分数那一行」，
+       这里只负责把这个事实挂到类名上。 */
+    if (el.vc) el.vc.classList.toggle('vc-dense', s.players.length >= 9);
     var key = s.players.map(function (p) {
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
         ':' + (p.lion || 0);
