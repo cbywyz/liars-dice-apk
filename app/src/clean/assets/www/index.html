@@ -82,7 +82,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.24.20 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.22 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -155,7 +155,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.24.20</span>
+      <span class="page-ver">v1.24.22</span>
     </div>
   </div>
 </div>
@@ -342,7 +342,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.20</span>
+    <span class="page-ver">v1.24.22</span>
   </div>
 </div>
 
@@ -382,7 +382,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.20</span>
+        <span class="page-ver">v1.24.22</span>
       </div>
     </div>
   </div>
@@ -494,7 +494,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.20</span>
+    <span class="page-ver">v1.24.22</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -512,6 +512,22 @@
       <div class="lg-body" id="ngLogList"></div>
       <button class="lg-x" id="ngLogX" type="button">知道了</button>
     </div>
+  </div>
+
+  <!-- 踢人投票浮卡：有人发起投票就浮在左边空白处。
+       不打开「桌上的人」也看得见有人在投票、还差几票、剩多久。
+       卡片本体仍是 pointer-events:none，绝不接手指（用户 2026-11-12：
+       「这个小卡片不能影响桌面的操作」）；只有右下那颗「同意」放开指针，
+       点卡片其他地方照样落到桌面上。房主 / 被投的那个人看不到这颗按钮。
+       45 秒的期限是服务端定的，本地按「上次回包还剩多少」自己倒计时，
+       时间到就收掉，哪怕那一刻一条消息都没来。 -->
+  <div class="vcard" id="ngVote" hidden>
+    <div class="vcard-body">
+      <div class="vcard-t">有人要请 <b id="ngVoteWho">—</b> 出去</div>
+      <div class="vcard-s" id="ngVoteS">1/2 人同意 · 45 秒</div>
+      <div class="vcard-bar"><i id="ngVoteBar"></i></div>
+    </div>
+    <button class="vcard-ok" id="ngVoteOk" type="button" hidden>同意</button>
   </div>
 </div>
 
@@ -572,7 +588,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.24.20</span>
+      <span class="page-ver">v1.24.22</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -644,7 +660,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.20</span>
+    <span class="page-ver">v1.24.22</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -701,7 +717,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.20</span>
+    <span class="page-ver">v1.24.22</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -751,7 +767,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.24.20</span>
+        <span class="page-ver">v1.24.22</span>
       </div>
     </div>
   </div>
@@ -835,7 +851,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.24.20</span>
+      <span class="page-ver">v1.24.22</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -860,6 +876,18 @@
   </div>
 
 
+
+  <!-- 踢人投票浮卡：跟 350 那张同一个组件，只是 id 前缀不同。
+       位置、做法、为什么卡片本体 pointer-events:none、只有「同意」那颗放开，
+       见 app.css 的 .vcard 那一段。 -->
+  <div class="vcard" id="fnVote" hidden>
+    <div class="vcard-body">
+      <div class="vcard-t">有人要请 <b id="fnVoteWho">—</b> 出去</div>
+      <div class="vcard-s" id="fnVoteS">1/2 人同意 · 45 秒</div>
+      <div class="vcard-bar"><i id="fnVoteBar"></i></div>
+    </div>
+    <button class="vcard-ok" id="fnVoteOk" type="button" hidden>同意</button>
+  </div>
 </div>
 
 <!-- ==================== 吹牛 · 联机（每人一台手机，暗骰） ====================
@@ -910,7 +938,7 @@
       </div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.20</span>
+        <span class="page-ver">v1.24.22</span>
       </div>
     </div>
   </div>
@@ -1032,7 +1060,7 @@
     <div class="fd-btns" id="lrBtns"></div>
 
     <div class="foot">
-      <span class="page-ver">v1.24.20</span>
+      <span class="page-ver">v1.24.22</span>
       <button class="mode-link" id="lrLogBtn" type="button">记录</button>
       <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
       <button class="mode-link" id="lrRule2" type="button">玩法说明</button>
@@ -1070,6 +1098,19 @@
         <button class="btn primary ng-kick-ok danger" id="lrKickGo" type="button">请出房间</button>
         <button class="btn ghost ng-kick-no" id="lrKickNo" type="button">算了</button>
       </div>
+    </div>
+
+    <!-- 踢人投票浮卡：挂在 .lr-table 里面，摊牌那一屏（.lr-table.rev）
+         左列就是名字、本来就能直接点人，卡片在 CSS 里跟着一起收起来。
+         位置在**左上**那块空当：左边竖着那三格是调试热区（.lr-zone，top:46% 起），
+         卡片原来在 45.5% 正好压在它上面 —— 用户 2026-11-12 看出来了。 -->
+    <div class="vcard" id="lrVote" hidden>
+      <div class="vcard-body">
+        <div class="vcard-t">有人要请 <b id="lrVoteWho">—</b> 出去</div>
+        <div class="vcard-s" id="lrVoteS">1/2 人同意 · 45 秒</div>
+        <div class="vcard-bar"><i id="lrVoteBar"></i></div>
+      </div>
+      <button class="vcard-ok" id="lrVoteOk" type="button" hidden>同意</button>
     </div>
   </div>
 </div>

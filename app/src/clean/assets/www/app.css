@@ -690,7 +690,9 @@ button[disabled] { opacity: 1; }
   width: 50vw;
   max-width: 208px;
   box-sizing: border-box;
-  padding: 2.4vw 3vw 2.2vw;
+  display: flex;
+  align-items: stretch;
+  padding: 0;
   border-radius: 3.2vw;
   background: rgba(255, 252, 246, 0.95);
   box-shadow: 0 1.4vw 3.6vw rgba(40, 30, 16, 0.16), 0 0 0 1px rgba(40, 30, 16, 0.07);
@@ -700,6 +702,14 @@ button[disabled] { opacity: 1; }
   animation: vcIn 0.24s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 .vcard[hidden] { display: none; }
+
+/* 左边那块文字。padding 从 .vcard 挪到这里，右边只留一点点 ——
+   右边缘让给那颗「同意」竖条，不然吹牛那种窄卡上的标题要换行。 */
+.vcard-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2.4vw 1.4vw 2.2vw 3vw;
+}
 
 @keyframes vcIn {
   from { opacity: 0; transform: translateX(-5vw); }
@@ -713,11 +723,50 @@ button[disabled] { opacity: 1; }
 }
 .vcard-t b { font-weight: 700; color: #b8382e; }
 
+/* 标题下面那一行 */
 .vcard-s {
   margin-top: 0.9vw;
   font-size: 2.7vw;
   line-height: 1.35;
   color: rgba(35, 38, 45, 0.52);
+}
+
+/* 卡片上**唯一**接手指的东西：右边这一条竖着的「同意」。
+   卡片本体是 pointer-events:none，只这一条放开 —— 用户 2026-11-12
+   问「没有直接可以同意的按钮吗」，但前面那句「不能影响桌面操作」不能破，
+   所以走的是「指针只在按钮上生效」这条：点卡片其他地方照样落到桌面上。
+
+   为什么做成竖条而不是底下加一行按钮：卡片的落脚空档本来就窄
+   （矮屏上只有 44px 高的一条），横着加一行会让整张卡长高十几像素，
+   又得重新找位置；竖条是把卡片的**右边缘**让出来，高度一点没变，
+   而且整张卡多高它就有多高，手指更好点。 */
+.vcard-ok {
+  flex: 0 0 auto;
+  width: 12vw;
+  max-width: 50px;
+  border: 0;
+  border-radius: 0 3.2vw 3.2vw 0;
+  background: #b8382e;
+  color: #fff;
+  font-family: inherit;
+  font-size: 2.6vw;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.06em;
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.vcard-ok[hidden] { display: none; }
+.vcard-ok:active { background: #9d2f26; }
+/* 已经投过：这一条留着、只是按不动了（写「已同意」）——
+   直接收掉会让左边的文字宽度跳一下，看着像换了张卡 */
+.vcard-ok[disabled] {
+  background: rgba(35, 38, 45, 0.08);
+  color: rgba(35, 38, 45, 0.45);
+  cursor: default;
 }
 
 /* 剩下的时间：条子从满走到空。比数字更直观 —— 眼睛扫一下就知道还剩多少 */
@@ -737,43 +786,77 @@ button[disabled] { opacity: 1; }
   transition: width 0.25s linear;
 }
 
-/* 三张牌桌各让出一个空档。数字都是量着放的（_real/_probe_liar_rects.py 量的
-   各块矩形，+ _real/_shot_votecard.py 出的图），改之前先重跑那两个看压没压到东西：
-     · 350   —— 名字条下面那块空当会随人数换行往下走，所以钉在**底边**：
-                分数上面那一条永远空着，比钉 top 稳；
-     · 找朋友 —— 圆环下方、底部提示上方那条横带（左右外侧太窄，塞不下字）；
-     · 吹牛  —— 圆环下沿到「我的牌」那块字之间。再往上会压到左右那两张座位卡，
-                再往下会压到盅；左边只剩这一条空档，所以卡片也收窄一点。
-                45.5% 是量出来的：390×844、8 人时圆环虚线到 380、卡片 384~447、
-                「我的牌」454、盅 457 —— 上下各留几像素。47% 会贴到「我的牌」上沿。 */
+/* 三张牌桌各让出一个位置。数字全是量出来的，不是目测 ——
+   工具是 _real/_probe_votecard_many.py（第三个参数写 rects 只打矩形，写 sweep
+   就每 0.5% 扫一遍空档）+ _real/_shot_votecard.py（出图人眼复核）。
+   改之前先重跑，别凭眼睛挪。下面这一组是**标准屏（>820）**：
+
+     · 350   —— 钉在**底边**。名字条会随人数换行、把骰盘往下顶，分数上面
+                那一条反而永远空着，钉底比钉 top 稳；
+     · 找朋友 —— **左上**，圆环上方那条横带（65~136，卡 63 高 → 只能落在
+                8.0%~8.6%，取 8.3%）。圆环下面那条带子已经被「隐形五格」占了
+                —— 那是调试快捷键的热区（.fn-hot，通栏、高 13vw、平时透明），
+                卡片浮在那儿等于把开关盖住；
+     · 吹牛  —— 也是**左上**。原来在 45.5%，正好压着左边那条调试三格热区
+                （.lr-zone：left:5vw; top:46%; height:34%），用户 2026-11-12
+                一眼看出来「可能会遮住调试开关」，所以整条往上搬到 8%。
+                宽度同时放到 44vw：「同意」竖条占了右边缘，太窄标题会折行。 */
 .page-netgame .vcard { top: auto; bottom: 26%; }
-.page-findnet .vcard { --vc-top: 62%; }
-.lr-table .vcard { --vc-top: 45.5%; width: 35vw; }
+.page-findnet .vcard { --vc-top: 8.3%; }
+.lr-table .vcard { --vc-top: 8%; width: 44vw; }
+/* 吹牛这张不要那条进度条：它得挤在「第 N 局」那行和顶座位卡之间 ——
+   标准屏那条带子只有 58px，667 上只有 43px，带进度条就顶出去了。
+   秒数本来就写在第二行，条子只是好看。 */
+.lr-table .vcard-bar { display: none; }
 
 /* 吹牛摊牌那一屏（.lr-table.rev）左列就是名字、本来就能直接点人请走，
    这张卡再杵在那儿只会盖住名字。 */
 .lr-table.rev .vcard { display: none; }
 
-/* 矮屏（iPhone SE 那种 375×667，以及老安卓）牌桌会整体压扁，上面那三个百分比
-   就不成立了 —— 实测 26% 会切到 350 的「0 本回合」、62% 会切到找朋友的
-   「轮到谁摇公骰」。矮屏另给一组：
-     · 350  —— 抬到分数上面那条空当；
-     · 找朋友 —— 圆环下沿到底部提示之间只剩 42px，卡片得同时缩一号（去掉进度条、
-                 字号和留白各收一档，高度从 60 降到 40 上下），否则整屏没有一处放得下；
-     · 吹牛 —— 45.5% 在矮屏本来就落在干净带里（34%~50%），不用另设。 */
-@media (max-height: 700px) {
-  .page-netgame .vcard { top: 59%; bottom: auto; }
-  /* 9 个人起名字条占三行，59% 那条空当被骰盘吃掉；这种挤法只能退到分数那一行，
-     代价是盖住「N 本回合」那个数 —— 比盖住一颗骰子强。类名由 net.js 挂。 */
-  .page-netgame .vcard.vc-dense { top: auto; bottom: 19%; }
-  .page-findnet .vcard {
-    --vc-top: 57.2%;
-    padding: 1.7vw 2.8vw;
-    border-radius: 2.6vw;
-  }
-  .page-findnet .vcard-t { font-size: 2.8vw; }
-  .page-findnet .vcard-s { margin-top: 0.4vw; font-size: 2.4vw; }
-  .page-findnet .vcard-bar { display: none; }
+/* 矮屏 / 中间高度（667 ~ 820）牌桌整体压扁，上面那几个百分比一律不成立 ——
+   实测标准屏的 26% 会切到 350 的「0 本回合」，找朋友 / 吹牛放在左上那条带子
+   也会随屏高变矮被座位环顶穿（780 起就压座位，720 上压 35px）。
+   这条上界原先写的 700 只覆盖了 iPhone SE，701~820 这段是漏的，一并收进来。
+   矮屏另给一组，卡片统一缩一号（字号各降一档、去掉进度条 → 39px）：
+     · 350 —— 667 上根本没有能放下它的空档：9 人起骰盘 265~453、分数行 472~514、
+       提示行 523~541、按钮 547~599，最宽的空隙只有 19px。所以不再找缝，改成
+       **统一停在分数那一行**（39px 塞进 472~514 正好），代价只盖住「N 本回合」
+       一个数字 —— 不可点、下一步提示行还在；骰盘 / 名字条 / 提示行 / 按钮
+       一个都不碰，人数多少都一样；
+     · 找朋友 —— 圆环上方那条带子已经不够高，退到圆环下方那条通栏空白上
+       （就是 .fn-hot 隐形五格那条带子）—— 见下面 FN_SHORT 的豁免说明；
+     · 吹牛  —— 贴**按钮上方**那条通栏空白（杯底到按钮之间，45~51px），
+       并往右让开左边那条竖着的调试三格热区（.lr-zone 宽到 25vw）。 */
+@media (max-height: 820px) {
+  .page-netgame .vcard { top: 70.8%; bottom: auto; }
+
+  .page-findnet .vcard,
+  .lr-table .vcard,
+  .page-netgame .vcard { border-radius: 2.6vw; }
+  .page-findnet .vcard { --vc-top: 57.2%; }
+  /* 吹牛：左上那条带子会随屏高缩小 —— 720 上顶座位卡已经压到 y=72，
+     头部又占掉到 60，整条带子只剩 12px，什么卡都塞不进（实测压座位 35px）。
+     改成贴**按钮上方那条通栏空白**（杯底到按钮之间，45~51px）：
+     按钮行高 26.4vw，卡底离底 28vw 就正好落在缝中间，720~820 都稳。 */
+  /* 左边那条竖着的调试三格热区（.lr-zone）底边 = 屏高 80%，卡片贴在按钮上方时
+     左半截正好压在它上面（736 上压 11px、667 上压 10px）。往右让过那条竖带
+     （25vw）就行 —— 右边那片是空的，780 以上本来也压不到。 */
+  .lr-table .vcard { top: auto; bottom: 28vw; left: 27vw; width: 42vw; }
+
+  .page-findnet .vcard-body,
+  .lr-table .vcard-body,
+  .page-netgame .vcard-body { padding: 1.5vw 1.2vw 1.4vw 2.6vw; }
+  .page-findnet .vcard-t,
+  .lr-table .vcard-t,
+  .page-netgame .vcard-t { font-size: 2.8vw; }
+  .page-findnet .vcard-s,
+  .lr-table .vcard-s,
+  .page-netgame .vcard-s { margin-top: 0.4vw; font-size: 2.4vw; }
+  /* 三条进度条在矮屏上全去掉：秒数本来就写在第二行，条子只是好看，
+     留着就把卡片顶出那条缝 */
+  .page-findnet .vcard-bar,
+  .page-netgame .vcard-bar { display: none; }
+  .vcard-ok { width: 13vw; font-size: 2.4vw; }
 }
 
 /* ---------------- 骰盅下方的空白桌面 ----------------

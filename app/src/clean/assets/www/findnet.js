@@ -35,7 +35,10 @@
     st: null, alive: false, retry: 0, retryTimer: 0, pingTimer: 0, tt: 0,
     /* 投票倒计时用：服务端每次广播给的是「还剩几毫秒」，
        本地换算成一个截止时刻，按钮上的秒数才走得动 */
-    voteUntil: 0, kickUntil: 0, tickTimer: 0
+    voteUntil: 0, kickUntil: 0, tickTimer: 0,
+    /* 左边那张投票浮卡：vcSpan = 这次投票的总时长（进度条用），
+       vcKey = 这一次投票的身份（谁被请 + 谁发起的），换了人就要重新滑进来 */
+    vcSpan: 0, vcKey: ''
   };
 
   var el = {};
@@ -567,6 +570,9 @@
       var prevPhase = prev ? prev.phase : '';
       render();
 
+      /* 投票浮卡：跟阶段、弹层都无关，只要有人被投票请走就画出来 */
+      syncVoteCard();
+
       /* 有人发起重开 / 有人想请谁出去：不说一句，桌上只会看见按钮突然变了样 */
       if (S.st.vote && !(prev && prev.vote)) {
         flash(nameOf(idxIn(S.st, S.st.vote.by)) + ' 发起重开 · 要 ' +
@@ -1048,12 +1054,72 @@
       var live = S.st && (S.st.vote || S.st.kick);
       if (!live) { stopTick(); return; }
       paintBtns();
+      paintVoteCard();
       if (sheetTab === 'who' && el.whoList && !el.whoList.hidden) paintPeople();
     }, 1000);
   }
 
   function stopTick() {
     if (S.tickTimer) { clearInterval(S.tickTimer); S.tickTimer = 0; }
+  }
+
+  /* ================= 踢人投票浮卡 =================
+
+     以前只在「桌上的人」弹层里才看得见有人在投票（那行按钮变成「同意 1/2」）。
+     不打开它，别人发起投票你根本不知道，45 秒作废了才发觉。
+     左边空白处浮一张小卡：谁要被请走、几票、还剩几秒。
+
+     卡片只是通知，pointer-events:none（见 app.css 的 .vcard）——
+     它绝不能挡桌面上任何一个能点的地方。投票入口还是「桌上的人」那一层。
+
+     重画挂在 startTick 的 1 秒心跳上（本来就在跑投票倒计时），
+     不另起一个 interval：两个定时器迟早会有一处忘记清。 */
+  function voteCardOff() {
+    S.vcSpan = 0;
+    S.vcKey = '';
+    if (el.vc) el.vc.hidden = true;
+  }
+
+  function paintVoteCard() {
+    if (!el.vc || el.vc.hidden) return;
+    var k = S.st && S.st.kick;
+    var left = S.kickUntil ? S.kickUntil - Date.now() : 0;
+    if (!k || left <= 0) { voteCardOff(); return; }
+    if (!S.vcSpan) S.vcSpan = left;
+    var mine = false;
+    for (var i = 0; i < k.yes.length; i++) if (k.yes[i] === S.st.you) mine = true;
+    el.vcS.textContent = (mine ? '你已同意 · ' : '')
+      + k.yes.length + '/' + k.need + ' 人同意 · ' + secLeft(S.kickUntil) + ' 秒';
+    el.vcBar.style.width =
+      Math.max(0, Math.min(100, (left / S.vcSpan) * 100)) + '%';
+    /* 「同意」那颗：房主点谁谁直接走（服务端对房主是立刻生效），
+       被投的那个人也投不了票 —— 这两种不给按钮；投过了留原位变灰。 */
+    if (el.vcOk) {
+      var hide = isHost() || k.target === S.st.you;
+      el.vcOk.hidden = hide;
+      if (!hide) {
+        el.vcOk.disabled = mine;
+        el.vcOk.textContent = mine ? '已同意' : '同意';
+      }
+    }
+  }
+
+  function syncVoteCard() {
+    var k = S.st && S.st.kick;
+    var left = S.kickUntil ? S.kickUntil - Date.now() : 0;
+    if (!k || left <= 0) { voteCardOff(); return; }
+    if (!el.vc) return;
+    var key = k.target + '|' + k.by;
+    var fresh = key !== S.vcKey;
+    S.vcKey = key;
+    if (fresh) S.vcSpan = Math.max(1000, left);
+    var idx = idxIn(S.st, k.target);
+    el.vcWho.textContent = idx >= 0 ? nameOf(idx) : '—';
+    if (fresh) {
+      el.vc.hidden = false;
+      buzz(12);
+    }
+    paintVoteCard();
   }
 
   function btn(act, text, cls, dis) {
@@ -1123,6 +1189,21 @@
     };
     document.addEventListener('touchstart', once, true);
     document.addEventListener('mousedown', once, true);
+
+    /* 卡片上那颗「同意」：发的消息跟「桌上的人」里点同一行一模一样
+       （服务端同一个人再点一次就是补一票）。pointerdown 要拦住冒泡 ——
+       页面在 document 上按坐标判调试五格，卡片正好压在那条带子上。 */
+    if (el.vcOk) {
+      el.vcOk.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+      el.vcOk.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var k = S.st && S.st.kick;
+        if (!k || !S.kickUntil || S.kickUntil <= Date.now()) return;
+        for (var i = 0; i < k.yes.length; i++) if (k.yes[i] === S.st.you) return;
+        send({ t: 'kick', pid: k.target });
+      });
+    }
 
     el.back.addEventListener('click', function () {
       leaveAll();
@@ -1341,7 +1422,9 @@
       logBtn: $('fnLogBtn'), whoBtn: $('fnWhoBtn'), logX: $('fnLogX'),
       tabLog: $('fnTabLog'), tabWho: $('fnTabWho'),
       /* 暗门：长按标题开面板，牌桌中段那三格是「快捷键」 */
-      title: $('fnTitle'), hot: $('fnHot'), dbg: $('fnDbg')
+      title: $('fnTitle'), hot: $('fnHot'), dbg: $('fnDbg'),
+      vc: $('fnVote'), vcWho: $('fnVoteWho'), vcS: $('fnVoteS'), vcBar: $('fnVoteBar'),
+      vcOk: $('fnVoteOk')
     };
     if (!el.gate) return;          // 页面上没有这一页（被裁剪过 / 旧版缓存）
     loadDbg();

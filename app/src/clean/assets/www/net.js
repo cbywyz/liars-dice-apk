@@ -261,6 +261,18 @@
       + k.yes + '/' + k.need + ' 人同意 · ' + Math.ceil(left / 1000) + ' 秒';
     el.vcBar.style.width =
       Math.max(0, Math.min(100, (left / S.vcSpan) * 100)) + '%';
+    /* 「同意」那颗按钮：房主点谁谁直接走（服务端 kickPlayer 对房主是立刻生效的），
+       被投的那个人也投不了票 —— 这两种都不给按钮，免得点下去意思不对。
+       已经投过的留在原位变灰写「已同意」，卡片才不会左右跳一格。 */
+    if (el.vcOk) {
+      var host = hostOf(S.state);
+      var hide = (!!host && host.id === S.you) || k.target === S.you;
+      el.vcOk.hidden = hide;
+      if (!hide) {
+        el.vcOk.disabled = k.mine;
+        el.vcOk.textContent = k.mine ? '已同意' : '同意';
+      }
+    }
   }
 
   function syncVoteCard() {
@@ -280,6 +292,16 @@
     }
     paintVoteCard();
     if (!S.vcTimer) S.vcTimer = setInterval(paintVoteCard, 200);
+  }
+
+  /* 卡片上那颗「同意」。发的东西跟「桌上的人」里点同一行完全一样
+     （服务端 kickPlayer：同一个人再点一次就是补一票），所以两边不会打架。 */
+  function onVoteOk(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    var k = kickNow(S.state);
+    if (!k || k.mine) return;
+    send({ t: 'kick', pid: k.target }, 'kick');
   }
 
   /* ================= 跳过卡住的那一手 =================
@@ -420,6 +442,12 @@
     el.vcWho = $('ngVoteWho');
     el.vcS = $('ngVoteS');
     el.vcBar = $('ngVoteBar');
+    el.vcOk = $('ngVoteOk');
+    if (el.vcOk) {
+      /* 别让按下的这一下冒到桌面去：卡片就贴在座位条 / 骰盘旁边 */
+      el.vcOk.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+      el.vcOk.addEventListener('click', onVoteOk);
+    }
     /* 本局记录：服务端一直在记（state.log），这里只是把它摊开给人翻 */
     el.logMask = $('ngLog');
     el.logList = $('ngLogList');
@@ -883,10 +911,6 @@
   function renderStrip() {
     if (!el.strip) return;
     var s = S.state;
-    /* 9 个人起名字条就换成三行、把骰盘顶下去（375 宽一行放 4 张卡）。
-       矮屏上浮卡原来那条空当就没了，只能在 CSS 里换成「分数那一行」，
-       这里只负责把这个事实挂到类名上。 */
-    if (el.vc) el.vc.classList.toggle('vc-dense', s.players.length >= 9);
     var key = s.players.map(function (p) {
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
         ':' + (p.lion || 0);

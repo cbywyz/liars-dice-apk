@@ -46,7 +46,10 @@
     st: null, alive: false, retry: 0, retryTimer: 0, pingTimer: 0,
     /* 自己那只盅的盖子：0 = 盖着，1 = 掀到底。lidRound 记着「上一把是哪一局」，
        换局的时候自动合上 —— 新的一把，牌还是空的。 */
-    lidP: 0, lidRound: 0
+    lidP: 0, lidRound: 0,
+    /* 左边那张投票浮卡：kickUntil = 这次投票的作废时刻（按服务端那句「还剩多少」算），
+       vcSpan = 总时长（进度条用），vcKey = 这一次投票的身份（换了人就要重新滑进来） */
+    kickUntil: 0, vcSpan: 0, vcKey: '', vcTimer: 0
   };
 
   var el = {};
@@ -343,6 +346,76 @@
       cue('pass');
       buzz([16, 60, 16]);
     }
+    /* 投票浮卡跟阶段无关：只要有人被投票请走，就画在左边 */
+    syncVoteCard();
+  }
+
+  /* ================= 踢人投票浮卡 =================
+
+     以前投票只活在「桌上的人」弹层里（那行按钮变成「同意 1/2」）。
+     不打开它，别人发起投票你根本不知道，45 秒作废了才发觉。
+     左侧空白处浮一张小卡：谁要被请走、几票、还剩几秒。
+
+     卡片只是通知，pointer-events:none（见 app.css 的 .vcard）——
+     它绝不能挡桌面上任何一个能点的地方。投票入口还是点座位上的名字。
+
+     秒数不靠服务端推：没人动手的时候服务端根本不发消息，45 秒到点也不会有
+     哪条回包来告诉你「作废了」。所以本地按「这条回包说还剩多少」自己走，
+     到 0 就收。 */
+  function voteCardOff() {
+    if (S.vcTimer) { clearInterval(S.vcTimer); S.vcTimer = 0; }
+    S.vcSpan = 0;
+    S.vcKey = '';
+    S.kickUntil = 0;
+    if (el.vc) el.vc.hidden = true;
+  }
+
+  function paintVoteCard() {
+    if (!el.vc || el.vc.hidden) return;
+    var st = S.st;
+    var k = st && st.kick;
+    var left = S.kickUntil ? S.kickUntil - Date.now() : 0;
+    if (!k || left <= 0) { voteCardOff(); return; }
+    if (!S.vcSpan) S.vcSpan = left;
+    el.vcS.textContent = (votedByMe(k) ? '你已同意 · ' : '')
+      + k.yes.length + '/' + k.need + ' 人同意 · ' + Math.ceil(left / 1000) + ' 秒';
+    el.vcBar.style.width =
+      Math.max(0, Math.min(100, (left / S.vcSpan) * 100)) + '%';
+    /* 「同意」那颗：房主点谁谁直接走（服务端对房主是立刻生效），
+       被投的那个人也投不了票 —— 这两种不给按钮；投过了留原位变灰。 */
+    if (el.vcOk) {
+      var hideOk = isHost() || k.target === st.you;
+      el.vcOk.hidden = hideOk;
+      if (!hideOk) {
+        var me2 = votedByMe(k);
+        el.vcOk.disabled = me2;
+        el.vcOk.textContent = me2 ? '已同意' : '同意';
+      }
+    }
+  }
+
+  function syncVoteCard() {
+    var st = S.st;
+    var k = st && st.kick;
+    if (!k) { voteCardOff(); return; }
+    if (!el.vc) return;
+    /* 换了被请的人、或换了个发起人 = 新的一次投票：重新滑进来，条子从头走 */
+    var key = k.target + '|' + k.by;
+    var fresh = key !== S.vcKey;
+    S.vcKey = key;
+    S.kickUntil = Date.now() + k.left;
+    if (fresh) {
+      S.vcSpan = Math.max(1000, k.left);
+      el.vc.hidden = false;
+      buzz(12);
+    }
+    var idx = -1;
+    for (var i = 0; i < st.seats.length; i++) {
+      if (st.seats[i] && st.seats[i].id === k.target) idx = i;
+    }
+    el.vcWho.textContent = idx >= 0 ? st.seats[idx].name : '—';
+    paintVoteCard();
+    if (!S.vcTimer) S.vcTimer = setInterval(paintVoteCard, 200);
   }
 
   /* ---------------- 进入 / 离开 ---------------- */
@@ -364,6 +437,7 @@
     S.you = null;
     closeKick();
     closeSheet();
+    voteCardOff();
     showOff(false);
     render();
   }
@@ -1260,6 +1334,23 @@
 
     bindCup();
 
+    /* 卡片上那颗「同意」：跟点座位上名字、「同意请出去」发的是同一条消息。
+       投过之后卡片上只写「已同意」、按不动 —— 要撤回还是去点那个人
+       （面板里那颗会变成「撤回我这一票」），卡片不承担撤回。
+       pointerdown 拦住冒泡：卡片挂 .lr-table 里，别让按下的这一下变成掀盅的手势。 */
+    if (el.vcOk) {
+      el.vcOk.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+      el.vcOk.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var st = S.st;
+        var k = st && st.kick;
+        if (!k || !S.kickUntil || S.kickUntil <= Date.now()) return;
+        if (votedByMe(k) || st.host === st.you || k.target === st.you) return;
+        send({ t: 'kick', pid: k.target });
+      });
+    }
+
     click(el.back, function () {
       leaveAll();
       if (window.F350 && window.F350.switchTo) window.F350.switchTo('netmodes');
@@ -1469,6 +1560,8 @@
       sound: $('lrSound'), soundIc: $('lrSoundIc'),
       kick: $('lrKick'), kickName: $('lrKickName'),
       kickSub: $('lrKickSub'), kickGo: $('lrKickGo'), kickNo: $('lrKickNo'),
+      vc: $('lrVote'), vcWho: $('lrVoteWho'), vcS: $('lrVoteS'), vcBar: $('lrVoteBar'),
+      vcOk: $('lrVoteOk'),
     };
     if (!el.gate) return;       // 页面上没有这一页（被裁剪过 / 旧版缓存）
     bind();
