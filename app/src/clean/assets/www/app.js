@@ -21,59 +21,6 @@
   };
   var CELL = [20, 50, 80];
 
-  /* ---------------- 盅内立体骰子（等轴测 SVG） ----------------
-
-     2026-11-12：参考视频里的骰子是真 3D 立方体，顶面 + 左右侧面都看得见点数。
-     我们全站那套 .die/.pip 是 2D 贴图，只画正面；这里给「盅里那几颗」单独
-     画一张等轴测 SVG：顶面放这一颗真正的主点数（判点 / 叫点 / 统计只认它），
-     左右侧面按骰子规则推两个不同的点数当装饰，不参与任何判定。
-     九宫格点位通过仿射 matrix 映射到菱形 / 平行四边形，圆点自然变椭圆。
-     座位卡小骰子、摊牌大表、公共屏仍是原来的 2D 贴图，不受影响。
-     单机 2~10 颗动态、联机固定 5 颗，SVG 用百分比铺满 --ds，档位自动适配。
-     挂在 window 上给 liarnet.js 复用（index.html 里 app.js 先于它加载）。
-     纯 2D，不碰 CSS 3D：之前试过 perspective/rotateX 折叠，顶面会被投成
-     翘起来的尖角纸片，和盖子后翻那次是同一类坑。 */
-  window.Dice3D = (function () {
-    var P = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8],
-              5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-    var C = [20, 50, 80];
-    /* 顶面 / 左面 / 右面：把 0~100 的九宫格仿射映射到各自的平行四边形 */
-    var M = {
-      top: '0.56,0.32,-0.56,0.32,60,6',
-      left: '0.56,0.32,0,0.46,4,38',
-      right: '0.56,-0.32,0,0.46,60,70'
-    };
-    function dots(v, m, color) {
-      var cells = P[v] || [], s = '';
-      for (var i = 0; i < cells.length; i++) {
-        var c = cells[i];
-        s += '<circle cx="' + C[c % 3] + '" cy="' + C[Math.floor(c / 3)] +
-          '" r="' + (cells.length === 1 ? 15 : 10.5) + '" fill="' + color + '"/>';
-      }
-      return cells.length ? '<g transform="matrix(' + m + ')">' + s + '</g>' : '';
-    }
-    /* v = 0 表示还没摇：三个面都不画点 */
-    function svg(v) {
-      v = parseInt(v, 10) || 0;
-      var topColor = (v === 1 || v === 4) ? '#d5312a' : '#1a56c4';
-      var a = v ? (v % 6) + 1 : 0;
-      if (a === v || a === 7 - v) a = (a % 6) + 1;
-      var b = v ? ((v + 2) % 6) + 1 : 0;
-      if (b === v || b === 7 - v || b === a) b = (b % 6) + 1;
-      return '<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">' +
-        '<path d="M60 6 L116 38 L60 70 L4 38 Z" fill="#fdfbf5" stroke="#fdfbf5" stroke-width="9" stroke-linejoin="round"/>' +
-        '<path d="M4 38 L60 70 L60 116 L4 84 Z" fill="#ece3d0" stroke="#ece3d0" stroke-width="8" stroke-linejoin="round"/>' +
-        '<path d="M60 70 L116 38 L116 84 L60 116 Z" fill="#d9cdb4" stroke="#d9cdb4" stroke-width="8" stroke-linejoin="round"/>' +
-        '<path d="M60 6 L116 38 L60 70 L4 38 Z" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round" opacity=".8"/>' +
-        '<path d="M4 38 L60 70 M60 70 L116 38 M60 70 L60 116" fill="none" stroke="#ffffff" stroke-width="1.4" opacity=".65"/>' +
-        dots(v, M.top, topColor) +
-        dots(a, M.left, '#39465a') +
-        dots(b, M.right, '#39465a') +
-        '</svg>';
-    }
-    return { svg: svg };
-  })();
-
   /* 骰子散落布局：按数量排成 1~2 行，行内居中，每颗给一点倾斜，看着像随手撒的。
      坐标全部是 750 基准的 rpx，和骰盅盅口那块椭圆（600 × 310，圆心 300,155）对得上。
      数量不是 5 的时候，骰子按档缩小，保证 10 颗也塞得进盅口。 */
@@ -445,8 +392,9 @@
         var cur = parseInt(die.getAttribute('data-v') || '0', 10);
         if (cur === list[i].value) continue;
         die.setAttribute('data-v', String(list[i].value));
-        /* 改点后整颗重画成同一张等轴测贴图，data-v 仍是唯一判点依据 */
-        die.innerHTML = window.Dice3D.svg(list[i].value);
+        die.innerHTML = '';
+        var pips = list[i].pips || [];
+        for (var j = 0; j < pips.length; j++) die.appendChild(makePip(pips[j]));
       }
       return;
     }
@@ -464,10 +412,11 @@
       s.style.transform = 'rotate(' + it.r + 'deg) scaleY(0.84)';
 
       var box = document.createElement('div');
-      box.className = 'die d3' + (d.revealed ? ' in' : '');
+      box.className = 'die' + (d.revealed ? ' in' : '');
       box.style.animationDelay = n * 45 + 'ms';
       box.setAttribute('data-v', String(it.value));
-      box.innerHTML = window.Dice3D.svg(it.value);
+      var ps = it.pips || [];
+      for (var m = 0; m < ps.length; m++) box.appendChild(makePip(ps[m]));
 
       s.appendChild(box);
       el.diceLayer.appendChild(s);

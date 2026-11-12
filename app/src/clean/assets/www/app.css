@@ -1837,28 +1837,3 @@ button[disabled] { opacity: 1; }
   font-size: 2.8vw;
 }
 .page-netgame .nav-right .nav-quit { padding: 0 2.2vw; }
-
-/* ---------------- 盅内立体骰子（只作用于盅内） ----------------
-
-   等轴测 SVG 贴图的容器样式。座位卡小骰子、摊牌大表、公共屏用的还是
-   上面那套 2D .die/.pip，不带 .d3，完全不受影响。
-   用 id 选择器提高优先级，压过 liarnet.css 里的 .lr-die.down / .faint。 */
-#diceLayer .die.d3,
-#lrMeDice .die.d3 {
-  background: none;
-  border-radius: 0;
-  box-shadow: none;
-  filter: drop-shadow(0 calc(var(--ds) * 0.09) calc(var(--ds) * 0.10) rgba(0, 0, 0, 0.5));
-}
-#diceLayer .die.d3 > svg,
-#lrMeDice .die.d3 > svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-/* 盖着 / 还没摇：压淡。用 filter 而不是 opacity —— 入场动画 dieIn 的
-   fill-mode:both 会把 opacity 钉在 1，普通写法盖不住。 */
-#lrMeDice .die.d3.down,
-#lrMeDice .die.d3.faint {
-  filter: drop-shadow(0 calc(var(--ds) * 0.09) calc(var(--ds) * 0.10) rgba(0, 0, 0, 0.5)) opacity(0.42);
-}

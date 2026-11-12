@@ -656,13 +656,6 @@
     var slots = cup ? cupSlots(5) : null;
     for (var i = 0; i < 5; i++) {
       var d = values ? dieEl(values[i], false, anim) : dieEl(0, true);
-      /* 只有盅里这排换成立体贴图；座位卡 / 摊牌大表仍是原来的 2D .pip。
-         window.Dice3D 由 app.js 挂上（index.html 里 app.js 先加载）。
-         盅里固定 5 颗，单机那边是 2~10 颗，两边共用同一个 svg()。 */
-      if (cup) {
-        d.innerHTML = window.Dice3D.svg(values ? values[i] : 0);
-        d.classList.add('d3');
-      }
       if (faint) d.className += ' faint';
       if (!slots) { box.appendChild(d); continue; }
       /* 盅里那颗：套一层定位槽，位置/大小/角度照单机版写死 */
