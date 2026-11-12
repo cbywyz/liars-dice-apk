@@ -751,6 +751,13 @@
    为什么不照单机摆在盅下面横着切三格：联机版盅下面就是「摇 · 5 颗」那颗大按钮，
    横着切一定会压在按钮上，点摇骰顺手就装填了。 */
 
+/* 面板里那些小标题（.quick-head 是 app.css 里那套，单机面板也在用）：
+   「装填别人」的副标题 2026-11-12 变长之后把标题挤成了两行 ——
+   这里只收紧联机面板：标题不折，让副标题自己去折。 */
+.lr-dbg .quick-title { flex: 0 0 auto; white-space: nowrap; }
+.lr-dbg .quick-tip { text-align: right; min-width: 0; }
+
+
 .lr-table { position: relative; }
 
 .lr-zone {
