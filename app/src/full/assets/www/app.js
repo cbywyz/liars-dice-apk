@@ -489,9 +489,17 @@
       var die = kids[i].firstChild;
       if (!die) continue;
       if (d.revealed) {
+        /* 已经在展示就别碰它。以前这里无条件 remove('in') + 强制回流 +
+           add('in')，本意是「重播一次入场动画」；但开盖一次会把
+           revealed:true 写好几遍（拖过 28% 一次、松手 settleLid() 一次），
+           每多写一遍 0.46s 的 dieIn 就从头再来 —— 骰子本来已经淡入到
+           opacity:1，突然掉回 0 再淡入，就是用户说的「开盖闪一下」。
+           联机版 dieEl() 一建出来就带 .in、paintDice() 用 data-k 缓存
+           不重建，所以那边天然只播一次。
+           只在「class 里原本没有 in」时加，动画就只播一次；
+           renderDice() 重建出来的节点本来就带 .in，这里也会直接跳过。 */
+        if (die.classList.contains('in')) continue;
         die.style.animationDelay = i * 45 + 'ms';
-        die.classList.remove('in');
-        void die.offsetWidth; // 强制一次回流，动画才会重播
         die.classList.add('in');
       } else {
         die.classList.remove('in');
