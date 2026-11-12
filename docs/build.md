@@ -13,9 +13,9 @@ app/src/clean/assets/www/                                   纯净版的界面�
 app/src/full/res/mipmap-*/ic_launcher.png                   完整版图标（骰子 4 点）
 app/src/clean/res/mipmap-*/ic_launcher.png                  纯净版图标（骰子 6 点）
 app/src/main/res/values/styles.xml                          主题
-shots/                                                 README 里的截图
+docs/shots/                                            README 与分页里的截图
 LICENSE                                                    许可条款（摘要，全文见本文末）
-.github/workflows/build.yml                                 GitHub Actions 云端编译
+.github/workflows/build.yml                                 只在要发 APK 时手动触发
 ```
 
 界面是用网页写的，壳只负责全屏加载 `assets/www/index.html`。同一份代码：
@@ -41,19 +41,19 @@ APK 里的 `assets/www` 是从仓库外的两个源码目录同步来的（`liar
 
 | 想做什么 | 怎么做 |
 |---|---|
-| 发一版网页（**日常就这个**） | 改完 → push 到 `main`，40 秒左右线上就是新的 |
-| 手动重发网页 | Actions → build → Run workflow，**`with_apk` 不要勾** |
-| 发新版 APK（以后要发时） | 先按下面把版本号对齐 → Run workflow 时**勾上 `with_apk`** |
+| 发一版网页（**日常就这个**） | 在源码工程里 `python make_clean_h5.py` → `sync_site.py` → `wrangler deploy`，**云端是 Cloudflare**；这个仓库只是镜像，push 上来不会发网页 |
+| 发新版 APK（以后要发时） | 先按下面把版本号对齐 → Actions → build → Run workflow，**勾上 `with_apk`** |
 
-`workflow_dispatch` 默认就是「只发网页」，手滑点一下不会把 APK 发出去 ——
-要编 APK 必须显式勾 `with_apk`。
+工作流现在**只有 APK 一个 job**，`push` 不触发（2026-11-12 去掉了「顺手再发一份静态镜像」那条线：
+同一个游戏没必要留两个公开地址，网页只从 Cloudflare 发）。要编 APK 必须手动 dispatch
+并勾 `with_apk`，手滑点一下不会把包发出去。
 
 ### 发 APK 之前要做的三件事
 
 1. **版本号对齐**：`app/build.gradle` 里两个 flavor 的 `versionName` 改成网页版当前的版本号
    （就是 `index.html` 里 `page-ver` 那个），`versionCode` 各 +1。
    网页版会一直往上涨，APK 停在最后一版，不对齐的话 Release 里的包和线上网页号对不上。
-   目前网页版 `1.10.28`，APK 停在 `1.10.22`。
+   目前网页版 `1.24.10`，APK 停在 `1.10.22`。
 2. **先定联机怎么办**：`assets/www` 里已经有联机那两块（`net.js` / `net.css`），但
    `AndroidManifest.xml` **没有 `INTERNET` 权限** —— 编出来的包装上，点「联机模式」会连不上。
    两条路：① 给 APK 加 `INTERNET` 权限（那就得把「不含网络权限」这个说法从文档里改掉）；
