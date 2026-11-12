@@ -965,27 +965,25 @@
      2026-11-12 跟单机一起改成「直接操纵」：手指走多少、盖子走多少，
      松手停在哪就哪。以前抬升是 0.72p + 0.28p²（前段慢后段快），
      而且松手一律弹回 0 或 1 —— 这就是「别人的盅能停任意位置，我们的不行」。
-     v1.24.13 再把「整块向上拉升」改成「绕盖沿向后翻开」：叠一段 rotateX，
-     顶边往后倒、透视里越翻越小，到 70° 收成一条盖沿。
+     v1.24.14 撤掉 v1.24.13 的 perspective + rotateX「后翻」：盖子是
+     CSS 画的 2D 贴图，透视旋转会把它投成梯形、顶面椭圆拉成菱形尖角
+     （开到 75% 变成扁飞碟）；正交旋转又会把圆顶压成平顶方盒。
+     逐帧核对参考视频，对方其实是形状不变地垂直升起，只是空心钟罩
+     抬起后露出底部椭圆口沿才显得像后翻 —— 这张贴图只能平移。
      单位是 rig 坐标系里的 vw（整只盅按 80vw 画的），屏上那个 40vw 是外层 scale(0.5) 缩出来的。
-     45.3333vw 就是单机版那 340rpx；perspective(200vw) = 单机 rpx(1500)。
-     · lift / angle 都线性 1:1；拖动 / 松手定格都不挂过渡（instant）
-     · 角度只到 70°：88° 会把 75% 开度压成带尖角的扁片，超过 90° 更是
-       翻出背面、被 backface-visibility 整块藏掉，定格时会突然消失
+     45.3333vw 就是单机版那 340rpx。
+     · lift 线性 1:1；拖动 / 松手定格都不挂过渡（instant）
      · 只有点一下开关、新的一把复位才走 0.36s 缓动
      · 淡出压到最后 1.5%，中间任何高度盖子都是实心的 */
   var LID_LIFT = 45.3333;
-  var LID_FLIP = 70;
 
   function lidApply(p, dragging, instant) {
     if (!el.lid) return;
     p = Math.max(0, Math.min(1, p));
     S.lidP = p;
     var lift = LID_LIFT * p;
-    var angle = LID_FLIP * p;
     var fade = p <= 0.985 ? 1 : Math.max(0, 1 - (p - 0.985) / 0.015);
-    el.lid.style.transform = 'perspective(200vw) translate3d(0,-' + lift.toFixed(2) +
-      'vw,0) rotateX(' + angle.toFixed(2) + 'deg)';
+    el.lid.style.transform = 'translate3d(0,-' + lift.toFixed(2) + 'vw,0)';
     el.lid.style.opacity = fade.toFixed(3);
     el.lid.style.transition = (dragging || instant) ? 'none'
       : 'transform 0.36s cubic-bezier(0.26, 0.9, 0.24, 1), opacity 0.2s ease';

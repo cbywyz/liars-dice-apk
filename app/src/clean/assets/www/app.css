@@ -400,7 +400,9 @@ button[disabled] { opacity: 1; }
   width: 80vw;
   height: 78.6667vw;
   z-index: 4;
-  /* 向后翻开的铰链：转轴钉在盖沿；perspective / rotateX 由 app.js、liarnet.js 写在 transform 里 */
+  /* 盖子只做垂直平移：它是 CSS 画的 2D 贴图，套 3D 透视旋转会投成梯形、
+     顶面椭圆拉成菱形尖角（v1.24.13 翻车，v1.24.14 已撤）。
+     transform 由 app.js / liarnet.js 写在行内，这里留着 origin 只为将来换真 3D 素材 */
   transform-origin: 50% 100%;
   /* 盖子只是画面，不参与点击 */
   pointer-events: none;

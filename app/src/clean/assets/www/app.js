@@ -469,29 +469,27 @@
 
   /* ================= 盖子位移 ================= */
 
-  /* 2026-11-12 v1.24.13：盖子改成「绕盖沿向后翻开」。
-     以前只是整块往上平移，别人那只盅是往后掀的，看着差一截。
-     抬升仍是线性 1:1（手指走多少、盖子走多少），只是同时叠一段 rotateX：
-     顶边越翻越往后、越翻越小，到 70° 收成一条盖沿。
-     · perspective() 必须写在 transform 的第一个函数，透视原点跟着
-       transform-origin 一起落在盖沿，才有「往后倒」而不是「整块缩小」
-     · 角度只到 70°、透视给到 200vw：试过 88° / 120vw，开到 75%
-       盖子会被压成带尖角的扁片，不像一只真盖子；超过 90° 更是
-       直接翻出背面、被 backface-visibility 整块藏掉，定格时会突然消失
-     · lift / angle 都线性，拖动 transition:none；instant = 松手定格也不补动画
+  /* 2026-11-12 v1.24.14：回到「整块 1:1 垂直抬起」，绝不再叠 3D 旋转。
+     v1.24.13 曾按「别人的盖子是向后翻开」给 transform 加了
+     perspective() + rotateX() —— 但盖子是 CSS 画的 2D 贴图
+     （圆柱侧壁 + 椭圆顶面 + 圆钮），透视投影会把这块贴图投成梯形，
+     顶面椭圆被拉成菱形尖角，开到 75% 就是一只扁飞碟。
+     逐帧核对过参考视频：对方从头到尾都是形状不变地垂直升起，
+     只是空心钟罩抬起后露出底部椭圆口沿，看着才像往后掀开。
+     去掉透视改成正交 rotateX 也不行：圆顶会被压成平顶方盒。
+     结论：这张 2D 贴图只能平移，不能旋转。
+     · lift 线性 1:1（手指走多少、盖子走多少），拖动 transition:none
+     · instant = 松手定格：也不补动画，盖子停在手指离开那一帧
      · 只有程序按钮（开盖 / 合上 / 摇骰复位）才走 0.36s 缓动
      · 淡出压到最后 1.5%，中间任何高度盖子都是实心的，不会半透明穿帮 */
-  var FLIP_DEG = 70;
   function lidStyle(p, dragging, instant) {
     var lift = LIFT * p;
-    var angle = FLIP_DEG * p;
     var fade = p <= 0.985 ? 1 : Math.max(0, 1 - (p - 0.985) / 0.015);
     var transition = (dragging || instant)
       ? 'none'
       : 'transform 0.36s cubic-bezier(0.26, 0.9, 0.24, 1), opacity 0.2s ease';
-    return 'transform: perspective(' + rpx(1500) + ') translate3d(0, -' + rpx(lift) +
-      ', 0) rotateX(' + angle.toFixed(2) + 'deg); opacity: ' +
-      fade.toFixed(3) + '; transition: ' + transition + ';';
+    return 'transform: translate3d(0, -' + rpx(lift) +
+      ', 0); opacity: ' + fade.toFixed(3) + '; transition: ' + transition + ';';
   }
 
   function applyProgress(p, dragging) {
