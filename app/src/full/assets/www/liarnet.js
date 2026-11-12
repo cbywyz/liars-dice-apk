@@ -758,11 +758,12 @@
 
       /* 座位卡最下面那行以前一直空着（叫点拆掉之后没话可说了），正好放连顺：
          上一把摊开时全桌都看见谁连着几把顺子，这一把还没摇就能对上。
-         从 2 连起才显示 —— 1 把谈不上「连续」；到 3 连变成红字「罚酒」，
-         这就是桌上那条「连续 3 次顺子罚酒、间断不算」的提醒。 */
+         从 2 连起才显示 —— 1 把谈不上「连续」；到 3 连变成红字「罚」，
+         这就是桌上那条「连续 3 次顺子罚、间断不算」的提醒。
+         2026-11-12 用户：「顺子 4 连 · 罚酒 改为 顺子 4 连 · 罚」—— 两个字够了，罚什么桌上自己说。 */
       var sk = s.streak | 0;
       if (sk >= 2) {
-        se.say.textContent = '顺子 ' + sk + ' 连' + (sk >= 3 ? ' · 罚酒' : '');
+        se.say.textContent = '顺子 ' + sk + ' 连' + (sk >= 3 ? ' · 罚' : '');
         se.say.className = 'lr-say st' + (sk >= 3 ? ' hot' : '');
       } else {
         se.say.textContent = '';
@@ -860,16 +861,15 @@
     el.rev.hidden = !open;
     if (!open) return;
 
-    /* 线上一个字都不判。这里只报两个数：全桌一共几颗、1~6 各几个。
-       够不够数、谁喝，抬眼看桌上那副牌 —— 人自己数。 */
-    var t = st.tally || [0, 0, 0, 0, 0, 0];
+    /* 线上一个字都不判。这里只报一个数：全桌一共几颗骰子。
+       够不够数、谁喝，抬眼看桌上那副牌 —— 人自己数。
+
+       原来下面还有一行「1×4 2×2 3×3 …」，2026-11-12 按用户要求整行拿掉：
+       那一行没剔除顺子（顺子不计点数），也没法表达豹子（算 6 个 / 带 1 算 10 个），
+       数着就是个错数 —— 用户原话：「直接不显示，让别人自己看下方即可」。
+       每家的牌就在下面摊着，还标了「顺子」，人自己扫一眼比看错数快。 */
     if (el.revV) {
       el.revV.innerHTML = (st.total || 0) + ' <b>颗</b>';
-    }
-    if (el.revS) {
-      var p = [];
-      for (var k = 0; k < 6; k++) p.push((k + 1) + '×' + (t[k] || 0));
-      el.revS.textContent = p.join('\u3000');
     }
     el.rev.className = 'lr-rev' + (st.seats.length >= 9 ? ' dense' : '');
 
@@ -887,13 +887,14 @@
          而「谁不在了」恰恰是这一屏最常要处理的事（人走了，票凑不够，得请他出去）。 */
       var off = s.online === false ? '<i class="lr-rv-off">掉线</i>' : '';
       /* 连顺：名字下面一行，跟「掉线」同一列 —— 不占骰子那一行的宽度。
-         3 连起红字「罚酒」，桌上这条规矩就写在牌面上，不用谁记。 */
+         3 连起红字「罚」，桌上这条规矩就写在牌面上，不用谁记。 */
       var sk = s.streak | 0;
       var stk = sk >= 2
         ? '<i class="lr-rv-st' + (sk >= 3 ? ' hot' : '') + '">顺子 ' + sk + ' 连' +
-          (sk >= 3 ? ' · 罚酒' : '') + '</i>'
+          (sk >= 3 ? ' · 罚' : '') + '</i>'
         : '';
-      h += '<div class="lr-rv" data-i="' + i + '">' +
+      /* 自己那一行跟着描金：这一屏一列五六行，光靠「（我）」两个字找不到自己。 */
+      h += '<div class="lr-rv' + (s.id === st.you ? ' me' : '') + '" data-i="' + i + '">' +
         '<div class="lr-rv-m">' +
           '<span class="lr-rv-n">' + esc(s.name) + (s.id === st.you ? '（我）' : '') + '</span>' +
           off + stk +
@@ -1076,7 +1077,7 @@
       var msk = s.streak | 0;
       if (msk >= 2) {
         el.meSt.hidden = false;
-        el.meSt.textContent = '顺子 ' + msk + ' 连' + (msk >= 3 ? ' · 罚酒' : '');
+        el.meSt.textContent = '顺子 ' + msk + ' 连' + (msk >= 3 ? ' · 罚' : '');
         el.meSt.className = 'lr-me-st' + (msk >= 3 ? ' hot' : '');
       } else {
         el.meSt.hidden = true;
@@ -1991,7 +1992,7 @@
       me: $('lrMe'), meDice: $('lrMeDice'), meName: $('lrMeName'), meTag: $('lrMeTag'),
       meSt: $('lrMeSt'),
       cup: $('lrCup'), cupRig: $('lrCupRig'), lid: $('lrLid'), stage: $('lrRing'),
-      rev: $('lrRev'), revV: $('lrRevV'), revS: $('lrRevS'), revList: $('lrRevList'),
+      rev: $('lrRev'), revV: $('lrRevV'), revList: $('lrRevList'),
       hint: $('lrHint'), btns: $('lrBtns'), off: $('lrOff'),
       rule: $('lrRule'), rule2: $('lrRule2'),
       /* 本局记录 / 桌上的人：页脚两个入口，一个弹层两页 */

@@ -394,10 +394,12 @@
     } else if (st.phase === 'reveal') {
       k = '摊牌';
       n = (st.total | 0) + ' 颗';
-      var t = st.tally || [];
-      var parts = [];
-      for (var m = 0; m < 6; m++) if (t[m]) parts.push((m + 1) + ' × ' + t[m]);
-      s = parts.length ? parts.join(' · ') : '一颗都没有';
+      /* 原来这里逐点列「1 × 4 · 2 × 2 …」，2026-11-12 撤掉（手机上同一处也撤了）：
+         那行没剔除顺子（顺子不计点数），也表达不了豹子（算 6 个、带 1 算 10 个），
+         数出来就是个错数。大屏改成报「几家有顺子」—— 摊开那一刻桌上最该数的就是这个。 */
+      var sn = 0;
+      for (var m = 0; m < seats.length; m++) if (isStraight(seats[m].dice)) sn++;
+      s = sn ? sn + ' 家有顺子 · 顺子不计点数' : '没有顺子 · 点数自己数';
     }
     paintTurn(k, n, s, st.started ? st.phase : 'lobby');
 
