@@ -977,20 +977,27 @@
      2026-11-12 跟单机一起改成「直接操纵」：手指走多少、盖子走多少，
      松手停在哪就哪。以前抬升是 0.72p + 0.28p²（前段慢后段快），
      而且松手一律弹回 0 或 1 —— 这就是「别人的盅能停任意位置，我们的不行」。
+     v1.24.13 再把「整块向上拉升」改成「绕盖沿向后翻开」：叠一段 rotateX，
+     顶边往后倒、透视里越翻越小，到 70° 收成一条盖沿。
      单位是 rig 坐标系里的 vw（整只盅按 80vw 画的），屏上那个 40vw 是外层 scale(0.5) 缩出来的。
-     45.3333vw 就是单机版那 340rpx。
-     · lift 线性 1:1；拖动 / 松手定格都不挂过渡（instant）
+     45.3333vw 就是单机版那 340rpx；perspective(200vw) = 单机 rpx(1500)。
+     · lift / angle 都线性 1:1；拖动 / 松手定格都不挂过渡（instant）
+     · 角度只到 70°：88° 会把 75% 开度压成带尖角的扁片，超过 90° 更是
+       翻出背面、被 backface-visibility 整块藏掉，定格时会突然消失
      · 只有点一下开关、新的一把复位才走 0.36s 缓动
      · 淡出压到最后 1.5%，中间任何高度盖子都是实心的 */
   var LID_LIFT = 45.3333;
+  var LID_FLIP = 70;
 
   function lidApply(p, dragging, instant) {
     if (!el.lid) return;
     p = Math.max(0, Math.min(1, p));
     S.lidP = p;
     var lift = LID_LIFT * p;
+    var angle = LID_FLIP * p;
     var fade = p <= 0.985 ? 1 : Math.max(0, 1 - (p - 0.985) / 0.015);
-    el.lid.style.transform = 'translate3d(0,-' + lift.toFixed(2) + 'vw,0)';
+    el.lid.style.transform = 'perspective(200vw) translate3d(0,-' + lift.toFixed(2) +
+      'vw,0) rotateX(' + angle.toFixed(2) + 'deg)';
     el.lid.style.opacity = fade.toFixed(3);
     el.lid.style.transition = (dragging || instant) ? 'none'
       : 'transform 0.36s cubic-bezier(0.26, 0.9, 0.24, 1), opacity 0.2s ease';
@@ -1015,7 +1022,8 @@
      摊牌之后盖子由程序掀着，不再接受手势 —— 那时候牌本来就全亮了。
      2026-11-12 关键修正：以前 move 只按「按下点算绝对位移」，从半开接着拖
      会先跳回 0；up 又把 S.lidP 一律弹到 0 或 1，所以根本停不住。
-     现在 p0 记下按下时的开度，松手只有最顶 15% / 最底 2% 才收尾，其余定格。 */
+     现在 p0 记下按下时的开度；v1.24.13 起连最顶 15% 也不补了，
+     除最底 2% 盖严之外，松手 0~100% 一律定格在手指离开那一帧。 */
   function bindCup() {
     if (!el.cup) return;
     var y0 = 0, p0 = 0, dragging = false, moved = false;
@@ -1056,14 +1064,13 @@
         return;
       }
       var p = S.lidP;
-      if (p >= 0.85) {
-        /* 只补最后 15%：拖到顶还差一丝时不该停在半开 */
-        lidApply(1, false);
-        cue('pass');
-      } else if (p <= 0.02) {
+      /* 到顶那一声照旧；但位置一点都不补 —— 以前会 lidApply(1)，
+         用户拖到一半就看见盖子自己全开。现在从头到尾都能停。 */
+      if (p >= 0.85) cue('pass');
+      if (p <= 0.02) {
         lidApply(0, false);
       } else {
-        /* 松手定格：不吸附、不回弹、不补缓动 */
+        /* 松手定格：不吸附、不回弹、不补缓动（含最顶 15%） */
         lidApply(p, false, true);
       }
     }

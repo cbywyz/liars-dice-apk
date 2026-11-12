@@ -469,20 +469,28 @@
 
   /* ================= 盖子位移 ================= */
 
-  /* 2026-11-12：改成「手指走多少、盖子走多少」。
-     以前抬升是 0.72p + 0.28p²（前段慢、后段快），匀速上滑却看着先慢后窜；
-     松手还要补一段 0.36s 缓动 —— 两条加起来就是「不丝滑」。
-     · lift 改成线性 1:1，拖动时 transition:none（本来就是）
-     · instant = 松手定格：也不补动画，盖子停在手指离开那一帧
+  /* 2026-11-12 v1.24.13：盖子改成「绕盖沿向后翻开」。
+     以前只是整块往上平移，别人那只盅是往后掀的，看着差一截。
+     抬升仍是线性 1:1（手指走多少、盖子走多少），只是同时叠一段 rotateX：
+     顶边越翻越往后、越翻越小，到 70° 收成一条盖沿。
+     · perspective() 必须写在 transform 的第一个函数，透视原点跟着
+       transform-origin 一起落在盖沿，才有「往后倒」而不是「整块缩小」
+     · 角度只到 70°、透视给到 200vw：试过 88° / 120vw，开到 75%
+       盖子会被压成带尖角的扁片，不像一只真盖子；超过 90° 更是
+       直接翻出背面、被 backface-visibility 整块藏掉，定格时会突然消失
+     · lift / angle 都线性，拖动 transition:none；instant = 松手定格也不补动画
      · 只有程序按钮（开盖 / 合上 / 摇骰复位）才走 0.36s 缓动
      · 淡出压到最后 1.5%，中间任何高度盖子都是实心的，不会半透明穿帮 */
+  var FLIP_DEG = 70;
   function lidStyle(p, dragging, instant) {
     var lift = LIFT * p;
+    var angle = FLIP_DEG * p;
     var fade = p <= 0.985 ? 1 : Math.max(0, 1 - (p - 0.985) / 0.015);
     var transition = (dragging || instant)
       ? 'none'
       : 'transform 0.36s cubic-bezier(0.26, 0.9, 0.24, 1), opacity 0.2s ease';
-    return 'transform: translate3d(0, -' + rpx(lift) + ', 0); opacity: ' +
+    return 'transform: perspective(' + rpx(1500) + ') translate3d(0, -' + rpx(lift) +
+      ', 0) rotateX(' + angle.toFixed(2) + 'deg); opacity: ' +
       fade.toFixed(3) + '; transition: ' + transition + ';';
   }
 
@@ -704,21 +712,21 @@
     return { kind: '', text: '看清点数 · 锁定即结束本局' };
   }
 
-  /* 松手：2026-11-12 改成「停在哪就哪」。
-     两端各留一点点收尾，不是为了吸附，是为了有个干净的全开 / 全关终点：
-     · p >= 0.85：只补最后 15%（带缓动），避免用户拖到顶还差一丝、
-       结果停在半开 —— 这正是早前反复吐槽过的「第一次只能开一点」
-     · p <= 0.02：盖严
-     · 中间任意 p：定格，不补动画、不吸附、不回弹 */
+  /* 松手：v1.24.13 改成「从头到尾停在哪就哪」。
+     以前 p >= 0.85 会把位置补到 1，哪怕只补最后 15%，用户拖到一半
+     也会看见盖子自己全开 —— 反馈「一半有点少，视频里从头到尾都能停」。
+     现在状态照旧记 open、照旧播开盖音，但 lidStyle 用的是当前 p，
+     一点位置都不补；点一下的「全开 / 全关」快捷方式不受影响。
+     · p <= 0.02：盖严（2% 的开度肉眼就是合着的）
+     · 其余任意 p（含 0.85~1）：定格，不补动画、不吸附、不回弹 */
   function settleLid() {
     var p = S.progress;
     if (p >= 0.85) {
-      S.progress = 1;
       var fi = faceInfo();
       setData({
         state: 'open',
         revealed: true,
-        lidStyle: lidStyle(1, false),
+        lidStyle: lidStyle(p, false, true),
         hint: fi.text,
         diceFace: fi.kind
       });

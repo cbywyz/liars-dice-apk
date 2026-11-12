@@ -400,7 +400,7 @@ button[disabled] { opacity: 1; }
   width: 80vw;
   height: 78.6667vw;
   z-index: 4;
-  /* 揭开是整块往上抬：转轴设在盖沿，将来想加一点侧倾也不会乱摆 */
+  /* 向后翻开的铰链：转轴钉在盖沿；perspective / rotateX 由 app.js、liarnet.js 写在 transform 里 */
   transform-origin: 50% 100%;
   /* 盖子只是画面，不参与点击 */
   pointer-events: none;
