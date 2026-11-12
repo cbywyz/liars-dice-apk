@@ -657,10 +657,17 @@
 
   /* ================= 盖子位移 ================= */
 
-  function lidStyle(p, dragging) {
-    var lift = LIFT * (0.72 * p + 0.28 * p * p);
-    var fade = p <= 0.94 ? 1 : Math.max(0, 1 - (p - 0.94) / 0.06);
-    var transition = dragging
+  /* 2026-11-12：改成「手指走多少、盖子走多少」。
+     以前抬升是 0.72p + 0.28p²（前段慢、后段快），匀速上滑却看着先慢后窜；
+     松手还要补一段 0.36s 缓动 —— 两条加起来就是「不丝滑」。
+     · lift 改成线性 1:1，拖动时 transition:none（本来就是）
+     · instant = 松手定格：也不补动画，盖子停在手指离开那一帧
+     · 只有程序按钮（开盖 / 合上 / 摇骰复位）才走 0.36s 缓动
+     · 淡出压到最后 1.5%，中间任何高度盖子都是实心的，不会半透明穿帮 */
+  function lidStyle(p, dragging, instant) {
+    var lift = LIFT * p;
+    var fade = p <= 0.985 ? 1 : Math.max(0, 1 - (p - 0.985) / 0.015);
+    var transition = (dragging || instant)
       ? 'none'
       : 'transform 0.36s cubic-bezier(0.26, 0.9, 0.24, 1), opacity 0.2s ease';
     return 'transform: translate3d(0, -' + rpx(lift) + ', 0); opacity: ' +
@@ -851,20 +858,20 @@
     }
 
     if (tapped) {
+      /* 点骰改点开着时，点盅不误合盖（这句不能动，改点靠它让路） */
       if (d.tapEdit && (d.state === 'open' || d.state === 'ajar')) return;
       S.swallowDieTap = true;
-      if (d.state === 'ajar') openCup();
-      else if (S.progress > 0.5) closeCup();
+      /* 点一下仍是全开 / 全关的快捷方式：没掀到底就掀到底，到底了就合上。
+         中间那些高度交给拖拽负责，点一下不参与。 */
+      if (S.progress >= 0.985) closeCup();
       else openCup();
       return;
     }
 
-    /* 被系统打断（浏览器抢手势、来电、通知栏……）：
-       这时手指其实还在往上划，只是事件被掐了。别把盖子丢在半空，
-       按当前方向直接走完 —— 看到的就是「一划就开」。 */
+    /* 被系统打断（浏览器抢手势、来电、通知栏……）：以前按方向直接走完，
+       现在既然松手就是定格，打断也按最后一帧停住，不再把盖子甩到两端。 */
     if (cancelled) {
-      if (S.progress >= S.baseP) openCup();
-      else closeCup();
+      settleLid();
       return;
     }
 
@@ -895,12 +902,15 @@
     return { kind: '', text: '看清点数 · 锁定即结束本局' };
   }
 
+  /* 松手：2026-11-12 改成「停在哪就哪」。
+     两端各留一点点收尾，不是为了吸附，是为了有个干净的全开 / 全关终点：
+     · p >= 0.85：只补最后 15%（带缓动），避免用户拖到顶还差一丝、
+       结果停在半开 —— 这正是早前反复吐槽过的「第一次只能开一点」
+     · p <= 0.02：盖严
+     · 中间任意 p：定格，不补动画、不吸附、不回弹 */
   function settleLid() {
     var p = S.progress;
-    /* 保留的改进：过了半程就吸附到全开。
-       原版要拖到 98.5% 才算「开」，松手稍差一点就停在半开，
-       感觉就是「第一次只能开一点，得再滑一次」。 */
-    if (p >= 0.5) {
+    if (p >= 0.85) {
       S.progress = 1;
       var fi = faceInfo();
       setData({
@@ -915,7 +925,7 @@
       cue('open');
       if (fi.kind === 'lion') cue('lion');
       if (fi.kind) vibrate('medium');
-    } else if (p <= 0.015) {
+    } else if (p <= 0.02) {
       closeCup();
     } else {
       setData({
@@ -923,10 +933,11 @@
         revealed: true,
         /* 半开也能看清点数了 —— 和全开一样算「已经开过盖」，
            装填必须在这里解除。否则「半开看一眼 → 合上 → 再摇」
-           会还是同一副牌，看起来像卡住了。 */
+           会还是同一副牌，看起来像卡住了。
+           点骰改点认的也是 'ajar'，这个状态名不能改。 */
         forceOn: false,
-        lidStyle: lidStyle(p, false),
-        hint: '半开着 · 可当挡板，再上滑继续掀'
+        lidStyle: lidStyle(p, false, true),
+        hint: '半开着 · 上下拖可停在任意高度'
       });
     }
   }

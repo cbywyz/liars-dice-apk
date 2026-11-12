@@ -974,21 +974,25 @@
 
   /* ---------------- 骰盅的盖子 ----------------
 
-     曲线照单机版（app.js 的 lidStyle）搬：抬升用 0.72p + 0.28p²，前段慢、后段快，
-     抬过 94% 才开始淡出 —— 早了会出现「盖子还在半空就透明了」那种穿帮。
+     2026-11-12 跟单机一起改成「直接操纵」：手指走多少、盖子走多少，
+     松手停在哪就哪。以前抬升是 0.72p + 0.28p²（前段慢后段快），
+     而且松手一律弹回 0 或 1 —— 这就是「别人的盅能停任意位置，我们的不行」。
      单位是 rig 坐标系里的 vw（整只盅按 80vw 画的），屏上那个 40vw 是外层 scale(0.5) 缩出来的。
-     45.3333vw 就是单机版那 340rpx。 */
+     45.3333vw 就是单机版那 340rpx。
+     · lift 线性 1:1；拖动 / 松手定格都不挂过渡（instant）
+     · 只有点一下开关、新的一把复位才走 0.36s 缓动
+     · 淡出压到最后 1.5%，中间任何高度盖子都是实心的 */
   var LID_LIFT = 45.3333;
 
-  function lidApply(p, dragging) {
+  function lidApply(p, dragging, instant) {
     if (!el.lid) return;
     p = Math.max(0, Math.min(1, p));
     S.lidP = p;
-    var lift = LID_LIFT * (0.72 * p + 0.28 * p * p);
-    var fade = p <= 0.94 ? 1 : Math.max(0, 1 - (p - 0.94) / 0.06);
+    var lift = LID_LIFT * p;
+    var fade = p <= 0.985 ? 1 : Math.max(0, 1 - (p - 0.985) / 0.015);
     el.lid.style.transform = 'translate3d(0,-' + lift.toFixed(2) + 'vw,0)';
     el.lid.style.opacity = fade.toFixed(3);
-    el.lid.style.transition = dragging ? 'none'
+    el.lid.style.transition = (dragging || instant) ? 'none'
       : 'transform 0.36s cubic-bezier(0.26, 0.9, 0.24, 1), opacity 0.2s ease';
     /* 掀开 / 合上会改变「此刻能不能改点」—— 纯净版把调试段剪了，
        这里用 typeof 兜一下，点盅不会 ReferenceError。 */
@@ -1007,11 +1011,14 @@
     }, 1700);
   }
 
-  /* 点一下开盖、再点一下合上；也可以按着往上拖，拖到哪儿掀到哪儿。
-     摊牌之后盖子由程序掀着，不再接受手势 —— 那时候牌本来就全亮了。 */
+  /* 点一下开盖、再点一下合上；按着上下拖则 1:1 跟手，松手停在任意高度。
+     摊牌之后盖子由程序掀着，不再接受手势 —— 那时候牌本来就全亮了。
+     2026-11-12 关键修正：以前 move 只按「按下点算绝对位移」，从半开接着拖
+     会先跳回 0；up 又把 S.lidP 一律弹到 0 或 1，所以根本停不住。
+     现在 p0 记下按下时的开度，松手只有最顶 15% / 最底 2% 才收尾，其余定格。 */
   function bindCup() {
     if (!el.cup) return;
-    var y0 = 0, dragging = false, moved = false;
+    var y0 = 0, p0 = 0, dragging = false, moved = false;
 
     function down(e) {
       if (S.st && S.st.phase === 'reveal') return;
@@ -1025,28 +1032,39 @@
       dragging = true;
       moved = false;
       y0 = e.clientY;
+      p0 = S.lidP;          // 从当前开度接着拖，不要再跳回 0
       try { el.cup.setPointerCapture(e.pointerId); } catch (err) {}
     }
 
     function move(e) {
       if (!dragging) return;
-      var dy = y0 - e.clientY;
+      var dy = y0 - e.clientY;   // 上滑为正
       if (!moved && Math.abs(dy) > 6) moved = true;
       if (!moved) return;
       var h = el.cup.getBoundingClientRect().height || 1;
-      lidApply(dy / (h * 0.62), true);
+      lidApply(p0 + dy / (h * 0.62), true);
     }
 
     function up() {
       if (!dragging) return;
       dragging = false;
       if (!moved) {
-        /* 只是点了一下：开 / 关整个翻过去，不用拖 */
+        /* 只是点了一下：开 / 关整个翻过去，不用拖（快捷方式保留） */
         var to = S.lidP > 0.5 ? 0 : 1;
         lidApply(to, false);
         if (to) cue('pass');
+        return;
+      }
+      var p = S.lidP;
+      if (p >= 0.85) {
+        /* 只补最后 15%：拖到顶还差一丝时不该停在半开 */
+        lidApply(1, false);
+        cue('pass');
+      } else if (p <= 0.02) {
+        lidApply(0, false);
       } else {
-        lidApply(S.lidP > 0.45 ? 1 : 0, false);
+        /* 松手定格：不吸附、不回弹、不补缓动 */
+        lidApply(p, false, true);
       }
     }
 
