@@ -1101,7 +1101,7 @@
       if (!meS) {
         h = '<div class="lr-wait">看牌 · ' + rd.done + '/' + rd.all + ' 家已经摇了</div>';
       } else if (!meS.rolled) {
-        h = '<button class="lr-roll" data-act="roll">摇 · 5 颗</button>';
+        h = '<button class="lr-roll" data-act="roll">摇一摇</button>';
       } else {
         h = '<div class="lr-wait">你摇完了 · 等别人 ' + rd.done + '/' + rd.all + '</div>';
       }
