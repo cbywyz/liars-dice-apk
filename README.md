@@ -236,12 +236,12 @@
 面板整张照单机搬过来，装填走服务端，只改自己名下那一手。
 
 <p align="center">
-  <img src="docs/shots/net-liar-dbg-zone.png" width="24%" alt="三格在骰盅左边那条竖空当：1 随机顺子、2 点骰改点、3 随机豹子（虚线框是画给你看的，App 里隐形）">
+  <img src="docs/shots/net-liar-dbg-zone.png" width="24%" alt="两个入口画在一张图上：顶上「第 1 局 面对面叫 · 开牌 0/4」那行字长按 1.2 秒弹面板；骰盅左边那条竖空当是三格（1 随机顺子、2 点骰改点、3 随机豹子），虚线框是画给你看的，App 里隐形">
   <img src="docs/shots/net-liar-who.png" width="24%" alt="桌上的人：普通玩家也能看到「发起投票 / 同意 1/2」，不再只有房主能踢">
   <img src="docs/shots/net-liar-kick-vote.png" width="24%" alt="点「同意 1/2」弹出的确认层：同意请出去">
 </p>
 <p align="center">
-  <sub>三格位置（默认 1 随机顺子 / 2 点骰改点 / 3 随机豹子）→ 桌上的人（发起投票）→ 投票确认</sub>
+  <sub>长按顶上那行字 = 面板；左边那条竖带是三格（1 顺子 / 2 改点 / 3 豹子）→ 桌上的人（发起投票）→ 投票确认</sub>
 </p>
 
 | 面板上有什么 | 说明 |
