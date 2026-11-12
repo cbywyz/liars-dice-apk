@@ -212,6 +212,32 @@
   box-shadow: inset 0 0 0 0.4vw rgba(194, 148, 63, 0.5);
 }
 
+/* 装填别人之后，被挑中那张卡右上角点一颗小金点（2026-11-12 用户：
+   「在桌面我们毫无感知，有没有比较隐秘的提醒方式能让我们知道装填给了谁」）。
+
+   为什么这么小：这是给**塞牌那个人自己**看的，旁边人扫一眼只会当成装饰。
+   `dbg.hit` 只回给发起者，别人屏幕上连这个类名都没有；
+   被挑中的人摇出这一手时服务端把回执收掉，点自己就没了 —— 等于「他吃到这一手了」。
+   慢呼吸（2.4s）是为了让眼睛扫一圈就能找到，不是闪。 */
+.lr-seat.arm::after {
+  content: '';
+  position: absolute;
+  top: -0.7vw;
+  right: -0.7vw;
+  width: 1.8vw;
+  height: 1.8vw;
+  border-radius: 50%;
+  background: #c2943f;
+  box-shadow: 0 0 0 0.5vw rgba(194, 148, 63, 0.16),
+              0 0.6vw 1.4vw rgba(181, 137, 63, 0.4);
+  animation: lrArmPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes lrArmPulse {
+  0%, 100% { transform: scale(1); opacity: 0.95; }
+  50%      { transform: scale(1.3); opacity: 0.6; }
+}
+
 /* 名字后面那个小尾巴：这一把谁摇了、谁还没摇。
    摇完就锁（不再有「按开始」这一下），所以只有两种状态 ——
    眼睛要找的是那个「没摇」的：他不动，全桌都开不了牌。

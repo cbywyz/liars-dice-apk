@@ -774,6 +774,12 @@
       if (s.online === false) cls += ' off';
       /* 自己那张卡描一圈淡金：一桌十几个人时，先认出「我在哪儿」 */
       if (s.id === st.you) cls += ' me';
+      /* 装填别人之后：被挑中那张卡右上角点一颗小金点（用户 2026-11-12：
+         「在调试功能面板可以看到给谁装填了，但是在桌面我们毫无感知」）。
+         dbg.hit 是**只回给塞牌那个人**的，所以这颗点全桌只有他看得见；
+         被挑中的人自己摇出这一手时服务端把回执收掉，点当场消失。 */
+      var hit = st.dbg && st.dbg.hit;
+      if (hit && hit.pid && hit.pid === s.id) cls += ' arm';
       if (se.root.className !== cls) se.root.className = cls;
     }
 
