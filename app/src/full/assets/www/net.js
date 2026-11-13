@@ -215,6 +215,38 @@
     if (el.kick) el.kick.hidden = true;
   }
 
+  /* 点自己那张卡 = 改名字（2026-11-13 用户：「点自己的座位或者头像就可以
+     直接更改名字，不用返回上一层」）。点别人还是请出去，两件事不共一个入口。
+
+     本地先判一次重名，只是为了让手马上有个回话；算数的那次在服务器
+     （renamePlayer），两个人同时改名时本地这份名单是旧的，服务器会拒。 */
+  function openRename() {
+    var s = S.state;
+    if (!s || !window.LDRename) return;
+    if (window.LDRename.isOpen()) return;
+    var mine = playerById(s, s.you) || {};
+    var cur = mine.name || myName();
+    window.LDRename.open({
+      name: cur,
+      check: function (nm) {
+        var k = function (v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); };
+        var list = s.players || [];
+        for (var i = 0; i < list.length; i++) {
+          if (!list[i] || list[i].id === s.you) continue;
+          if (k(list[i].name) === k(nm)) return '「' + nm + '」已经有人用了，换一个';
+        }
+        return '';
+      },
+      ok: function (nm) {
+        if (nm === cur) return;
+        /* 不走 send()：它会把「处理中」挂到所有动作按钮上，
+           而名字没变时服务端不广播，那个灰就一直撤不掉 */
+        if (!S.ws || S.ws.readyState !== 1) { toast('还没连上，正在重连'); return; }
+        try { S.ws.send(JSON.stringify({ t: 'rename', name: nm })); } catch (e) {}
+      }
+    });
+  }
+
   function kickOk() {
     var s = S.state;
     if (!s) return;
@@ -935,6 +967,8 @@
       + '#' + s.you
       /* 队列也得算进 key：谁锁了、谁被跳过都会让「下一个」换人 */
       + '#' + (s.queue || []).join('.')
+      /* 本轮的出手顺序（右上角那个 1/2/3）：换一局就整排重画 */
+      + '#' + (s.startOrder || []).join('.')
       + '#' + (s.kick ? s.kick.target + ':' + s.kick.yes.length + '/' + s.kick.need : '');
 
     if (el.strip.getAttribute('data-key') === key) return;
@@ -997,6 +1031,23 @@
       div.appendChild(nm);
       div.appendChild(st);
       div.appendChild(sc);
+
+      /* 右上角：这一轮第几个摇（1 = 本轮第一个摇的人）。
+         用户 2026-11-13：「3 个人玩，由第二个人开始摇，那给他标注 1，
+         下一个标注 2，最后一个标注 3」。
+         深色卡只说得出「现在轮到他」，谁先谁后还得数人头 —— 一个数字就够了。
+         序号取服务端下发的 startOrder（本轮开始时的顺序快照）；queue 会随着
+         锁分一个个变短，拿它算不出来「已经摇过的我是第几」。
+         没开打（大厅）不标：那时候还没有顺序。
+         角标绝对定位在右上角，名字那行让出 2.4vw，靠右的省略号就不会被压住。 */
+      var ord = (s.startOrder || []).indexOf(p.id) + 1;
+      if (ord > 0 && s.started) {
+        var od = document.createElement('i');
+        od.className = 'p-ord' + (i === nxIdx ? ' is-next' : '')
+          + (i === s.turn && s.phase !== 'over' ? ' is-turn' : '');
+        od.textContent = String(ord);
+        div.appendChild(od);
+      }
 
       if (p.lion) {
         var l = document.createElement('div');
@@ -1306,6 +1357,9 @@
     }
 
     box.hidden = false;
+    /* 结算态和交接态挤在同一张卡上，但内容量差一大截：
+       结算要多摆一张榜，排法得换（顶对齐 + 榜自己滚，见 net.css 的 .f3-handoff.over） */
+    box.classList.toggle('over', s.phase === 'over');
 
     if (s.phase === 'over') {
       /* 350 抓的是「最低分」的那个人，不是最高分 —— 分数是「攒着往 350 冲」的，
@@ -1334,6 +1388,12 @@
           r.appendChild(lk);
           el.rank.appendChild(r);
         }
+        /* 人多放不下时，最后一行正好卡在卡片边上被切一半，看着像排版坏了 ——
+           底部加个渐隐，让人知道这一段是能滚的（只在这种时候加，
+           三个人还加就成了最后一名看不清）。读 scrollHeight 会强制一次布局，
+           只在结算这一屏做，一次而已。 */
+        el.rank.classList.toggle('is-scroll',
+          el.rank.scrollHeight > el.rank.clientHeight + 1);
       }
 
       if (el.go) {
@@ -1466,15 +1526,19 @@
     var t = $('netTip');
     if (!t) return;
     t.textContent = msg || '';
-    t.className = 'net-tip' + (ok ? ' ok' : '');
+    /* 跟「找朋友 · 联机」那一屏同一个 .fn-tip：靠 .show 淡入淡出，
+       空着的时候不占一条线的注意力 */
+    t.className = 'fn-tip' + (msg ? ' show' : '') + (ok ? ' ok' : '');
   }
 
   function open() {
     tip('');
-    var box = $('netJoinBox');
-    if (box) box.hidden = true;
     var code = $('netCode');
     if (code) code.value = '';
+    /* 这一屏跟另外两个玩法的入口长得一样，也得一样会说话：
+       把「以谁的身份进房」写出来，人在这一页就知道自己是「胖虎」 */
+    var who = $('netWhoName');
+    if (who) who.textContent = myName();
     /* 提前把 DNS / TLS 打个照面：进房那一刻直接建 WS，少一次握手的停顿 */
     try {
       fetch(S.api + '/health', { cache: 'no-store', mode: 'cors' }).catch(function () {});
@@ -1627,6 +1691,19 @@
     S.tt = setTimeout(function () { t.classList.remove('show'); }, 1600);
   }
 
+  /* 座位卡**双击**才算数（2026-11-13 用户：「点击就弹出，可能会误触，改为双击」）。
+
+     牌桌上手指一直在动 —— 递手机、指屏、碰一下杯沿，单击弹一个「把他请出去」
+     很容易点错人。这里只在 600ms 内点同一张卡时才认；第一下只回一句提示，
+     让人知道「再点一下就行」，不至于以为没反应。 */
+  var tapAt = 0, tapKey = '';
+  function dblTap(key) {
+    var now = Date.now();
+    if (tapKey === key && now - tapAt < 600) { tapAt = 0; tapKey = ''; return true; }
+    tapAt = now; tapKey = key;
+    return false;
+  }
+
   /* ================= 启动 ================= */
 
   function boot() {
@@ -1676,16 +1753,8 @@
       enterRoom(last.code);
     });
 
-    var j = $('netJoin');
-    if (j) j.addEventListener('click', function () {
-      var box = $('netJoinBox');
-      if (!box) return;
-      box.hidden = !box.hidden;
-      if (!box.hidden) {
-        var inp = $('netCode');
-        if (inp) setTimeout(function () { inp.focus(); }, 60);
-      }
-    });
+    /* 房号输入框现在是常驻的（跟另外两个玩法的入口同一套排版），
+       以前那个「点开才展开」的折叠块已经删了，这里不用再绑它 */
 
     var go = $('netGo');
     if (go) go.addEventListener('click', joinRoom);
@@ -1719,12 +1788,18 @@
 
     if (el.dice) el.dice.addEventListener('click', onDieTap);
 
-    /* 玩家条：点谁的名字就聊谁。委托在容器上，卡片每次重画都不用重新绑 */
+    /* 玩家条：双击自己 = 改名字，双击别人 = 聊谁该出去。
+       单击只回一句「再点一下」，点错人不会立刻弹出把人请走的浮卡。
+       委托在容器上，卡片每次重画都不用重新绑 */
     if (el.strip) el.strip.addEventListener('click', function (ev) {
       var t = ev.target;
       while (t && t !== el.strip && !t.getAttribute('data-pid')) t = t.parentNode;
       if (!t || t === el.strip) return;
-      openKick(t.getAttribute('data-pid'));
+      var pid = t.getAttribute('data-pid');
+      var mine = pid === (S.state && S.state.you);
+      if (!dblTap(pid)) { toast('再点一下 · ' + (mine ? '改名字' : '请人出去')); return; }
+      if (mine) { openRename(); return; }
+      openKick(pid);
     });
 
     if (el.kickOk) el.kickOk.addEventListener('click', kickOk);

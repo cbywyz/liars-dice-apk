@@ -82,7 +82,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.24.24 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.25 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -155,7 +155,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.24.24</span>
+      <span class="page-ver">v1.24.25</span>
     </div>
   </div>
 </div>
@@ -272,28 +272,33 @@
 <!-- ==================== 联机 350：开房 / 进房 ====================
      这一页只管拿房号。拿到之后直接进牌桌（下面那页），不在中间再插一层确认 ——
      酒桌上举着手机等开局的三十秒，多一层点击就是多一次「你先弄好再给我」。 -->
-<div class="page page-net" id="pageNet" hidden>
+<div class="page page-solo page-net" id="pageNet" hidden>
 
-  <div class="nav">
+  <!-- 这一屏跟「找朋友 · 联机」「吹牛 · 联机」那两屏是同一套排版：
+       标题 + 以谁的身份进房 + 房号输入框 + 进房 + 开一桌 + 一句说明。
+       以前 350 是「两张卡片（开一个房间 / 加入房间）+ 点一下才展开的输入框」，
+       同一件事要点两下、三条入口长得还不一样（用户 2026-11-13：
+       「350 这个页面不如他们两个，想加入房间还得点一下才会展开输入框」）。 -->
+  <div class="home">
     <button class="nav-back" id="netBack" aria-label="返回上一层">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
       </svg>
     </button>
-    <div class="nav-title">
-      <span class="t1">350</span>
-      <span class="t2">THREE FIFTY</span>
-    </div>
-  </div>
 
-  <div class="net-body">
-    <div class="net-lead">一人一台手机，各看各的屏<br>房号念一声，人齐就开局</div>
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">潮汕 350</div>
+        <div class="home-t2">THREE FIFTY</div>
+      </div>
 
-    <div class="home-cards net-cards">
+      <!-- 名字已经在「联机」首页起好了，这里只回显一句 —— 三个玩法同一句话 -->
+      <div class="fn-who">以 <b id="netWhoName">你</b> 的身份进房 · 名字在「联机」首页改</div>
+
       <!-- 上一桌还没打完就先摆这一张：中途退出（接电话、去洗手间）再进来，
            不用回忆房号、也不用重新喊人。服务器那头座位还在，点一下就回原位。
            查不到这个房间就自动收起来，绝不摆一个点进去是空白的入口。 -->
-      <button class="net-resume" id="netResume" hidden>
+      <button class="fn-resume" id="netResume" type="button" hidden>
         <span class="nr-left">
           <span class="nr-kicker">上一桌还没打完</span>
           <span class="nr-sub" id="netResumeSub">点一下回到原位</span>
@@ -301,48 +306,25 @@
         <span class="nr-code" id="netResumeCode">----</span>
       </button>
 
-      <button class="mode-card" id="netCreate">
-        <span class="mc-top">
-          <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.7"/>
-            <path d="M12 8.2v7.6M8.2 12h7.6" fill="none" stroke="currentColor"
-                  stroke-width="1.7" stroke-linecap="round"/>
-          </svg>
-          <span class="mc-title">开一个房间</span>
-        </span>
-        <span class="mc-sub">拿一个 4 位房号，念给朋友</span>
-      </button>
+      <!-- 房号是纯数字 4 位（撞满了才 6 位）。字母早就去掉了 ——
+           酒桌上念房号，B/D、0/O 总要解释半天，不如只留数字 -->
+      <div class="fn-box">
+        <div class="fn-lbl">房号</div>
+        <input class="fn-inp" id="netCode" type="tel" inputmode="numeric"
+               maxlength="6" autocomplete="off" autocorrect="off"
+               spellcheck="false" pattern="[0-9]*"
+               placeholder="4 位数字" aria-label="4 位房号">
+        <button class="btn primary" id="netGo" type="button">进房</button>
+        <button class="btn ghost" id="netCreate" type="button">开一桌（2~12 人）</button>
+        <div class="fn-tip" id="netTip"></div>
+      </div>
 
-      <button class="mode-card" id="netJoin">
-        <span class="mc-top">
-          <svg class="mc-ic" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4.6 12h13.4" fill="none" stroke="currentColor"
-                  stroke-width="1.7" stroke-linecap="round"/>
-            <path d="M13.4 6.6 19 12l-5.6 5.4" fill="none" stroke="currentColor"
-                  stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span class="mc-title">加入房间</span>
-        </span>
-        <span class="mc-sub">输入朋友给的房号</span>
-      </button>
+      <div class="fn-note">一人一台手机，各看各的屏<br>房号念一声，人齐就开局</div>
+
+      <div class="foot">
+        <span class="page-ver">v1.24.25</span>
+      </div>
     </div>
-
-    <!-- 输房号：点「加入房间」才展开，平时不占地方。
-         房号是纯数字 4 位（撞满了才 6 位）。字母早就去掉了 ——
-         酒桌上念房号，B/D、0/O 总要解释半天，不如只留数字 -->
-    <div class="net-join" id="netJoinBox" hidden>
-      <input class="net-code" id="netCode" type="tel" inputmode="numeric"
-             maxlength="6" autocomplete="off" autocorrect="off"
-             spellcheck="false" pattern="[0-9]*"
-             placeholder="房号" aria-label="4 位房号">
-      <button class="btn primary net-go" id="netGo" type="button">进去</button>
-    </div>
-
-    <div class="net-tip" id="netTip"></div>
-  </div>
-
-  <div class="foot">
-    <span class="page-ver">v1.24.24</span>
   </div>
 </div>
 
@@ -382,7 +364,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.24</span>
+        <span class="page-ver">v1.24.25</span>
       </div>
     </div>
   </div>
@@ -494,7 +476,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.24</span>
+    <span class="page-ver">v1.24.25</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -588,7 +570,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.24.24</span>
+      <span class="page-ver">v1.24.25</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -709,7 +691,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.24</span>
+    <span class="page-ver">v1.24.25</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -766,7 +748,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.24</span>
+    <span class="page-ver">v1.24.25</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -816,7 +798,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.24.24</span>
+        <span class="page-ver">v1.24.25</span>
       </div>
     </div>
   </div>
@@ -902,7 +884,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.24.24</span>
+      <span class="page-ver">v1.24.25</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -1036,7 +1018,7 @@
       </div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.24</span>
+        <span class="page-ver">v1.24.25</span>
       </div>
     </div>
   </div>
@@ -1158,7 +1140,7 @@
     <div class="fd-btns" id="lrBtns"></div>
 
     <div class="foot">
-      <span class="page-ver">v1.24.24</span>
+      <span class="page-ver">v1.24.25</span>
       <button class="mode-link" id="lrLogBtn" type="button">记录</button>
       <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
       <button class="mode-link" id="lrRule2" type="button">玩法说明</button>
@@ -1336,6 +1318,32 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ==================== 改名字（三个联机玩法共用） ====================
+     2026-11-13 用户：「让联机的几个玩法，用户在游戏页面点击自己的座位或者头像
+     就可以直接更改名字，而不用返回上一层」。
+     以前只有「联机」首页那个输入框能改名，从桌上退出去改完还得重新进房 ——
+     一桌人正打着，没人愿意为了改个名字离开牌桌。
+
+     重名在这里和服务器两端各拦一次：这里给的是「马上告诉你」，服务器那边才是
+     真正算数的那道门（有人同时改名时，本地这份列表是旧的）。 -->
+<div class="rn-mask" id="rnMask" hidden>
+  <div class="rn-card">
+    <div class="rn-t">改个名字</div>
+    <div class="rn-s">同一桌不能重名 · 最多 8 个字</div>
+    <div class="rn-row">
+      <input class="rn-inp" id="rnIp" type="text" maxlength="8"
+             autocomplete="off" spellcheck="false" aria-label="新名字"
+             placeholder="你的名字">
+      <button class="rn-rand" id="rnRand" type="button" aria-label="换一个名字">换</button>
+    </div>
+    <div class="rn-err" id="rnErr" hidden></div>
+    <div class="rn-btns">
+      <button class="rn-btn" id="rnNo" type="button">算了</button>
+      <button class="rn-btn is-main" id="rnOk" type="button">就这样</button>
+    </div>
+  </div>
+</div>
 
 <!-- 提示音先加载：五个玩法都从它取 cue（换人 / 豹子 / 爆点 / 开盖 / 喝） -->
 <script src="snd.js"></script>

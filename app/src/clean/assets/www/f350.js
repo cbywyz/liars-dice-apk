@@ -45,6 +45,101 @@
     }
   };
 
+  /* ================= 改名浮层（三个联机玩法共用） =================
+
+     2026-11-13 用户：「让联机的几个玩法，用户在游戏页面点击自己的座位或者头像
+     就可以直接更改名字，而不用返回上一层」。
+
+     浮层只做三件事：收一个名字、当场判重给红字、点「就这样」把名字交回去。
+     真正发消息的是各自的玩法（net.js / findnet.js / liarnet.js）——
+     它们各自知道该往哪条连接、用哪个协议发。
+
+     重名在这里判一次只是为了「马上有反应」；算数的那一次在服务器。
+     同时有人改名时本地这份名单是旧的，服务器那边一定会拒，拒了会弹吐司。 */
+  window.LDRename = (function () {
+    var mask, ip, err, rand, okBtn, noBtn;
+    var job = null;
+    var openedAt = 0;
+
+    function $(id) { return document.getElementById(id); }
+
+    function showErr(msg) {
+      if (!err) return;
+      err.textContent = msg || '';
+      err.hidden = !msg;
+    }
+
+    function close() {
+      if (!mask) return;
+      mask.hidden = true;
+      job = null;
+      try { if (ip) ip.blur(); } catch (e) {}
+    }
+
+    function submit() {
+      if (!job) return close();
+      var nm = String((ip && ip.value) || '').trim().slice(0, 8);
+      if (!nm) { showErr('名字不能空着'); return; }
+      if (job.check) {
+        var bad = job.check(nm);
+        if (bad) { showErr(bad); return; }
+      }
+      var run = job.ok;
+      close();
+      /* 名字跟着人走：这一桌改完，下次进房也是新名字 */
+      if (window.LDName) window.LDName.set(nm);
+      if (run) run(nm);
+    }
+
+    function open(o) {
+      if (!mask) {
+        mask = $('rnMask');
+        ip = $('rnIp');
+        err = $('rnErr');
+        rand = $('rnRand');
+        okBtn = $('rnOk');
+        noBtn = $('rnNo');
+        if (!mask) return;
+        noBtn.addEventListener('click', close);
+        /* 点背板 = 算了。卡身自己 stopPropagation 不用写：
+           只有 event.target 正好是背板时才算点空。
+
+           ⚠️ 刚弹出来的 320ms 内不认背板上的点击：座位卡那一下是
+           pointerup 里开的窗，手指抬起来浏览器还会在同一处补一个 click，
+           那时浮层已经盖在手指底下了 —— 不挡这一下，浮层会自己关掉。 */
+        mask.addEventListener('click', function (e) {
+          if (e.target !== mask) return;
+          if (Date.now() - openedAt < 320) return;
+          close();
+        });
+        rand.addEventListener('click', function () {
+          ip.value = window.LDName ? window.LDName.rand() : ip.value;
+          showErr('');
+          try { ip.focus(); } catch (e) {}
+        });
+        okBtn.addEventListener('click', submit);
+        ip.addEventListener('input', function () { showErr(''); });
+        ip.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); submit(); }
+        });
+      }
+      job = o || {};
+      ip.value = (o && o.name) || '';
+      showErr('');
+      mask.hidden = false;
+      openedAt = Date.now();
+      setTimeout(function () {
+        try { ip.focus(); ip.select(); } catch (e) {}
+      }, 60);
+    }
+
+    return {
+      open: open,
+      close: close,
+      isOpen: function () { return !!(mask && !mask.hidden); }
+    };
+  })();
+
   /* ================= 常量 ================= */
 
   var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };

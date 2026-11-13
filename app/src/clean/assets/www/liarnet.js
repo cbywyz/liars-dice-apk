@@ -182,6 +182,17 @@
     el.tip.classList.toggle('show', !!msg);
   }
 
+  /* 座位卡**双击**才算数（2026-11-13 用户：「点击就弹出，可能会误触，改为双击」）。
+     递手机、指屏、碰一下杯沿都可能点在别人卡上，单击就弹「把他请出去」太险。
+     600ms 内点同一张卡才认；第一下只回一句提示，别让人以为没反应。 */
+  var tapAt = 0, tapKey = '';
+  function dblTap(key) {
+    var now = Date.now();
+    if (tapKey === key && now - tapAt < 600) { tapAt = 0; tapKey = ''; return true; }
+    tapAt = now; tapKey = key;
+    return false;
+  }
+
   function nameOf(i) {
     var st = S.st;
     if (i === null || i === undefined || i < 0) return '—';
@@ -1280,6 +1291,30 @@
     return !!(k && k.yes && st && k.yes.indexOf(st.you) >= 0);
   }
 
+  /* 点自己那张座位卡 = 改名字（2026-11-13 用户：「点自己的座位或者头像就可以
+     直接更改名字，不用返回上一层」）。别人的卡还是请出去 —— 能请谁由 canKick
+     判，这条不掺进去。 */
+  function openRename() {
+    var st = S.st;
+    if (!st || !window.LDRename) return;
+    if (window.LDRename.isOpen()) return;
+    var mine = null, list = st.seats || [], i;
+    for (i = 0; i < list.length; i++) if (list[i] && list[i].id === st.you) mine = list[i];
+    var cur = (mine && mine.name) || myName();
+    window.LDRename.open({
+      name: cur,
+      check: function (nm) {
+        var k = function (v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); };
+        for (var j = 0; j < list.length; j++) {
+          if (!list[j] || list[j].id === st.you) continue;
+          if (k(list[j].name) === k(nm)) return '「' + nm + '」已经有人用了，换一个';
+        }
+        return '';
+      },
+      ok: function (nm) { if (nm !== cur) send({ t: 'rename', name: nm }); }
+    });
+  }
+
   function openKick(i) {
     var st = S.st;
     if (!st || !canKick(i)) return;
@@ -1425,13 +1460,23 @@
       });
     }
 
-    /* 点座位名字 = 请人出去（能不能请由 canKick 说了算，服务端再判一遍） */
+    /* 点座位名字 = 请人出去（能不能请由 canKick 说了算，服务端再判一遍）。
+       点自己那张是改名字 —— 跟 350 / 找朋友同一套，别再让人退回上一层改名 */
     if (el.seats) {
       el.seats.addEventListener('click', function (e) {
-        var t = e.target;
-        while (t && t !== el.seats && !t.getAttribute('data-i')) t = t.parentNode;
-        if (!t || t === el.seats) return;
-        openKick(parseInt(t.getAttribute('data-i'), 10));
+        /* 认 .lr-seat，不认 data-i —— 座位卡上那排小骰子自己也带着 data-i
+           （它是「这张卡里第几颗骰子」），照 data-i 往上找会把它当成座位号，
+           于是 st.seats[2] 空着、点自己那张卡什么也不发生 */
+        var t = e.target && e.target.closest ? e.target.closest('.lr-seat') : null;
+        if (!t) return;
+        var i = parseInt(t.getAttribute('data-i'), 10);
+        var st = S.st;
+        var seat = st && st.seats && st.seats[i];
+        var mine = !!(seat && seat.id === st.you);
+        /* 双击才算数：牌桌上一碰就弹「请出去」太容易点错人（2026-11-13 用户提的） */
+        if (!dblTap('seat' + i)) { tip('再点一下 · ' + (mine ? '改名字' : '请人出去')); return; }
+        if (mine) { openRename(); return; }
+        openKick(i);
       });
     }
     /* 摊牌那一屏座位卡是收起来的，能点的名字在那张大表上（.lr-rv[data-i]）。
@@ -1448,7 +1493,10 @@
         var row = n;
         while (row && row !== el.revList && !row.getAttribute('data-i')) row = row.parentNode;
         if (!row || row === el.revList) return;
-        openKick(parseInt(row.getAttribute('data-i'), 10));
+        var ri = parseInt(row.getAttribute('data-i'), 10);
+        /* 这一屏也是一碰就弹「请出去」，跟座位卡用同一套双击（2026-11-13） */
+        if (!dblTap('rv' + ri)) { tip('再点一下 · 请人出去'); return; }
+        openKick(ri);
       });
     }
     /* 点背板（不是卡片本身）也算「算了」 */

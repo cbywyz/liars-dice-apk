@@ -874,7 +874,7 @@
       var me = mySeat();
       line = '轮到 <b>' + nameOf(st.shaker) + '</b> · 摇公骰';
       if (left) sub = '还有 ' + left + ' 家没摇';
-      else if (me && (me.used | 0) < st.shakes) sub = '你还能摇 ' + (st.shakes - (me.used | 0)) + ' 次（点自己的座位）';
+      else if (me && (me.used | 0) < st.shakes) sub = '你还能摇 ' + (st.shakes - (me.used | 0)) + ' 次（点自己的座位 · 长按改名）';
       else sub = '公骰一摇就锁 · 这一把不能再改点数';
       /* 庄家自己掉线：整桌会停在「等他摇」上。说清楚现在该谁顶上 ——
          服务端认这条规矩（findCanActFor），别让人对着一颗按不动的按钮猜。 */
@@ -1294,8 +1294,60 @@
       tip('房号已复制：' + S.code);
     });
 
-    /* 座位点击：准备阶段 = 摇自己的（房主可代摇）；点人阶段 = 庄家点名 */
+    /* 改名字（2026-11-13 用户：「点自己的座位或者头像就可以直接更改名字」）。
+     这一页点自己的座位是「摇我的 2 颗」，是主要动作，所以改名借**长按** ——
+     两件事挤在同一个点上没别的办法，牌桌那一屏再塞一颗按钮就没地方了。 */
+  function openRename() {
+    var st = S.st;
+    if (!st || !window.LDRename) return;
+    if (window.LDRename.isOpen()) return;
+    var me = mySeat();
+    var cur = (me && me.name) || myName();
+    window.LDRename.open({
+      name: cur,
+      check: function (nm) {
+        var k = function (v) { return String(v == null ? '' : v).replace(/\s+/g, '').toLowerCase(); };
+        var list = st.seats || [];
+        for (var i = 0; i < list.length; i++) {
+          if (!list[i] || list[i].id === st.you) continue;
+          if (k(list[i].name) === k(nm)) return '「' + nm + '」已经有人用了，换一个';
+        }
+        return '';
+      },
+      ok: function (nm) { if (nm !== cur) send({ t: 'rename', name: nm }); }
+    });
+  }
+
+  /* 座位点击：准备阶段 = 摇自己的（房主可代摇）；点人阶段 = 庄家点名 */
+    /* 长按自己的座位 = 改名字。按住 550ms 才认，手指一动就作废
+       （圆环上本来就容易滑）；抬起来浏览器补的那一下 click 必须吃掉，
+       不然改完名字顺手把骰子也摇了。 */
+    var lpTimer = 0, lpSx = 0, lpSy = 0, lpFired = 0;
+    function lpStop() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = 0; } }
+    el.seats.addEventListener('pointerdown', function (e) {
+      var s = e.target && e.target.closest ? e.target.closest('[data-i]') : null;
+      if (!s || !S.st) return;
+      var seat = S.st.seats[Number(s.getAttribute('data-i'))];
+      if (!seat || seat.id !== S.st.you) return;
+      lpSx = e.clientX; lpSy = e.clientY;
+      lpStop();
+      lpTimer = setTimeout(function () {
+        lpTimer = 0;
+        lpFired = Date.now();
+        buzz(14);
+        openRename();
+      }, 550);
+    });
+    el.seats.addEventListener('pointermove', function (e) {
+      if (!lpTimer) return;
+      if (Math.abs(e.clientX - lpSx) > 12 || Math.abs(e.clientY - lpSy) > 12) lpStop();
+    });
+    el.seats.addEventListener('pointerup', lpStop);
+    el.seats.addEventListener('pointercancel', lpStop);
+
     el.seats.addEventListener('click', function (e) {
+      /* 刚长按过：这一次 click 是手指抬起来带的，别再摇一次骰 */
+      if (lpFired && Date.now() - lpFired < 900) { lpFired = 0; return; }
       var s = e.target.closest ? e.target.closest('[data-i]') : null;
       if (!s || !S.st) return;
       var i = Number(s.getAttribute('data-i'));

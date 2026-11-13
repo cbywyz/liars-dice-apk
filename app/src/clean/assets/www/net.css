@@ -12,60 +12,19 @@
 .page-net[hidden],
 .page-netgame[hidden] { display: none; }
 
-/* ---------------- 联机大厅 ---------------- */
+/* ---------------- 联机入口 ---------------- */
 
-/* 选玩法页底部那句「更多联机玩法还在做」 */
-.net-more {
-  margin-top: 8vw;
-  text-align: center;
-  font-size: 2.9333vw;
+/* 350 的入口屏现在跟「找朋友 · 联机」「吹牛 · 联机」用同一套 .fn-* 排版
+   （标题 / 以谁的身份进房 / 房号输入框 / 进房 / 开一桌）。
+   .fn-who 那份样式写在 findnet.css 里、只认 .page-findnet，这里补一份。 */
+.page-net .fn-who {
+  margin: 5.3333vw 6vw 0;
+  font-size: 2.6667vw;
   letter-spacing: 0.2vw;
-  color: rgba(35, 38, 45, 0.32);
-}
-
-.net-body {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 0 6.4vw 8vw;
-  min-height: 0;
-}
-
-.net-lead {
   text-align: center;
-  font-size: 3.2vw;
-  line-height: 1.75;
-  letter-spacing: 0.2vw;
-  color: rgba(35, 38, 45, 0.5);
-  margin-bottom: 6.4vw;
+  color: rgba(35, 38, 45, 0.4);
 }
-
-/* 首页那两张卡片是上下排的（.home-cards 自带间距），这里沿用 */
-.net-cards { margin-top: 0; }
-
-/* 「上一桌还没打完」：一条深色横幅压在开房按钮上面。
-   之所以做得比 .mode-card 矮一半：它是「回去」，不是「开始」，
-   摆在最上面是为了让人看见，抢走开新桌的注意力就过头了。 */
-.net-resume {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 3.2vw;
-  padding: 3.7333vw 4.8vw;
-  border: 0;
-  border-radius: 4.2667vw;
-  text-align: left;
-  color: #f4f0e9;
-  background: #23262d;
-  box-shadow: 0 1.0667vw 2.9333vw rgba(35, 38, 45, 0.22);
-  transition: transform 0.16s ease;
-  animation: netDrop 0.26s cubic-bezier(0.2, 0.9, 0.3, 1) both;
-}
-.net-resume[hidden] { display: none; }
-.net-resume:active { transform: scale(0.97); }
+.page-net .fn-who b { color: #23262d; font-weight: 600; }
 
 .nr-left { display: flex; flex-direction: column; gap: 0.8vw; }
 
@@ -87,69 +46,6 @@
   letter-spacing: 1.0667vw;
   font-variant-numeric: tabular-nums;
 }
-
-/* 输房号那一行：点「加入房间」才展开，平时 hidden */
-.net-join {
-  display: flex;
-  align-items: center;
-  margin-top: 5.3333vw;
-  animation: netDrop 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
-}
-.net-join[hidden] { display: none; }
-
-@keyframes netDrop {
-  from { opacity: 0; transform: translateY(-1.6vw); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.net-code {
-  flex: 1 1 auto;
-  width: 100%;
-  min-width: 0;
-  height: 14.4vw;
-  margin-right: 2.6667vw;
-  padding: 0 2vw;
-  box-sizing: border-box;
-  border: 0;
-  border-radius: 4.2667vw;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: inset 0 0 0 0.2vw rgba(35, 38, 45, 0.12);
-  font: inherit;
-  font-size: 6.4vw;
-  font-weight: 600;
-  letter-spacing: 1.6vw;
-  text-indent: 1.6vw;
-  text-align: center;
-  text-transform: uppercase;
-  color: #23262d;
-  outline: none;
-  -webkit-appearance: none;
-}
-.net-code::placeholder {
-  font-size: 3.4667vw;
-  font-weight: 400;
-  letter-spacing: 0.4vw;
-  text-indent: 0.4vw;
-  color: rgba(35, 38, 45, 0.28);
-  text-transform: none;
-}
-.net-code:focus { box-shadow: inset 0 0 0 0.2667vw rgba(35, 38, 45, 0.32); }
-
-.net-go {
-  flex: 0 0 auto;
-  width: 26vw;
-  margin: 0;
-}
-
-.net-tip {
-  margin-top: 4vw;
-  min-height: 4.8vw;
-  text-align: center;
-  font-size: 3.2vw;
-  letter-spacing: 0.2vw;
-  color: #b8452f;
-}
-.net-tip.ok { color: #1a7a45; }
 
 /* ---------------- 牌桌：房号按钮 / 等待区 / 网络提示 ---------------- */
 
@@ -262,16 +158,86 @@
 
 /* 结算：名次那几行。复用 .f3-handoff 的卡片，只把内容换成榜单 */
 .ng-rank { display: flex; flex-direction: column; gap: 1.6vw; width: 62vw; }
+
+/* ⚠️ 这一行别省：.ng-rank 是 display:flex，压过了 [hidden] 的 display:none。
+   少了它，一局打完那张榜会一直挂在交接屏上，显示的还是**上一把**的分数
+   —— 2026-11-13 用户截图：「轮到下一个玩家是对的，但下面的分数是上一把的」。
+   同类坑：.f3-handoff[hidden]、.me-tag[hidden] 都是同一个原因。 */
+.ng-rank[hidden] { display: none; }
+
 .ng-rank-row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 2.1333vw;
   font-size: 3.2vw;
   color: rgba(255, 255, 255, 0.72);
 }
-.ng-rank-row b { font-weight: 600; color: #fbf7ef; }
+.ng-rank-row b {
+  font-weight: 600;
+  color: #fbf7ef;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .ng-rank-row.top b { color: #e8b653; }
-.ng-rank-row i { font-style: normal; color: rgba(255, 255, 255, 0.5); }
+.ng-rank-row i { font-style: normal; color: rgba(255, 255, 255, 0.5); flex: 0 0 auto; }
+/* 分数跟名字抢位置时，分数不能缩（缩了就成「4…」），名字让位 */
+.ng-rank-row > span { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+
+/* ---- 结算态：内容比交接多一大截，得换一种排法 ------------------------
+
+   交接态只有三行字，居中正好；结算态是 kicker + 大字 + 副标题 + 榜单 + 按钮，
+   还居中就会被往两头挤：kicker 顶出卡片上边缘（被圆角切掉半行字），
+   按钮压到卡片下边缘（用户 2026-11-13 截图）。
+   改成「顶对齐 + 榜单吃满中间并且能滚 + 按钮钉底」：
+   12 个人时榜单放不下，滚它自己的，别去挤别的东西。 */
+.f3-handoff.over {
+  /* 卡片按内容高度自己撑，上下居中，最多比牌桌高 9vw×2。
+     为什么不是「固定撑满 + 榜单居中」：榜单是可滚的，一旦内容比盒子高，
+     center 会把头几名顶到盒子外面去，滚都滚不回来（12 人时第 1~4 名直接消失）。
+     让卡片自己长高就没有这个矛盾 —— 人少时它矮一点、居中；人多时封顶、榜单滚。 */
+  top: 50%;
+  bottom: auto;
+  transform: translateY(-50%);
+  height: auto;
+  max-height: calc(100% + 18vw);
+  justify-content: flex-start;
+  gap: 1.0667vw;
+  padding: 3.2vw 3.2vw 2.6667vw;
+}
+.f3-handoff.over .hd-kicker { font-size: 2.9333vw; }
+/* 大字换金色：深绿底上纯白太硬，而且跟底下那颗金按钮不是一套。
+   金色还能呼应榜首那一行 —— 被抓住的那位就是榜一。 */
+.f3-handoff.over .hd-name {
+  font-size: 8.8vw;
+  line-height: 1.2;
+  color: #f2c76e;
+  text-shadow: 0 0.5333vw 1.6vw rgba(0, 0, 0, 0.45);
+  max-width: 100%;
+  text-align: center;
+  word-break: break-all;
+}
+.f3-handoff.over .hd-sub { font-size: 2.9333vw; letter-spacing: 0; }
+.f3-handoff.over .ng-rank {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 1.0667vw 0 0.5333vw;
+  padding-right: 0.5333vw;
+  -webkit-overflow-scrolling: touch;
+}
+.f3-handoff.over .ng-rank-row { font-size: 2.9333vw; }
+/* 人多到要滚：底部渐隐，暗示「下面还有人」。
+   不滚的时候不加 —— 三个人也渐隐，最后一名就看不清了。 */
+.f3-handoff.over .ng-rank.is-scroll {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 3.7333vw), rgba(0, 0, 0, 0.18));
+  mask-image: linear-gradient(180deg, #000 calc(100% - 3.7333vw), rgba(0, 0, 0, 0.18));
+}
+
+/* 按钮不许被榜单挤走：榜单自己滚，按钮永远钉在卡片底部 */
+.f3-handoff.over .hd-go { margin-top: 2.1333vw; flex: 0 0 auto; }
 
 /* 底栏：跟 .page-f350 一样（那边是 f350.css 里按页写的，联机这页得自己写一遍） */
 .page-netgame .foot {
@@ -448,8 +414,9 @@
 .p-card.me.off .p-name { color: rgba(138, 95, 24, 0.72); }
 
 /* 昵称单独一层：4 列宽的卡放不下 8 个字的昵称，省略在名字那一层，
-   「我」牌在它前面缩不掉 */
-.page-netgame .p-name { min-width: 0; overflow: hidden; }
+   「我」牌在它前面缩不掉。
+   右边再让出 2.4vw 给右上角的序号角标，否则省略号会压在数字底下。 */
+.page-netgame .p-name { min-width: 0; overflow: hidden; padding-right: 2.4vw; }
 .page-netgame .p-nm {
   min-width: 0;
   overflow: hidden;
@@ -463,6 +430,46 @@
   padding: 0 0.65vw;
   margin-right: 0.55vw;
 }
+
+/* ---- 右上角：这一轮第几个摇 ------------------------------------------------
+
+   用户 2026-11-13：「3 个人玩，由第二个人开始摇，那给他标注 1，下一个标注 2，
+   最后一个标注 3，人更多的时候以此类推」。
+   深色卡只说得出「现在轮到他」；谁先谁后、自己排第几，以前只能数人头。
+
+   为什么塞进角上而不是新起一行：这张卡 82×61 已经把三行用满了（见下面
+   「下一个」那一段的账）。角标是绝对定位，占的是卡片右上角那块空 ——
+   名字那一行让出 2.4vw 就行，不吃行高。
+   序号取服务端的 startOrder（本轮开始时的快照），不是 queue：
+   queue 会随着锁分一个个变短，已经摇过的人就算不出自己是第几了。 */
+.page-netgame .p-card { position: relative; }
+.p-ord {
+  position: absolute;
+  top: 0.8vw;
+  right: 0.8vw;
+  min-width: 3.2vw;
+  height: 3.2vw;
+  padding: 0 0.4vw;
+  box-sizing: border-box;
+  border-radius: 1.7333vw;
+  background: rgba(35, 38, 45, 0.1);
+  color: #4a4f59;
+  font-size: 2.1333vw;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 3.2vw;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+/* 深色卡（轮到他）：底色反过来，浅色小药丸 */
+.p-card.on .p-ord { background: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.72); }
+/* 蓝卡（下一个）跟蓝字一套 */
+.p-card.next .p-ord { background: rgba(47, 127, 196, 0.16); color: #2f7fc4; }
+/* 自己那张：金色，跟金边金名字一套。写在 next 后面 —— 两张卡同时命中时金色赢 */
+.p-card.me .p-ord { background: rgba(194, 148, 63, 0.2); color: #8a5f18; }
+.p-card.me.on .p-ord { background: rgba(240, 215, 154, 0.2); color: #f0d79a; }
+.p-card.off .p-ord { opacity: 0.6; }
 
 /* ---------------- 把人请出去 ----------------
    每张玩家卡都能点：房主点谁谁走，其他人点谁算发起一个申请，得凑够
@@ -658,4 +665,142 @@
   flex: 0 0 auto;
   margin-top: 2.6667vw;
   padding-bottom: calc(2.6667vw + env(safe-area-inset-bottom));
+}
+
+/* ==================== 改名字浮层（三个联机玩法共用） ====================
+
+   点自己座位卡弹出来的那一层。写法沿用站里其它弹层的路子：
+   深色半透明背板 + 米色卡片，背面用 backdrop-filter 虚化一档。
+   z-index 给 90：要压在 .rule-mask（70）和牌桌上那些浮卡上面 ——
+   这一层要收输入，被谁盖住一下都不行。 */
+.rn-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8vw;
+  background: rgba(20, 22, 26, 0.44);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: rnFade 0.16s ease both;
+}
+/* display:flex 会压过 [hidden] 的 display:none —— 这一行少了浮层永远盖着 */
+.rn-mask[hidden] { display: none; }
+
+@keyframes rnFade { from { opacity: 0; } to { opacity: 1; } }
+
+.rn-card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6.4vw 5.3333vw 4.8vw;
+  border-radius: 5.3333vw;
+  background: #fbf7f0;
+  box-shadow: 0 4vw 10vw rgba(20, 22, 26, 0.28);
+  animation: rnUp 0.2s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes rnUp {
+  from { opacity: 0; transform: translateY(2.6667vw) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.rn-t {
+  font-size: 4.2667vw;
+  font-weight: 600;
+  letter-spacing: 0.5333vw;
+  text-align: center;
+  color: #23262d;
+}
+.rn-s {
+  margin-top: 1.0667vw;
+  font-size: 2.6667vw;
+  letter-spacing: 0.2vw;
+  text-align: center;
+  color: rgba(35, 38, 45, 0.4);
+}
+
+.rn-row {
+  display: flex;
+  align-items: center;
+  gap: 2.1333vw;
+  margin-top: 5.3333vw;
+}
+
+.rn-inp {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 14.4vw;
+  padding: 0 3.2vw;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 4.2667vw;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 0.2667vw rgba(35, 38, 45, 0.1);
+  font: inherit;
+  font-size: 4.8vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+  text-align: center;
+  color: #23262d;
+  outline: none;
+  -webkit-appearance: none;
+}
+.rn-inp::placeholder {
+  font-size: 3.2vw;
+  font-weight: 400;
+  letter-spacing: 0.2vw;
+  color: rgba(35, 38, 45, 0.26);
+}
+.rn-inp:focus { box-shadow: inset 0 0 0 0.5333vw rgba(181, 137, 63, 0.55); }
+
+.rn-rand {
+  flex: 0 0 auto;
+  height: 14.4vw;
+  padding: 0 3.4667vw;
+  border: 0;
+  border-radius: 4.2667vw;
+  background: rgba(35, 38, 45, 0.06);
+  font: inherit;
+  font-size: 3.2vw;
+  letter-spacing: 0.2vw;
+  color: #4a4f59;
+  -webkit-appearance: none;
+}
+.rn-rand:active { background: rgba(35, 38, 45, 0.12); }
+
+/* 重名那句话：以前是吐司一闪就没了，现在留在输入框下面，
+   改一个字就消失 —— 手不用离开键盘 */
+.rn-err {
+  margin-top: 2.1333vw;
+  font-size: 2.9333vw;
+  line-height: 1.4;
+  text-align: center;
+  color: #b8452f;
+}
+.rn-err[hidden] { display: none; }
+
+.rn-btns {
+  display: flex;
+  gap: 2.6667vw;
+  margin-top: 4.2667vw;
+}
+.rn-btn {
+  flex: 1 1 0;
+  height: 12.2667vw;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 3.7333vw;
+  letter-spacing: 0.4vw;
+  color: rgba(35, 38, 45, 0.62);
+  background: rgba(35, 38, 45, 0.06);
+  -webkit-appearance: none;
+}
+.rn-btn:active { transform: scale(0.97); }
+.rn-btn.is-main {
+  color: #ffffff;
+  background: #23262d;
+  font-weight: 600;
 }
