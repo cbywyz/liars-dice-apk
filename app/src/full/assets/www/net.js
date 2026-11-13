@@ -908,9 +908,24 @@
     }
   }
 
+  /* 这一轮谁还没轮到、排在最前面的那位。
+     服务端下发的 queue 是「本轮出手顺序」，存的还是 players 的下标；
+     queue[0] 永远等于当前这一手（锁完一个就把它从队列里摘掉），
+     所以从第 2 个往后找，第一个还没锁的就是「下一个」。 */
+  function nextIdx(s) {
+    var q = s.queue || [];
+    for (var k = 1; k < q.length; k++) {
+      var cand = q[k];
+      var p = s.players[cand];
+      if (p && !p.locked) return cand;
+    }
+    return -1;
+  }
+
   function renderStrip() {
     if (!el.strip) return;
     var s = S.state;
+    var nxIdx = s.phase === 'over' ? -1 : nextIdx(s);
     var key = s.players.map(function (p) {
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
         ':' + (p.lion || 0);
@@ -918,6 +933,8 @@
       /* s.you 也得算进 key：刚进桌那次「哪张是我」是后到的，
          不重画就一直是别人那张亮金边 */
       + '#' + s.you
+      /* 队列也得算进 key：谁锁了、谁被跳过都会让「下一个」换人 */
+      + '#' + (s.queue || []).join('.')
       + '#' + (s.kick ? s.kick.target + ':' + s.kick.yes.length + '/' + s.kick.need : '');
 
     if (el.strip.getAttribute('data-key') === key) return;
@@ -934,6 +951,12 @@
         + (p.locked ? ' done' : '')
         + (p.online === false ? ' off' : '')
         + (asking ? ' asking' : '')
+        /* 下手是谁：深色卡说的是「正在打的是他」，可他后面排着谁，
+           以前全桌都得自己数人头（用户 2026-11-12：「桌面没有很好的提示
+           下一轮轮到哪个玩家」）。下一个出手的那张卡换成淡蓝色 + 内描边，
+           状态灯那行直接写「下一个」—— 那张卡只有 82px 宽，加一整行会把
+           整排顶高，只能借用现有的那一行。 */
+        + (i === nxIdx ? ' next' : '')
         /* 自己那张：粗金边 + 名字前面挂「我」牌。
            350 以前**一点标记都没有**，只有「轮到谁」的深色卡 ——
            别人轮到时自己的卡和别人的长得一模一样，只能靠念昵称认人。 */
@@ -957,13 +980,15 @@
 
       /* 在线状态：绿点 · 在线 / 红点 · 离线。
          以前只有「掉线」那两个字挂在名字后面，还得先认出「没字 = 在线」；
-         桌上三个人问「他还在不在」的时候，看一眼颜色比读字快。 */
+         桌上三个人问「他还在不在」的时候，看一眼颜色比读字快。
+         轮到「下一个」的那张，这一行改写字 —— 点还留着，掉线的照样是红点。 */
       var st = document.createElement('div');
       st.className = 'p-stat' + (p.online === false ? ' is-off' : '');
       var dot = document.createElement('i');
       dot.className = 'p-dot';
       st.appendChild(dot);
-      st.appendChild(document.createTextNode(p.online === false ? '离线' : '在线'));
+      st.appendChild(document.createTextNode(i === nxIdx ? '下一个'
+        : (p.online === false ? '离线' : '在线')));
 
       var sc = document.createElement('div');
       sc.className = 'p-score';
@@ -1248,6 +1273,25 @@
     }
   }
 
+  /* 结算榜的顺序。抽出来是因为「同分谁排前面」这条规则在真房间里凑不出来
+     （得几个人正好锁在同一个分数），但它偏偏是这局唯一有争议的地方 ——
+     单独给它一条能直接喂数据进来的口子（window.LDNet.rankRows）。
+
+     350 抓的是分**最低**的那个人：分数是攒着往 350 冲的，冲得最少的背锅。
+     同分谁背（用户 2026-11-12 定的）：「第一个 500、第二个 500、第三个 500，
+     必须是最后一个拿到一样分数的人为最低分」。所以同分时**后锁的排前面**。
+     服务端下发的 order 记的就是「锁分先后」，序号越大越晚，比较时倒过来。 */
+  function rankRows(players, order) {
+    function at(p) {
+      /* 不在 order 里 = 这一局一颗骰子都没锁过（0 分坐到底），按最早处理 */
+      return order ? order.lastIndexOf(p.id) : -1;
+    }
+    return players.slice().sort(function (a, b) {
+      if (a.score !== b.score) return a.score - b.score;
+      return at(b) - at(a);
+    });
+  }
+
   function renderHandoff() {
     var s = S.state;
     var box = el.handoff;
@@ -1265,18 +1309,13 @@
 
     if (s.phase === 'over') {
       /* 350 抓的是「最低分」的那个人，不是最高分 —— 分数是「攒着往 350 冲」的，
-         冲得最少的那个才是这局的输家。所以榜从低到高排，头一行就是被抓住的。 */
-      var rows = s.players.slice().sort(function (a, b) {
-        if (a.score !== b.score) return a.score - b.score;
-        var ia = s.order.indexOf(a.id), ib = s.order.indexOf(b.id);
-        if (ia < 0) ia = 99;
-        if (ib < 0) ib = 99;
-        return ia - ib;
-      });
+         冲得最少的那个才是这局的输家。所以榜从低到高排，头一行就是被抓住的。
+         同分的那几个人谁排最前，见 rankRows 上面那段。 */
+      var rows = rankRows(s.players, s.order);
 
       if (el.hdKicker) el.hdKicker.textContent = '一局打完 · 分最低的背';
       if (el.hdName) el.hdName.textContent = rows.length ? rows[0].name + ' · ' + rows[0].score : '';
-      if (el.hdSub) el.hdSub.textContent = '分最少的排第一 · 同分先锁的在前';
+      if (el.hdSub) el.hdSub.textContent = '分最少的排第一 · 同分最后锁上的背';
 
       if (el.rank) {
         el.rank.hidden = false;
@@ -1770,6 +1809,12 @@
     quit: quitRoom,
     /* 给自动化测试用：能读当前桌面，也能直接发一条协议 */
     state: function () { return S.state; },
+    /* 结算榜的排序规则单独露出来：同分谁背这条没法在真房间里凑
+       （要几个人正好锁在同一个分数），只能直接喂数据问它 */
+    rankRows: rankRows,
+    /* 拿一份造出来的桌面直接画一遍：结算屏、「下一个」这些状态
+       真房间要么凑不出来、要么得打半天，验收脚本靠它看真样式 */
+    paint: function (st) { S.state = st; render(); },
     send: function (o) { return send(o); }
   };
 })();
