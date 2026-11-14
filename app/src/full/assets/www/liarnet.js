@@ -583,7 +583,8 @@
       cu.className = 'who-c';
       var what = st.phase === 'reveal' ? '已摊牌' : (s.rolled ? '摇了' : '没摇');
       /* 这一栏够宽，写完整的一句：座位卡上那四个字在这里解释清楚 */
-      cu.textContent = (bd ? bd.long : what) + ' · ' + (off ? '离线' : '在线');
+      cu.innerHTML = esc((bd ? bd.long : what) + ' · ' + (off ? '离线' : '在线')) +
+        awayClock(s);
       row.appendChild(cu);
 
       /* 自己那一行不给按钮：想退出请点右上角「退出」。
@@ -713,6 +714,13 @@
     if (!st || !st.seats) return null;
     var i = myIdx();
     return i >= 0 ? awayBadge(st.seats[i]) : null;
+  }
+
+  /* 离开时长：服务端每次广播给 awayMs，秒由共用计时器自己往下走。
+     座位卡那一行只有 2.2vw、还是 nowrap，塞不下 —— 时长放在摊牌大表、
+     桌上的人、自己那块「我的牌」和底栏那句常驻提示里，都是宽地方。 */
+  function awayClock(s) {
+    return window.LDAwayClock ? window.LDAwayClock.stamp(s) : '';
   }
 
   /* 一颗骰子的点数：三段式九宫（CELL）里点亮几个位置。1 和 4 是红的。
@@ -985,9 +993,9 @@
      单独拿出来是因为摊牌那一眼，一桌人看的是「谁手里有牌」，
      五个点挨个认太慢；贴上两个字，眼睛直接跳过他。
 
-     为什么只标顺子不标豹子：豹子（5 颗一样）在吹牛里没人会计错，
-     数一眼就知道；顺子相反 —— 五颗全不一样，看着最像「什么都没有」，
-     偏偏是最强的一手，不点出来桌上一定会漏。 */
+     2026-11-14 起顺子、豹子都标：原先只标顺子，是觉得「五颗一样谁都数得出来」，
+     但带 1 的万能豹（比如 3 3 3 3 1）摊开看着就是一手普通牌，一样会漏。
+     两家各给一块底，只靠颜色分开 —— 金 = 顺子，紫 = 豹子。 */
   function isStraight(dice) {
     if (!dice || dice.length !== 5) return false;
     var seen = {}, i;
@@ -996,6 +1004,24 @@
       seen[dice[i]] = 1;
     }
     return true;
+  }
+
+  /* 豹子：五颗同点 = 正豹；「1 + 四颗同点」= 万能豹（1 是万能牌，
+     3 3 3 3 1 在桌上就是一手 3 豹）。跟调试面板那句「豹子」同一条定义，
+     但判定必须放在调试段**之前**：纯净版会把调试段整段剪掉，摊牌页照样要认得出来。
+     两种豹子和顺子互斥（顺子要 5 个点数互不重复），先判谁都不会撞。 */
+  function isLionDice(dice) {
+    if (!dice || dice.length !== 5) return false;
+    var i, p = 0, ones = 0;
+    for (i = 0; i < 5; i++) {
+      var v = dice[i];
+      if (v < 1 || v > 6) return false;
+      if (v === 1) { ones++; continue; }
+      if (p && v !== p) return false;
+      p = v;
+    }
+    /* 有非 1 的点且它们全同：正豹 / 万能豹；五颗全是 1：也按正豹算 */
+    return p ? true : ones === 5;
   }
 
   function paintReveal() {
@@ -1011,7 +1037,7 @@
        原来下面还有一行「1×4 2×2 3×3 …」，2026-11-12 按用户要求整行拿掉：
        那一行没剔除顺子（顺子不计点数），也没法表达豹子（算 6 个 / 带 1 算 10 个），
        数着就是个错数 —— 用户原话：「直接不显示，让别人自己看下方即可」。
-       每家的牌就在下面摊着，还标了「顺子」，人自己扫一眼比看错数快。 */
+       每家的牌就在下面摊着，还标了「顺子 / 豹子」，人自己扫一眼比看错数快。 */
     if (el.revV) {
       el.revV.innerHTML = (st.total || 0) + ' <b>颗</b>';
     }
@@ -1020,10 +1046,14 @@
     var h = '';
     for (var i = 0; i < st.seats.length; i++) {
       var s = st.seats[i];
-      /* 名字右边、骰子左边那块空白，正好放一句「顺子」—— 那里本来就是空的，
-         不用挤别人的位置，眼睛从名字扫到骰子一定会经过它。 */
+      /* 名字右边、骰子左边那块空白，正好放一枚牌型牌 —— 那里本来就是空的，
+         不用挤别人的位置，眼睛从名字扫到骰子一定会经过它。
+         豹子先判：它跟顺子互斥，但那一手最容易被看成普通牌，先挑出来最稳。 */
       var tag = '';
-      if (isStraight(s.dice)) {
+      if (isLionDice(s.dice)) {
+        /* 正豹、带 1 的万能豹，都只写「豹子」两个字 —— 跟顺子一样不细分 */
+        tag = '<span class="lr-rv-t lion">豹子</span>';
+      } else if (isStraight(s.dice)) {
         /* 一个词就够：连顺、带 1 断一截，都是顺子。 */
         tag = '<span class="lr-rv-t">顺子</span>';
       }
@@ -1040,7 +1070,8 @@
       /* 这一屏座位卡收起来了，状态只能挂在这一行上：名字底下一枚实心牌 + 整行换底色。
          炸弹那一行的骰子**照常摆**（结果有效），休息那一行没牌可摆，换一句说明。 */
       var bd = awayBadge(s);
-      var awayTag = bd ? '<i class="lr-rv-away ' + bd.k + '">' + esc(bd.t) + '</i>' : '';
+      var awayTag = (bd ? '<i class="lr-rv-away ' + bd.k + '">' + esc(bd.t) + '</i>' : '') +
+        awayClock(s);
       var skip = s.mode === 'rest';
       /* 自己那一行跟着描金：这一屏一列五六行，光靠文字找不到自己。
          「我」还是那颗实底金牌，挂名字前面（跟牌桌、跟另外两家同一个样子）。 */
@@ -1235,8 +1266,21 @@
     if (me < 0) return;
     var s = st.seats[me];
 
-    if (s.dice) paintDice(el.meDice, s.dice, false, 'me' + s.dice.join('-') + st.round, true, false, true);
-    else paintDice(el.meDice, null, true, 'me-' + (s.rolled ? 'r' : 'e'), false, false, true);
+    /* 本把休息的人盅里没有骰子。以前 s.dice 是空数组（truthy），
+       照样画 5 颗 0 点的空白方块 —— 开盖一看像坏了（2026-11-14 用户截图）。
+       换成一句说明；data-k 照旧给签名，免得每次 render 都重设一遍。 */
+    if (s.mode === 'rest') {
+      var rk = 'me-rest-' + st.round;
+      if (el.meDice.getAttribute('data-k') !== rk) {
+        el.meDice.setAttribute('data-k', rk);
+        el.meDice.innerHTML = '<div class="lr-me-rest">这一把休息 · 没摇<br>' +
+          '<span>点下面「点击继续」，下一把回来</span></div>';
+      }
+    } else if (s.dice) {
+      paintDice(el.meDice, s.dice, false, 'me' + s.dice.join('-') + st.round, true, false, true);
+    } else {
+      paintDice(el.meDice, null, true, 'me-' + (s.rolled ? 'r' : 'e'), false, false, true);
+    }
     if (el.meName) el.meName.textContent = s.name;
     if (el.meTag) {
       var rd = rollNow();
@@ -1253,7 +1297,8 @@
         : '还没摇 · 点下面摇骰';
       else if (st.phase === 'call') t = '牌锁了 · 桌上叫，想开就点「开牌」';
       else if (st.phase === 'reveal') t = '摊牌 · 对完牌点「下一把」';
-      el.meTag.textContent = t;
+      /* 离开时长挂在自己这块：圆环上自己那张卡离得远，低头看牌先看这里 */
+      el.meTag.innerHTML = esc(t) + awayClock(s);
     }
     /* 自己连了几把顺子：圆环上那张自己的座位卡离得远，这一块才是「我的牌」，
        所以同一个数在自己的位置上也写一遍。2 连起才出现，3 连转红 ——
@@ -1317,7 +1362,7 @@
       } else if (out) {
         h = '<div class="lr-wait">' + (meS.mode === 'rest'
           ? '这一把你在休息 · 不用摇'
-          : '这一把你挂着炸弹 · 大家摇完自动跟着摇') + '</div>';
+          : '这一把你挂着炸弹 · 大家摇完自动跟着摇') + awayClock(meS) + '</div>';
       } else if (!meS.rolled) {
         h = '<button class="lr-roll" data-act="roll">摇一摇</button>';
       } else {
@@ -1328,7 +1373,7 @@
       if (out) {
         h = '<div class="lr-wait">' + (meS.mode === 'rest'
           ? '这一把你在休息 · 不算开牌人数'
-          : '这一把你挂着炸弹 · 够票自动跟着摊') + '</div>';
+          : '这一把你挂着炸弹 · 够票自动跟着摊') + awayClock(meS) + '</div>';
       } else if (op.mine) {
         h = '<div class="lr-wait">你点了开牌 · 等其他人（' + op.done + '/' + op.need + '）</div>';
       } else {
@@ -1346,7 +1391,7 @@
       var nv = st.next || { need: 1, yes: [] };
       var voted = me >= 0 && (nv.yes || []).indexOf(me) >= 0;
       if (out) {
-        h = '<div class="lr-wait">这一把没参与 · 等别人点下一把</div>';
+        h = '<div class="lr-wait">这一把没参与 · 等别人点下一把' + awayClock(meS) + '</div>';
       } else {
         h = voted
           ? '<div class="lr-wait">你已经点了 · 等其他人（' + nv.yes.length + '/' + nv.need + '）</div>'
@@ -1361,12 +1406,40 @@
       h = '<div class="lr-wait">这一桌是旧版本开的 · 点右上角离开，重新开一桌</div>';
     }
 
+    /* 死局自救：本把一个能点按钮的人都没有（全场休息 / 炸弹）。
+       摇一摇 / 开牌 / 下一把全都不会出现，而这把点的「继续」又要等下一把生效，
+       原来的结局只能重建房间。给一颗「我回来重开一把」，一步发两条消息：
+       先清掉自己的离开意愿，再让服务端直接洗下一把。 */
+    if (st.started && st.away && st.away.active === 0 &&
+        (st.phase === 'roll' || st.phase === 'call' || st.phase === 'reveal')) {
+      h += '<button class="lr-rescue" data-act="rescue">大家都休息了 · 我回来重开一把</button>';
+    }
+
     /* 临时离开的入口：牌桌 / 摊牌页都在（.fd-btns 那一屏不收起来）。
-       点开还要再选一次才算数 —— 跟改名 / 请人出去一样防误触。 */
+
+       2026-11-14 用户：「炸弹中 点这里改 不够明显，应该改为 炸弹中 点击继续」。
+       挂起时人回来只想按一下，那时候选择卡里本来也只剩「继续参与」一颗按钮 ——
+       再进一层纯属多余。所以改成：
+         · 一颗实底主按钮「点击继续」，点下去**直接恢复**（下一把生效）
+         · 旁边留一颗小的「改模式」，想从休息换成炸弹才用它
+       默认态仍是「临时离开 · 休息 / 炸弹」描边胶囊，点开再选，防误触不变。 */
     if (st.started) {
       var bd = myAway();
-      h += '<button class="lr-away-link' + (bd ? ' is-on' : '') + '" data-act="away">' +
-        (bd ? bd.t + ' · 点这里改' : '临时离开 · 休息 / 炸弹') + '</button>';
+      if (!bd) {
+        h += '<button class="lr-away-link" data-act="away">临时离开 · 休息 / 炸弹</button>';
+      } else if (bd.k === 'back') {
+        /* 已经点了继续、本把还在外面：别再摆一颗假的「继续」，写清楚下一把回来 */
+        h += '<div class="rest-row">' +
+          '<span class="rest-back">下把回来 · 本把照常打完</span>' +
+          '<button class="lr-away-link is-on is-mini" data-act="away">改模式</button>' +
+          '</div>';
+      } else {
+        var go = bd.k === 'wait' ? bd.t + ' · 点击取消' : bd.t + ' · 点击继续';
+        h += '<div class="rest-row">' +
+          '<button class="rest-go" data-act="resume">' + esc(go) + '</button>' +
+          '<button class="lr-away-link is-on is-mini" data-act="away">改模式</button>' +
+          '</div>';
+      }
     }
 
     if (el.btns.innerHTML !== h) el.btns.innerHTML = h;
@@ -1397,12 +1470,14 @@
     var opts = el.awayMask.querySelectorAll('.lr-away-opt');
     for (var j = 0; j < opts.length; j++) {
       var a = opts[j].getAttribute('data-away');
-      /* 已经选了状态 → 两个选择收起来，只留「继续参与」 */
-      opts[j].hidden = a === 'resume' ? !on : on;
+      /* 「改模式」那颗小按钮会走到这儿：三颗都摆出来，
+         让人能直接从休息换成炸弹，不必先取消再重选。当前那颗描一圈。 */
+      opts[j].hidden = (a === 'resume' && !on);
+      opts[j].classList.toggle('is-now', on && a === (s && s.away));
     }
     if (el.awaySub) {
       el.awaySub.textContent = on
-        ? '你下一把起' + (s.away === 'rest' ? '休息' : '挂炸弹') + ' · 当前这把照常打完'
+        ? '当前：' + (s.away === 'rest' ? '休息' : '炸弹') + ' · 换成另一种或直接继续'
         : '选一个 · 下一把起生效，当前这把照常打完';
     }
   }
@@ -2147,6 +2222,14 @@
         /* 「开牌」是一张票：2/3 的人点了，服务端当场摊牌 */
         else if (act === 'open') { buzz(18); cue('pass'); send({ t: 'lopen' }); }
         else if (act === 'next') { cue('pass'); send({ t: 'lnext' }); }
+        else if (act === 'resume') { buzz(12); send({ t: 'lresume' }); }
+        else if (act === 'rescue') {
+          buzz(12);
+          /* 顺序有讲究：先清意愿（服务端按 away 数「下一把还有几个人」），
+             再点下一把。同一个 socket 里两条消息按序处理，不会抢。 */
+          send({ t: 'lresume' });
+          send({ t: 'lnext' });
+        }
         else if (act === 'away') { openAway(); }
       });
     }

@@ -2386,3 +2386,164 @@ body.tap-edit .die-slot:active .die {
   font-size: 2.8vw;
 }
 .page-netgame .nav-right .nav-quit { padding: 0 2.2vw; }
+
+/* ---------------- 临时离开：三家共用（2026-11-14） ----------------
+
+   350 / 找朋友 / 吹牛的座位、摊牌页、桌上的人都会挂同一套状态牌和计时。
+   颜色口径：蓝 = 休息，橙 = 炸弹 / 待生效，绿 = 已点继续。
+   挂起态那颗「点击继续」刻意做成实底主按钮 —— 这时候人回来只想按一下，
+   再进一次选择卡纯属多余（用户：「炸弹中 点这里改 不够明显」）。 */
+
+.rest-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6vw;
+  background: rgba(20, 22, 28, 0.46);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.rest-mask[hidden] { display: none; }
+.rest-card {
+  width: 100%;
+  max-width: 82vw;
+  padding: 5.3333vw 4.8vw 4.2667vw;
+  border-radius: 4vw;
+  background: #fbf8f1;
+  box-shadow: 0 3vw 8vw rgba(0, 0, 0, 0.32),
+              inset 0 0 0 0.2667vw rgba(194, 148, 63, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 2.4vw;
+}
+.rest-t { font-size: 5.3333vw; font-weight: 800; color: #3a3122; text-align: center; }
+.rest-s { font-size: 2.9333vw; line-height: 1.5; text-align: center; color: rgba(35, 38, 45, 0.58); }
+.rest-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8vw;
+  width: 100%;
+  padding: 3.2vw 3.7333vw;
+  border: 0;
+  border-radius: 2.6667vw;
+  text-align: left;
+  font: inherit;
+  background: rgba(84, 110, 146, 0.14);
+  box-shadow: inset 0 0 0 0.2667vw rgba(84, 110, 146, 0.42);
+  color: #23262d;
+}
+.rest-opt[hidden] { display: none; }
+.rest-opt b { font-size: 4vw; }
+.rest-opt span { font-size: 2.8vw; line-height: 1.5; color: rgba(35, 38, 45, 0.62); }
+.rest-opt.is-back {
+  background: rgba(58, 167, 109, 0.16);
+  box-shadow: inset 0 0 0 0.2667vw rgba(58, 167, 109, 0.5);
+}
+.rest-no {
+  width: 100%;
+  padding: 2.6667vw 0;
+  border: 0;
+  border-radius: 2.6667vw;
+  background: rgba(35, 38, 45, 0.08);
+  font: inherit;
+  font-size: 3.4667vw;
+  color: #4a4f59;
+}
+
+/* 计时小字：每秒只改文本，不重画整页 */
+.rest-time {
+  font-style: normal;
+  font-size: 2.6vw;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #8a4318;
+  white-space: nowrap;
+}
+/* 状态牌：结算榜 / 桌上的人那类宽地方用 */
+.rest-tag {
+  display: inline-block;
+  padding: 0.5333vw 1.6vw;
+  border-radius: 1.2vw;
+  background: #546e92;
+  color: #fffaf0;
+  font-size: 2.6vw;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.rest-tag[hidden] { display: none; }
+.rest-tag.is-wait { background: #96612a; }
+.rest-tag.is-back { background: #2f8a5b; }
+
+/* 底栏：默认一颗描边胶囊；挂起时换成实底主按钮 + 一颗小的「改模式」 */
+.rest-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2vw;
+  align-self: center;
+  margin-top: 0.8vw;
+}
+.rest-link {
+  align-self: center;
+  margin-top: 0.8vw;
+  padding: 1.8667vw 4.5333vw;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(194, 148, 63, 0.16);
+  box-shadow: inset 0 0 0 0.2667vw rgba(194, 148, 63, 0.52);
+  font: inherit;
+  font-size: 3.2vw;
+  font-weight: 700;
+  color: #8a5f18;
+}
+.rest-link.is-on {
+  background: rgba(196, 104, 52, 0.16);
+  box-shadow: inset 0 0 0 0.2667vw rgba(196, 104, 52, 0.55);
+  color: #8a4318;
+}
+.rest-row .rest-link { margin-top: 0; }
+.rest-link.is-mini { padding: 1.6vw 3.2vw; font-size: 2.8vw; }
+.rest-go {
+  padding: 2.4vw 6vw;
+  border: 0;
+  border-radius: 999px;
+  background: #a8531f;
+  color: #fff8ec;
+  font: inherit;
+  font-size: 3.6vw;
+  font-weight: 800;
+  letter-spacing: 0.2vw;
+  box-shadow: 0 1.2vw 2.8vw rgba(168, 83, 31, 0.32);
+}
+.rest-back {
+  padding: 1.8667vw 4.5333vw;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(58, 167, 109, 0.14);
+  box-shadow: inset 0 0 0 0.2667vw rgba(58, 167, 109, 0.4);
+  font: inherit;
+  font-size: 3.2vw;
+  font-weight: 700;
+  color: #2c7a52;
+}
+.rest-row { flex-wrap: wrap; }
+.rest-info {
+  width: 100%;
+  margin-top: 1.2vw;
+  text-align: center;
+  font-size: 2.6vw;
+  line-height: 1.55;
+  color: rgba(35, 38, 45, 0.55);
+}
+
+/* 350 座位卡只有 82px 宽：休息态整张换底色，状态行借来写四个字，
+   分数那格让给离开时长。别动 box-shadow —— 那一条写着在线状态色。 */
+.p-card.is-rest { background: rgba(84, 110, 146, 0.18); }
+.p-card.is-rest-wait { background: rgba(150, 97, 42, 0.13); }
+.p-card.is-rest .p-stat { color: #3f5f86; font-weight: 700; }
+.p-card.is-rest-wait .p-stat { color: #8a5f18; font-weight: 700; }
+.p-card .p-score .rest-time { font-size: 2.4vw; }

@@ -149,6 +149,30 @@
     for (var i = 0; i < st.seats.length; i++) if (st.seats[i].id === st.you) return i;
     return -1;
   }
+  /* 下一位庄家：休息的人跳过（服务端 findNextShaker 同一套口径）。
+     前端原来一律 (shaker+1)%n，休息者照样被写成「准备 / 我来接手」，
+     点下去服务端又拒 —— 得两边一样才不打架。 */
+  function nextShakerIdx(st) {
+    var n = (st.seats || []).length;
+    if (!n) return 0;
+    for (var k = 1; k <= n; k++) {
+      var i = (st.shaker + k) % n;
+      var q = st.seats[i];
+      if (!(q.rest || q.away === 'rest')) return i;
+    }
+    return (st.shaker + 1) % n;
+  }
+  /* 休息四态：本把生效（rest）+ 下一把意愿（away） */
+  function restTagText(s) {
+    if (!s) return '';
+    if (s.rest) return s.away === 'rest' ? '休息中' : '下把回来';
+    if (s.away === 'rest') return '下把休息';
+    return '';
+  }
+  function restClock(s) {
+    return window.LDAwayClock ? window.LDAwayClock.stamp(s) : '';
+  }
+
   function isHost() { return !!(S.st && S.st.host && S.st.host === S.st.you); }
   function iAmShaker() { return S.st && myIdx() === S.st.shaker; }
   /* 庄家手机没电了，谁能替他摇公骰 / 点人：房主；房主自己也不在，桌上随便谁。
@@ -802,7 +826,7 @@
 
     var size = st.seats.length >= 10 ? '5.1vw' : '6vw';
     el.round.textContent = '第 ' + st.round + ' 轮';
-    var nxWho = (st.shaker + 1) % st.seats.length;
+    var nxWho = nextShakerIdx(st);
     if (st.phase === 'pass') {
       el.who.textContent = st.you === st.seats[nxWho].id ? '该你接手了' : nameOf(nxWho) + ' 准备';
     } else {
@@ -825,8 +849,12 @@
          一看就知道「他还没入圈」，不用谁再解释一遍。 */
       se.root.classList.toggle('out', outOf(s));
       /* 「准备」优先：站在下一位的人就算这一把没赶上，也随时能接手入圈 */
+      var rt = restTagText(s);
       se.tag.textContent = s.online === false ? '掉线'
-        : isNext ? '准备' : (s.sitOut ? '下把' : '指名');
+        : (rt || (isNext ? '准备' : (s.sitOut ? '下把' : '指名')));
+      /* 休息的人整张卡换底色，同桌不用凑近认那四个字 */
+      se.root.classList.toggle('is-rest', !!s.rest);
+      se.root.classList.toggle('is-rest-wait', !s.rest && s.away === 'rest');
       se.root.classList.toggle('hit', hit);
       se.root.classList.toggle('sel', st.picked === i);
       se.root.classList.toggle('me', s.id === st.you);
@@ -1007,7 +1035,11 @@
 
       var cu = document.createElement('span');
       cu.className = 'who-c';
-      cu.textContent = (s.cups | 0) + ' 杯 · ' + (off ? '离线' : '在线');
+      var rt = restTagText(s);
+      /* 这一栏够宽，把完整状态和离开时长写清楚；杯数照旧留着 */
+      cu.innerHTML = (s.cups | 0) + ' 杯 · ' + (rt || (off ? '离线' : '在线')) +
+        restClock(s);
+      if (s.rest) row.className += ' is-away-rest';
       row.appendChild(cu);
 
       /* 自己那一行不给按钮：踢自己请点左上角的返回 */
@@ -1165,7 +1197,7 @@
     } else {
       /* 没人对上了：庄家点一下交给下一位，**下一位自己也能点**
          （2026-11-10 用户反馈：原来非等庄家不可，他一走神整桌就卡住） */
-      var nx = (st.shaker + 1) % st.seats.length;
+      var nx = nextShakerIdx(st);
       if (iAmShaker()) h += btn('fnext', nameOf(nx) + ' 接手', 'btn primary');
       else if (myIdx() === nx) h += btn('fnext', '我来接手', 'btn primary');
       else h += '<div class="fn-wait">等 ' + nameOf(nx) + ' 接手</div>';
@@ -1183,6 +1215,29 @@
       if (sv) vt += ' · ' + sv + 's';
     }
     h += btn('freset', vt, v ? 'fn-mini on' : 'fn-mini');
+
+    /* 临时休息入口：跟 350 / 吹牛同一套（默认态点开再选，挂起态一颗实底「点击继续」）。
+       找朋友没有结算页，2 人桌有人休息时就停在「没人对上」那一屏等他回来。 */
+    if (st.started && me && window.LDRest) {
+      var on = me.away === 'rest', live = !!me.rest, rh = '';
+      if (!on && !live) {
+        rh = '<button class="rest-link" data-act="restopen">临时休息 · 下一把生效</button>';
+      } else if (live && !on) {
+        rh = '<span class="rest-back">下把回来 · 本把照常打完</span>';
+      } else {
+        rh = '<button class="rest-go" data-act="resume">' +
+          (live ? '休息中 · 点击继续' : '下把休息 · 点击取消') + '</button>';
+      }
+      var info = '';
+      if (st.away && st.away.rest) {
+        info = '桌上 ' + (st.away.active | 0) + ' 人在玩 · ' +
+          (st.away.rest | 0) + ' 人休息不算分母';
+      }
+      var ck = restClock(me);
+      if (ck) info += (info ? '<br>' : '') + ck;
+      if (info) rh += '<div class="rest-info">' + info + '</div>';
+      h += '<div class="rest-row">' + rh + '</div>';
+    }
     el.btns.innerHTML = h;
   }
 
@@ -1382,6 +1437,12 @@
         if (vv && vv.yes && vv.yes.indexOf(S.st.you) >= 0) send({ t: 'unvote' });
         else send({ t: 'restart' });
       }
+      else if (act === 'restopen') {
+        if (window.LDRest) window.LDRest.open({
+          ok: function (k) { send({ t: k === 'rest' ? 'rest' : 'resume' }); }
+        });
+      }
+      else if (act === 'resume') send({ t: 'resume' });
     });
 
     document.addEventListener('visibilitychange', function () {
@@ -1517,6 +1578,8 @@
     quit: quitRoom,
     /* 给自动化测试：读当前状态 / 直接发一条协议 */
     state: function () { return S.st; },
+    /* 验收脚本用：灌一份造出来的桌面，直接看真样式 */
+    paint: function (st) { S.code = (st && st.code) || 'TEST'; S.st = st; render(); },
     send: function (o) { return send(o); },
     code: function () { return S.code; }
   };

@@ -140,6 +140,116 @@
     };
   })();
 
+  /* ---------------- 离开计时：三家联机共用（2026-11-14） ----------------
+
+     服务端每次广播带一个 awayMs（算到那一刻的权威时长），前端拿本机时钟
+     记下「收到的这一刻」，之后自己往下加秒。不直接信本机时间对服务器做差，
+     是因为几台手机可能各差几分钟，会得出三个不同的数。
+
+     每秒只改这些小字的文本，不重画页面 —— 整页 render 会把骰子入场动画
+     再播一遍（老坑：开盖一次闪一下）。 */
+  window.LDAwayClock = (function () {
+    function fmt(ms) {
+      var s = Math.max(0, Math.floor((ms || 0) / 1000));
+      var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), q = s % 60;
+      function two(n) { return n < 10 ? '0' + n : '' + n; }
+      return h ? h + ':' + two(m) + ':' + two(q) : two(m) + ':' + two(q);
+    }
+    /* s = 服务端下发的座位。
+       · 还在外面：awayMs 有值 → 一枚会自己走秒的「05:23」
+       · 已点继续、本把还没结束：awayLast 有值 → 一句静态「本次离开 05:23」 */
+    function stamp(s) {
+      if (!s) return '';
+      var base = s.awayMs | 0, last = s.awayLast | 0;
+      /* 判「还在不在外面」要看意愿，不能看 awayMs：
+         刚点下「休息」的那一次广播里，服务端算出来的时长正好是 0，
+         拿它当条件会把整枚计时藏掉，要等下一次广播才冒出来（2026-11-14 实测）。 */
+      if (s.away || base) {
+        return '<i class="rest-time" data-away-base="' + base +
+          '" data-away-at="' + Date.now() + '">' + fmt(base) + '</i>';
+      }
+      /* 已经点了继续、本把还在外面：给一句静态总时长。
+         真正回到局里（mode 也空了）就别再挂着上一次的数。 */
+      if (last && s.mode) {
+        return '<i class="rest-time" data-away-last="' + last +
+          '">本次离开 ' + fmt(last) + '</i>';
+      }
+      return '';
+    }
+    function tick() {
+      var es = document.querySelectorAll('.rest-time[data-away-base]');
+      for (var i = 0; i < es.length; i++) {
+        var e = es[i];
+        e.textContent = fmt((+e.getAttribute('data-away-base')) +
+          (Date.now() - (+e.getAttribute('data-away-at'))));
+      }
+    }
+    setInterval(tick, 1000);
+    return { fmt: fmt, stamp: stamp, tick: tick };
+  })();
+
+  /* ---------------- 休息：350 / 找朋友共用的那张选择卡 ----------------
+
+     吹牛有自己的一张（多一颗「炸弹」），这两家只有「休息 / 继续」，
+     但交互得一模一样：点开再选、320ms 背板保护窗、当前这把照常打完。
+     浮层用 JS 建，不塞进 index.html —— 三个页面各摆一份 DOM 反而容易漏改。 */
+  window.LDRest = (function () {
+    var box = null, sub = null, oRest = null, oBack = null;
+    var job = null, openedAt = 0;
+
+    function build() {
+      box = document.createElement('div');
+      box.className = 'rest-mask';
+      box.hidden = true;
+      box.innerHTML =
+        '<div class="rest-card">' +
+          '<div class="rest-t">临时离开</div>' +
+          '<div class="rest-s"></div>' +
+          '<button class="rest-opt" data-rest="rest" type="button">' +
+            '<b>休息一下</b><span>下一把起占着座位不参与 · 分数 / 杯数留着' +
+            '<br>回来点「继续」就正常打</span>' +
+          '</button>' +
+          '<button class="rest-opt is-back" data-rest="resume" type="button" hidden>' +
+            '<b>点击继续</b><span>下一把起恢复正常参与</span>' +
+          '</button>' +
+          '<button class="rest-no" data-rest="no" type="button">算了</button>' +
+        '</div>';
+      document.body.appendChild(box);
+      sub = box.querySelector('.rest-s');
+      oRest = box.querySelector('[data-rest="rest"]');
+      oBack = box.querySelector('[data-rest="resume"]');
+      box.addEventListener('click', function (e) {
+        var t = e.target;
+        while (t && t !== box && !(t.getAttribute && t.getAttribute('data-rest'))) t = t.parentNode;
+        if (t && t !== box) { pick(t.getAttribute('data-rest')); return; }
+        /* 手指抬起浏览器会在同一处补一个 click，刚开的那 320ms 不认背板 */
+        if (e.target === box && Date.now() - openedAt >= 320) close();
+      });
+    }
+    function close() { if (box) box.hidden = true; job = null; }
+    function pick(k) {
+      var f = job && job.ok;
+      close();
+      if (k !== 'no' && f) f(k);
+    }
+    function open(o) {
+      if (!box) build();
+      job = o || {};
+      var on = !!job.on;
+      oRest.hidden = on;
+      oBack.hidden = !on;
+      sub.textContent = on
+        ? '你正在休息 · 点「点击继续」下一把就回来'
+        : '下一把起生效 · 当前这把照常打完';
+      box.hidden = false;
+      openedAt = Date.now();
+    }
+    return {
+      open: open, close: close,
+      isOpen: function () { return !!(box && !box.hidden); }
+    };
+  })();
+
   /* ================= 常量 ================= */
 
   var PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };

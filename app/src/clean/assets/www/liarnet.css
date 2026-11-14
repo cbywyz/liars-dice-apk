@@ -596,13 +596,15 @@
   white-space: nowrap;
 }
 
-/* 顺子：摊牌那一眼最先要看的东西，所以给它一块底，不是纯色字。
+/* 牌型牌：顺子 / 豹子这两手摊牌那一眼最要紧，所以给一块底，不是纯色字。
    位置在名字和骰子中间那块空白 —— 那里本来就是空的，不挤任何人的位子，
-   眼睛从名字扫到骰子一定会经过它。
+   眼睛从名字扫到骰子一定会经过它。两枚牌规格完全一样，只换颜色。
 
-   为什么是金底不是红底：红在满屏骰子里到处都是（1 和 4 的点就是红的），
+   顺子为什么是金底不是红底：红在满屏骰子里到处都是（1 和 4 的点就是红的），
    贴一块红反而淹掉。金是这套 App 里「大牌」的颜色（350 的豹子也是金），
-   深金底 + 米白字，一眼就跳出来，又不会像警告。 */
+   深金底 + 米白字，一眼就跳出来，又不会像警告。
+   豹子要跟顺子分开：红被骰点占了、也是「3 连罚」的警告色，蓝是休息、橙是炸弹，
+   剩下紫没被用过 —— 深紫底米白字，跟金并排放一眼就分得清（2026-11-14 用户要求）。 */
 /* 掉线：名字下面挂一行灰字。不压暗整行 —— 这一屏是拿来对牌的，
    人走了他的点数还在数里，压暗了反而看不清。 */
 .lr-rv-off {
@@ -635,6 +637,13 @@
   letter-spacing: 0.4vw;
   white-space: nowrap;
   box-shadow: 0 0.6vw 1.6vw rgba(138, 95, 24, 0.28);
+}
+
+/* 豹子：跟顺子同一枚牌的大小 / 字重 / 圆角，只把底色换成深紫。
+   两种牌型永远只会出现一枚，不存在并排抢位置的情况。 */
+.lr-rv-t.lion {
+  background: #6a3d91;
+  box-shadow: 0 0.6vw 1.6vw rgba(106, 61, 145, 0.3);
 }
 
 .lr-rv-d {
@@ -887,3 +896,44 @@
   font-size: 3.4667vw;
   color: #4a4f59;
 }
+
+/* 挂起态那颗「大家都休息了」自救键：跟主按钮同一档明显度，绿底是「回来」的意思 */
+.lr-rescue {
+  align-self: center;
+  margin-top: 1.6vw;
+  padding: 2.4vw 5.3333vw;
+  border: 0;
+  border-radius: 999px;
+  background: #2f8a5b;
+  color: #fffaf0;
+  font: inherit;
+  font-size: 3.4vw;
+  font-weight: 800;
+  box-shadow: 0 1.2vw 2.8vw rgba(47, 138, 91, 0.3);
+}
+
+/* 「改模式」浮层里，当前正在用的那一项描粗一点，别让人以为三个都一样 */
+.lr-away-opt.is-now {
+  box-shadow: inset 0 0 0 0.5333vw rgba(35, 38, 45, 0.42);
+}
+.lr-rv-m .rest-time,
+.who-c .rest-time,
+.lr-me-tag .rest-time,
+.lr-wait .rest-time { margin-left: 1.2vw; }
+
+/* 本把休息的人盅里没有骰子：直接写一句话，别摆 5 颗空白方块 */
+.lr-me-rest {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 60vw;
+  text-align: center;
+  font-size: 3.6vw;
+  font-weight: 700;
+  line-height: 1.7;
+  color: #f4e8cd;
+  text-shadow: 0 0.4vw 1.2vw rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+}
+.lr-me-rest span { font-size: 2.8vw; font-weight: 500; opacity: 0.82; }

@@ -903,6 +903,7 @@
     renderTaken();
     renderHint();
     renderBtns();
+    renderRest();
     renderHandoff();
     renderRedo();
     renderKick();
@@ -960,7 +961,7 @@
     var nxIdx = s.phase === 'over' ? -1 : nextIdx(s);
     var key = s.players.map(function (p) {
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
-        ':' + (p.lion || 0);
+        ':' + (p.lion || 0) + ':' + (p.rest ? 1 : 0) + ':' + (p.away || '');
     }).join('|') + '#' + s.turn + '#' + s.phase
       /* s.you 也得算进 key：刚进桌那次「哪张是我」是后到的，
          不重画就一直是别人那张亮金边 */
@@ -994,7 +995,11 @@
         /* 自己那张：粗金边 + 名字前面挂「我」牌。
            350 以前**一点标记都没有**，只有「轮到谁」的深色卡 ——
            别人轮到时自己的卡和别人的长得一模一样，只能靠念昵称认人。 */
-        + (p.id === s.you ? ' me' : '');
+        + (p.id === s.you ? ' me' : '')
+        /* 休息的人整张卡换底色：82px 的卡里塞不下新的一行，
+           得让同桌的人扫一眼就看出「这张卡不在这一局里」 */
+        + (p.rest ? ' is-rest' : '')
+        + (!p.rest && p.away === 'rest' ? ' is-rest-wait' : '');
       div.setAttribute('data-pid', p.id);
 
       var nm = document.createElement('div');
@@ -1021,12 +1026,21 @@
       var dot = document.createElement('i');
       dot.className = 'p-dot';
       st.appendChild(dot);
-      st.appendChild(document.createTextNode(i === nxIdx ? '下一个'
-        : (p.online === false ? '离线' : '在线')));
+      /* 休息的状态借这一行写：卡片只有 82px，加一整行会把整排格子顶高。
+         四个字刚好放得下，掉线优先说离线。 */
+      var restTxt = p.rest ? (p.away === 'rest' ? '休息中' : '下把回来')
+        : (p.away === 'rest' ? '下把休息' : '');
+      st.appendChild(document.createTextNode(p.online === false ? '离线'
+        : (restTxt || (i === nxIdx ? '下一个' : '在线'))));
 
       var sc = document.createElement('div');
       sc.className = 'p-score';
-      sc.textContent = p.locked ? String(p.score) : '—';
+      /* 本把真休息的人没有分数可写，这一格让给离开时长（每秒自己走） */
+      if (p.rest) {
+        sc.innerHTML = window.LDAwayClock ? window.LDAwayClock.stamp(p) : '';
+      } else {
+        sc.textContent = p.locked ? String(p.score) : '—';
+      }
 
       div.appendChild(nm);
       div.appendChild(st);
@@ -1324,6 +1338,47 @@
     }
   }
 
+  /* 底栏临时休息入口：跟吹牛同一套（默认态点开再选，挂起态一颗实底「点击继续」）。
+     单独一步 render，是因为 renderBtns 在结算页会直接 return ——
+     而 2 人桌有人休息时恰恰停在结算页，等的就是他这一下「继续」。 */
+  function renderRest() {
+    if (!el.btns) return;
+    var old = el.btns.querySelector('.rest-row');
+    if (old) old.parentNode.removeChild(old);
+    var s = S.state;
+    if (!s || !s.started || !window.LDRest) return;
+    var me = null;
+    for (var i = 0; i < (s.players || []).length; i++) {
+      if (s.players[i].id === s.you) me = s.players[i];
+    }
+    if (!me) return;
+
+    var on = me.away === 'rest';     // 下一把起休息的意愿
+    var live = !!me.rest;            // 本把已经生效
+    var h = '';
+    if (!on && !live) {
+      h = '<button class="rest-link" data-act="restopen">临时休息 · 下一把生效</button>';
+    } else if (live && !on) {
+      h = '<span class="rest-back">下把回来 · 本把照常打完</span>';
+    } else {
+      h = '<button class="rest-go" data-act="resume">' +
+        (live ? '休息中 · 点击继续' : '下把休息 · 点击取消') + '</button>';
+    }
+    /* 分母 / 离开时长：按钮下面一行，正常玩家也看得见谁不在这一局里 */
+    var info = '';
+    if (s.away && s.away.rest) {
+      info = '桌上 ' + (s.away.active | 0) + ' 人在玩 · ' +
+        (s.away.rest | 0) + ' 人休息不算分母';
+    }
+    var ck = window.LDAwayClock ? window.LDAwayClock.stamp(me) : '';
+    if (ck) info += (info ? '<br>' : '') + ck;
+    if (info) h += '<div class="rest-info">' + info + '</div>';
+    var box = document.createElement('div');
+    box.className = 'rest-row';
+    box.innerHTML = h;
+    el.btns.appendChild(box);
+  }
+
   /* 结算榜的顺序。抽出来是因为「同分谁排前面」这条规则在真房间里凑不出来
      （得几个人正好锁在同一个分数），但它偏偏是这局唯一有争议的地方 ——
      单独给它一条能直接喂数据进来的口子（window.LDNet.rankRows）。
@@ -1337,7 +1392,9 @@
       /* 不在 order 里 = 这一局一颗骰子都没锁过（0 分坐到底），按最早处理 */
       return order ? order.lastIndexOf(p.id) : -1;
     }
-    return players.slice().sort(function (a, b) {
+    /* 本把休息的人不进结算榜（2026-11-14 用户拍板）：他一颗骰子没摇，
+       0 分摆进「分最少的背」就是白背一口锅。分数 / 名次留着，下一把回来照旧。 */
+    return players.filter(function (p) { return !p.rest; }).slice().sort(function (a, b) {
       if (a.score !== b.score) return a.score - b.score;
       return at(b) - at(a);
     });
@@ -1369,7 +1426,11 @@
 
       if (el.hdKicker) el.hdKicker.textContent = '一局打完 · 分最低的背';
       if (el.hdName) el.hdName.textContent = rows.length ? rows[0].name + ' · ' + rows[0].score : '';
-      if (el.hdSub) el.hdSub.textContent = '分最少的排第一 · 同分最后锁上的背';
+      if (el.hdSub) {
+        var nr = (s.away && s.away.rest) | 0;
+        el.hdSub.textContent = '分最少的排第一 · 同分最后锁上的背' +
+          (nr ? ' · ' + nr + ' 人休息，本局不排名' : '');
+      }
 
       if (el.rank) {
         el.rank.hidden = false;
@@ -1471,6 +1532,14 @@
       return;
     }
     if (a === 'liontake') { send({ t: 'lionTake' }, 'liontake'); return; }
+    /* 临时休息：默认态点开选择卡防误触；挂起态那颗「点击继续」直接发一条 */
+    if (a === 'restopen') {
+      if (window.LDRest) window.LDRest.open({
+        ok: function (k) { send({ t: k === 'rest' ? 'rest' : 'resume' }, 'rest'); }
+      });
+      return;
+    }
+    if (a === 'resume') { vibrate(12); send({ t: 'resume' }, 'rest'); return; }
     if (a === 'reset') { send({ t: 'reset' }, 'reset'); return; }
     if (a === 'go') { send({ t: 'go' }, 'go'); return; }
     if (a === 'start') { send({ t: 'start' }, 'start'); return; }
