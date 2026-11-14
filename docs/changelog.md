@@ -6,6 +6,58 @@
 > 仓库 [Releases](https://github.com/cbywyz/liars-dice-apk/releases) 里的是安卓包，发得比网页版慢。
 > 版本号在首页页脚、每个玩法页底栏都能看到。
 
+## v1.24.26 · 2026-11-14
+
+### 不发新玩法，专修「工具链和验收脚本」
+
+这一版用户看不见新按钮，改的全是会悄悄出错的地方。做完一次全局体检，按「先快赢、再服务端」的顺序收拾。
+
+**一、给 `[hidden]` 加一条全局兜底**
+
+`app.css` 最前面加了 `[hidden] { display: none !important; }`。站里已经因为
+「元素自己写了 `display:flex`，把浏览器默认的 `[hidden]` 压掉」踩过四次坑
+（`.ng-rank`、`.rn-mask`、`.f3-handoff`、`.me-tag`），七个 CSS 里陆续补了 66 条局部规则
+还是防不胜防 —— v1.24.25 那个「交接屏一直挂着上一把排名」就是这么来的。
+一条全局规则从源头断掉，旧的局部补丁留着不冲突。
+两版实测：所有带 `hidden` 属性的元素（完整版 58 个、纯净版 56 个）`display` 全是 `none`；
+`_probe_handoff_rank.py` 验交接屏仍是 `none / 0px`、结算屏仍是 `flex / 57px`。
+
+**二、`board.css` / `board.js` 以前没有版本戳**
+
+`sync_site.py` 给 css/js 挂内容哈希的名单里漏了 `board`，线上两版 `index.html` 实测
+`board.css?v=` 和 `board.js?v=` 都是 False。公共屏以后改动时，装到桌面的用户会一直吃旧缓存。
+补进名单后两版都带上了 `?v=`。
+
+**三、纯净版的自检以前只扫 3 个文件**
+
+`make_clean_h5.py` 的关键词扫描只看 `app.js` / `index.html` / `app.css`，
+`findnet.js` 里留着整套调试面板代码也照样打印「干净」。现在扫全部 18 个文本资源，
+另加一条语义断言：调试总闸必须恒 false，不许被改回可激活的形式。
+顺带清掉一直跟着纯净版走的 `_dev_*.png` 三张和 `test_dev.py` / `_shot_dev.py`。
+
+**四、服务端：散场、建房、脏数据**
+
+- 房间人走光时，三家 `removePlayer` 现在把 `vote` / `order` / `hand` / `taken` /
+  `round` / `log` 一起洗回初始态。以前只清六个字段，而 `pub()` 会把 `vote` 和 `log`
+  原样下发 —— 下一桌人进房可能看见上一桌半截的投票卡和消息。
+- `/api/new` 建房改成「谁真把房间建出来才算数」：DO 的 `/init` 返回 `fresh`，
+  抢不到就换个房号再试。以前两次 fetch 之间可能插进别的请求，两个并发建房会拿到同一个房号，
+  后者以为自己开了新桌，其实挤进了别人那一桌。
+- 吹牛踢人投票补上 `G.vote = null`（另外两家本来就有），一次只吵一件事。
+- 中途加入只会给 350 写出手队列了：条件从 `!== 'find'` 收紧成 `=== 'l350'`，
+  吹牛房间不再被塞一份没人下发的 `queue` / `startOrder`。
+
+**五、验收脚本**
+
+全项目 29 处还在点 `#netJoin` 的步骤清干净了（v1.24.25 把 350 房号框改成常驻时删掉了这个按钮，
+当时只修了 5 个脚本）。`_real/` 里 9 个、其余散在根目录和 `liars-dice-online/`，
+一行多语句的那种只摘片段、不删整行，全部 `ast.parse` 通过。
+
+**验收**：线上完整版 + 纯净版各跑 `test_board.py` **PASS 34**、`_e2e_rename.py` **PASS**、
+`_check_next_turn.py` **PASS**；`_e2e_kick_ui.py` / `_e2e_kick_vote.py` 各 **PASS (fail 0)**；
+`_probe_handoff_rank.py` / `_probe_seat_ord.py` / `_probe_rename.py` / `_probe_over_card2.py` 全过
+（3 人卡 305×221、12 人 305×255 且榜可滚，与上一版一致）。
+
 ## v1.24.25 · 2026-11-13
 
 ### 联机三家：桌上直接改名、不许重名、座位标了出手序号

@@ -1,4 +1,10 @@
 /* 由 pages/index/index.wxss 自动转换生成：rpx -> vw（1rpx = 100/750vw） */
+/* 全局兜底：凡是带了 hidden 属性的元素一律不显示（2026-11-14）。
+   .ng-rank / .rn-mask / .me-tag / .f3-handoff 都踩过同一个坑：元素自己写了
+   display:flex，就把浏览器默认那条 [hidden] 规则压掉了，el.hidden = true 等于没写。
+   七个 css 里陆续补了 66 条局部规则，还是防不胜防 —— 这一条放全站最前面一劳永逸，
+   旧的局部补丁留着不冲突，以后可以慢慢删。 */
+[hidden] { display: none !important; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
 body {
