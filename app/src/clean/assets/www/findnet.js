@@ -167,6 +167,8 @@
     if (!s) return '';
     if (s.rest) return s.away === 'rest' ? '休息中' : '下把回来';
     if (s.away === 'rest') return '下把休息';
+    /* 刚点继续、展示计数还没减到 0：mode 已经空了，同桌还得看清他一共离开了多久 */
+    if (s.awayBack && (s.awayLast | 0) > 0) return '刚回来';
     return '';
   }
   function restClock(s) {
@@ -1220,13 +1222,19 @@
        找朋友没有结算页，2 人桌有人休息时就停在「没人对上」那一屏等他回来。 */
     if (st.started && me && window.LDRest) {
       var on = me.away === 'rest', live = !!me.rest, rh = '';
-      if (!on && !live) {
+      var showBack = !live && !on && !!me.awayBack && (me.awayLast | 0) > 0;
+      /* 跟 350 同一套四态：状态牌讲状态、按钮讲动作，挂起淡橙、生效深橙、已点继续绿 */
+      if (!on && !live && !showBack) {
         rh = '<button class="rest-link" data-act="restopen">临时休息 · 下一把生效</button>';
-      } else if (live && !on) {
-        rh = '<span class="rest-back">下把回来 · 本把照常打完</span>';
+      } else if (showBack || (live && !on)) {
+        rh = '<span class="rest-state is-back">' +
+          (showBack && !live ? '刚回来' : '已点继续 · 下一把回来') + '</span>';
+      } else if (live) {
+        rh = '<span class="rest-state is-live">休息中 · 本把不参与</span>' +
+          '<button class="rest-go is-live" data-act="resume">点击继续</button>';
       } else {
-        rh = '<button class="rest-go" data-act="resume">' +
-          (live ? '休息中 · 点击继续' : '下把休息 · 点击取消') + '</button>';
+        rh = '<span class="rest-state is-wait">已预约休息 · 下一把生效</span>' +
+          '<button class="rest-go is-wait" data-act="resume">取消休息</button>';
       }
       var info = '';
       if (st.away && st.away.rest) {

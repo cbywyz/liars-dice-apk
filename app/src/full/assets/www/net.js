@@ -961,7 +961,9 @@
     var nxIdx = s.phase === 'over' ? -1 : nextIdx(s);
     var key = s.players.map(function (p) {
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
-        ':' + (p.lion || 0) + ':' + (p.rest ? 1 : 0) + ':' + (p.away || '');
+        ':' + (p.lion || 0) + ':' + (p.rest ? 1 : 0) + ':' + (p.away || '') +
+        /* 回归告示那几把也得进 key：窗口一开一关要整排重画 */
+        ':' + (p.awayBack ? 1 : 0);
     }).join('|') + '#' + s.turn + '#' + s.phase
       /* s.you 也得算进 key：刚进桌那次「哪张是我」是后到的，
          不重画就一直是别人那张亮金边 */
@@ -1028,10 +1030,16 @@
       st.appendChild(dot);
       /* 休息的状态借这一行写：卡片只有 82px，加一整行会把整排格子顶高。
          四个字刚好放得下，掉线优先说离线。 */
+      var showBack = !!p.awayBack;
+      /* 时长写在状态行「回来 01:05」：卡片只有 82px，分数格得留给分数，
+         不能因为一句告示让人一直看不到自己的分。「下一个 / 离线」优先。 */
+      var backTxt = (showBack && !p.rest && (p.awayLast | 0) > 0 &&
+                     window.LDAwayClock)
+        ? '回来 ' + window.LDAwayClock.fmt(p.awayLast) : '';
       var restTxt = p.rest ? (p.away === 'rest' ? '休息中' : '下把回来')
         : (p.away === 'rest' ? '下把休息' : '');
       st.appendChild(document.createTextNode(p.online === false ? '离线'
-        : (restTxt || (i === nxIdx ? '下一个' : '在线'))));
+        : (i === nxIdx ? '下一个' : (backTxt || restTxt || '在线'))));
 
       var sc = document.createElement('div');
       sc.className = 'p-score';
@@ -1355,14 +1363,24 @@
 
     var on = me.away === 'rest';     // 下一把起休息的意愿
     var live = !!me.rest;            // 本把已经生效
+    var showBack = !live && !on && !!me.awayBack && (me.awayLast | 0) > 0;
+    /* 状态牌只讲「现在是什么情况」，按钮只讲「点我会怎样」。
+       以前三态共用一颗深橙实底按钮、状态和动作挤在一行（「下把休息 · 点击取消」
+       /「休息中 · 点击继续」），刚点了休息和本把正在休息几乎分不出来
+       （2026-11-14 用户实测）。现在挂起淡橙、生效深橙、已点继续绿，颜色也拉开一档。 */
     var h = '';
-    if (!on && !live) {
+    if (!on && !live && !showBack) {
       h = '<button class="rest-link" data-act="restopen">临时休息 · 下一把生效</button>';
-    } else if (live && !on) {
-      h = '<span class="rest-back">下把回来 · 本把照常打完</span>';
+    } else if (showBack || (live && !on)) {
+      /* 窗口内人已经回到局里（mode 也空了）就写「刚回来」，别还挂着「下一把回来」 */
+      h = '<span class="rest-state is-back">' +
+        (showBack && !live ? '刚回来' : '已点继续 · 下一把回来') + '</span>';
+    } else if (live) {
+      h = '<span class="rest-state is-live">休息中 · 本把不参与</span>' +
+        '<button class="rest-go is-live" data-act="resume">点击继续</button>';
     } else {
-      h = '<button class="rest-go" data-act="resume">' +
-        (live ? '休息中 · 点击继续' : '下把休息 · 点击取消') + '</button>';
+      h = '<span class="rest-state is-wait">已预约休息 · 下一把生效</span>' +
+        '<button class="rest-go is-wait" data-act="resume">取消休息</button>';
     }
     /* 分母 / 离开时长：按钮下面一行，正常玩家也看得见谁不在这一局里 */
     var info = '';

@@ -2492,6 +2492,15 @@ body.tap-edit .die-slot:active .die {
   color: #8a4318;
   white-space: nowrap;
 }
+/* 点「继续」后的回归告示：跟走秒的橙钟拉开一档（绿底绿字），
+   让同桌来得及看清他一共离开了多久（2026-11-14 用户要求）。
+   跟着牌局走：服务端本把 + 下一把都下发，第三把自然收，不设秒表。 */
+.rest-time.is-last {
+  color: #2f6344;
+  background: rgba(47, 99, 68, 0.10);
+  border-radius: 999px;
+  padding: 0 1.6vw;
+}
 /* 状态牌：结算榜 / 桌上的人那类宽地方用 */
 .rest-tag {
   display: inline-block;
@@ -2508,7 +2517,8 @@ body.tap-edit .die-slot:active .die {
 .rest-tag.is-wait { background: #96612a; }
 .rest-tag.is-back { background: #2f8a5b; }
 
-/* 底栏：默认一颗描边胶囊；挂起时换成实底主按钮 + 一颗小的「改模式」 */
+/* 底栏：默认一颗描边胶囊；挂起 / 生效都拆成「状态牌 + 动作按钮」两层，
+   四态四档颜色，别再让三态共用一颗深橙实底按钮、只靠文字区分。 */
 .rest-row {
   display: flex;
   align-items: center;
@@ -2549,6 +2559,55 @@ body.tap-edit .die-slot:active .die {
   letter-spacing: 0.2vw;
   box-shadow: 0 1.2vw 2.8vw rgba(168, 83, 31, 0.32);
 }
+/* 状态牌：独占一行，只讲「现在是什么状态」；下面那颗按钮只讲「点我会怎样」。
+   这样「下一把生效」和「点击继续」不再挤在同一个控件里（2026-11-14 用户实测）。 */
+.rest-state {
+  flex: 0 0 100%;
+  width: 100%;
+  box-sizing: border-box;
+  align-self: center;
+  padding: 1.0667vw 3.2vw;
+  border: 0;
+  border-radius: 999px;
+  font-size: 2.8vw;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+  letter-spacing: 0.1vw;
+  white-space: nowrap;
+}
+.rest-state.is-wait {
+  background: rgba(196, 104, 52, 0.14);
+  box-shadow: inset 0 0 0 0.2667vw rgba(196, 104, 52, 0.42);
+  color: #8a4318;
+}
+/* 生效态状态牌用实橙白字：跟挂起态那块浅橙拉满对比，别让两态的牌子撞色 */
+.rest-state.is-live {
+  background: #b96a34;
+  box-shadow: 0 0.8vw 2vw rgba(168, 83, 31, 0.26);
+  color: #fff8ec;
+}
+.rest-state.is-back {
+  background: rgba(58, 167, 109, 0.14);
+  box-shadow: inset 0 0 0 0.2667vw rgba(58, 167, 109, 0.4);
+  color: #2c7a52;
+}
+/* 挂起态：淡橙浅底 + 描边，明显弱于生效态那颗深橙实底主按钮 */
+.rest-go.is-wait {
+  background: rgba(196, 104, 52, 0.16);
+  color: #8a4318;
+  font-weight: 700;
+  letter-spacing: 0;
+  box-shadow: inset 0 0 0 0.2667vw rgba(196, 104, 52, 0.55);
+}
+/* 生效态：沿用 .rest-go 的深橙实底加粗，写成一类是为了能按态取色比对 */
+.rest-go.is-live {
+  background: #a8531f;
+  color: #fff8ec;
+  font-weight: 800;
+  box-shadow: 0 1.2vw 2.8vw rgba(168, 83, 31, 0.32);
+}
+/* 旧的中间态胶囊，留着兼容其它页面 */
 .rest-back {
   padding: 1.8667vw 4.5333vw;
   border: 0;

@@ -703,6 +703,11 @@
       : { k: 'back', t: '下把回来', long: '本把炸弹 · 已点继续，下一把回来' };
     if (w === 'rest') return { k: 'wait', t: '下把休息', long: '下一把起休息 · 本把照常' };
     if (w === 'bomb') return { k: 'wait', t: '下把炸弹', long: '下一把起挂炸弹 · 本把照常' };
+    /* 刚点继续、展示计数还没减到 0：mode 已经空了，座位卡 / 摊牌大表 /
+       桌上的人都还要看清他一共离开了多久（时长由 awayClock(s) 拼在同一行）。 */
+    if (s.awayBack && (s.awayLast | 0) > 0) {
+      return { k: 'back', t: '刚回来', long: '刚回来 · 下一把起正常参与' };
+    }
     return null;
   }
 
@@ -1395,26 +1400,39 @@
 
     /* 临时离开的入口：牌桌 / 摊牌页都在（.fd-btns 那一屏不收起来）。
 
-       2026-11-14 用户：「炸弹中 点这里改 不够明显，应该改为 炸弹中 点击继续」。
-       挂起时人回来只想按一下，那时候选择卡里本来也只剩「继续参与」一颗按钮 ——
-       再进一层纯属多余。所以改成：
-         · 一颗实底主按钮「点击继续」，点下去**直接恢复**（下一把生效）
-         · 旁边留一颗小的「改模式」，想从休息换成炸弹才用它
-       默认态仍是「临时离开 · 休息 / 炸弹」描边胶囊，点开再选，防误触不变。 */
+       2026-11-14 用户：「炸弹中 点这里改 不够明显，应该改为 炸弹中 点击继续」；
+       同日又反馈「刚点了休息 / 等待生效 / 已经生效」几态长得太像、文案绕。
+       所以最终拆成两层：状态牌只讲状态，按钮只讲动作，四态四档颜色 ——
+         · 默认：淡金描边「临时离开」，点开再选，防误触不变
+         · 挂起（下一把才生效）：淡橙「已预约休息 / 炸弹 · 下一把生效」+「取消休息 / 炸弹」
+         · 生效（本把正在离开）：深橙实底「休息中 / 炸弹中」+「点击继续」
+         · 已点继续、本把还在外面：绿色「已点继续 · 下一把回来」+ 小「改模式」
+       点主按钮直接发 resume / lresume，不再进一层选择卡。 */
     if (st.started) {
       var bd = myAway();
       if (!bd) {
         h += '<button class="lr-away-link" data-act="away">临时离开 · 休息 / 炸弹</button>';
       } else if (bd.k === 'back') {
-        /* 已经点了继续、本把还在外面：别再摆一颗假的「继续」，写清楚下一把回来 */
+        /* 已经回到局里就写「刚回来」，别还挂着「下一把回来」；
+           跟 350 / 找朋友一样把总时长摆在同一行，跟着牌局走、不设秒表。 */
+        var ckBack = awayClock(st.seats[myIdx()]);
         h += '<div class="rest-row">' +
-          '<span class="rest-back">下把回来 · 本把照常打完</span>' +
+          '<span class="rest-state is-back">' +
+          (bd.t === '刚回来' ? '刚回来' : '已点继续 · 下一把回来') + '</span>' +
           '<button class="lr-away-link is-on is-mini" data-act="away">改模式</button>' +
+          (ckBack ? '<div class="rest-info">' + ckBack + '</div>' : '') +
           '</div>';
       } else {
-        var go = bd.k === 'wait' ? bd.t + ' · 点击取消' : bd.t + ' · 点击继续';
+        var wait = bd.k === 'wait';
+        var isBomb = bd.t.indexOf('炸弹') >= 0;
+        var state = wait
+          ? (isBomb ? '已预约炸弹 · 下一把生效' : '已预约休息 · 下一把生效')
+          : (isBomb ? '炸弹中 · 自动摇，牌算数' : '休息中 · 本把不参与');
+        var go = wait ? (isBomb ? '取消炸弹' : '取消休息') : '点击继续';
         h += '<div class="rest-row">' +
-          '<button class="rest-go" data-act="resume">' + esc(go) + '</button>' +
+          '<span class="rest-state ' + (wait ? 'is-wait' : 'is-live') + '">' + esc(state) + '</span>' +
+          '<button class="rest-go ' + (wait ? 'is-wait' : 'is-live') +
+            '" data-act="resume">' + esc(go) + '</button>' +
           '<button class="lr-away-link is-on is-mini" data-act="away">改模式</button>' +
           '</div>';
       }

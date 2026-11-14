@@ -525,6 +525,8 @@
 }
 .bd-card.bomb .bd-away-time { color: #f0b884; }
 .bd-card.wait .bd-away-time { color: rgba(244, 240, 233, 0.5); }
+/* 点「继续」后的回归告示：跟走秒的蓝钟拉开一档，一眼看出这是总时长 */
+.bd-away-time.is-last { color: #9ad9ae; font-weight: 700; }
 
 /* 卡片高的时候补一条细进度条 + 最近一次动作；矮卡（12 人那种 88px）
    两样都收起来，只留名字 / 数字 / 状态，不然挤成一团反而没人看得清。 */

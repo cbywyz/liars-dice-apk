@@ -230,14 +230,21 @@
 
      mode  = 这一把已经生效的快照（rest / bomb / null）
      away  = 下一次洗牌才生效的意愿
+     awayOn = 服务端判定的「计时器正在跑」：只在本把生效那刻才置真
      awayMs  = 服务端算到广播那一刻的离开时长，前端自己接着往下走秒
      awayLast = 点过「继续」之后结出来的总时长，摆成静态的「本次离开 mm:ss」
+     awayBack = true 就摆这句总时长，跟着牌局走（本把 + 下一把），没有秒表
 
      三家里 350 / 找朋友只有 rest，吹牛多一个 bomb。大屏一律读同一组字段，
-     不猜「他是不是还没轮到」—— 那个误会就是这块屏最该替桌上澄清的。 */
+     不猜「他是不是还没轮到」—— 那个误会就是这块屏最该替桌上澄清的。
+     2026-11-14 用户实测：只点了意愿、下一把才生效的人不该走秒，
+     所以动态计时只认 awayOn，挂起态只摆「下把休息 / 下把炸弹」标签。 */
   function awayInfo(p, st) {
     var mode = p.mode || null;
     var wish = p.away || null;
+    /* 点「继续」后服务端给的展示计数：跟着牌局走，本把 + 下一把都看得见，
+       不用 20 秒秒表（2026-11-14 用户：座位随状态刷新，定时消失没必要） */
+    var showBack = !!p.awayBack && (p.awayLast | 0) > 0;
     var rest = isLiar(st) ? (mode === 'rest') : !!p.rest;
     var bomb = isLiar(st) && mode === 'bomb';
     var tag = '', cls = '', active = false;
@@ -247,14 +254,18 @@
     else if (wish === 'rest') { tag = '下把休息'; cls = 'wait'; active = true; }
     else if (wish === 'bomb') { tag = '下把炸弹'; cls = 'wait'; active = true; }
     else if (mode) { tag = '下把回来'; cls = 'wait'; active = true; }
+    else if (showBack) { tag = '刚回来'; cls = 'back'; active = true; }
 
     var clock = null, base = p.awayMs | 0, last = p.awayLast | 0;
     if (active) {
+      /* awayOn 是服务端给的「计时器正在跑」判据：只有本把真正生效才为真。
+         挂起态「下把休息 / 下把炸弹」人还在桌上，不摆 mm:ss；
+         生效那一帧 awayMs 正好算成 0，拿它当判据会把钟藏掉。 */
+      if (p.awayOn) clock = { base: base };
       /* 已经点了「继续」但这一把还没打完：mode 还在、wish 没了 ——
-         这时候该报的是「这次一共离开多久」，不是重新从 0 秒走起。 */
-      if (mode && !wish) clock = last ? { last: last } : null;
-      else if (wish || base) clock = { base: base };
-      else if (last) clock = { last: last };
+         这时候该报的是「这次一共离开多久」，不是重新从 0 秒走起。
+         awayBack 为真时 mode 已经空了（下一把开了）也一样报。 */
+      else if (mode || showBack) clock = last ? { last: last } : null;
     }
     return {
       tag: tag, cls: cls, active: active, rest: rest, bomb: bomb,
@@ -853,6 +864,7 @@
         var ck = document.createElement('i');
         ck.className = 'bd-away-time';
         if (r.clock.last) {
+          ck.className = 'bd-away-time is-last';
           ck.textContent = '本次离开 ' + fmtMs(r.clock.last);
         } else {
           ck.setAttribute('data-base', String(r.clock.base));
@@ -918,7 +930,7 @@
 
   /* ---------------- 每秒只改几个字，不整页重画 ----------------
 
-     服务端只在广播那一刻给权威基准（awayMs / vote.left），中间不推。
+     服务端只在广播那一刻给权威基准（awayOn / awayMs / vote.left），中间不推。
      这块屏自己往下走秒：离开时长、投票倒计时、顶栏时钟，全都只改文本。 */
   function tick() {
     var now = Date.now();
