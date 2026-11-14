@@ -35,7 +35,7 @@
   text-align: center;
   color: rgba(35, 38, 45, 0.4);
 }
-.page-liarnet .lr-who b { color: #23262d; font-weight: 600; }
+.page-liarnet .lr-who b { color: var(--ink); font-weight: 600; }
 
 /* 「暗骰」这三个字得先说清：一桌人第一次玩，最怕的是以为别人的点数自己看得见，
    或者反过来，以为别人看得见自己的。 */
@@ -48,7 +48,7 @@
   line-height: 1.65;
   color: rgba(35, 38, 45, 0.56);
 }
-.lr-secret b { color: #23262d; font-weight: 600; }
+.lr-secret b { color: var(--ink); font-weight: 600; }
 
 /* ---------------- ② 大厅 ---------------- */
 
@@ -73,7 +73,7 @@
   letter-spacing: 3.2vw;
   text-indent: 3.2vw;
   text-align: center;
-  color: #23262d;
+  color: var(--ink);
   line-height: 1.1;
 }
 
@@ -115,7 +115,7 @@
   flex: 1 1 auto;
   font-size: 3.4667vw;
   font-weight: 500;
-  color: #23262d;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -123,7 +123,7 @@
 
 .lr-pl-host {
   font-size: 2.4vw;
-  color: #8a5f18;
+  color: var(--gold-deep);
   padding: 0.4vw 1.6vw;
   border-radius: 999px;
   background: rgba(181, 137, 63, 0.14);
@@ -203,7 +203,7 @@
               0 1vw 2.8vw rgba(181, 137, 63, 0.34);
 }
 .lr-seat.me .lr-n {
-  color: #8a5f18;
+  color: var(--gold-deep);
   font-weight: 700;
 }
 /* 自己掉线的时候描边别再抢眼（.off 的 0.45 透明度照旧生效） */
@@ -264,7 +264,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #3a3f49;
+  color: var(--ink-2);
 }
 
 /* 他最后叫的那一手：桌上所有人都看得见的一行（点数本身看不见，但「叫了什么」是公开的） */
@@ -278,10 +278,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.lr-say.has { color: #8a5f18; }
+.lr-say.has { color: var(--gold-deep); }
 /* 连顺：这一行本来是空的（叫点拆掉之后没话可说），正好放「顺子 N 连」。
    2 连起才出现；3 连起转红 —— 桌上规矩是连续 3 把顺子罚，间断不算。 */
-.lr-say.st { color: #8a5f18; font-weight: 600; }
+.lr-say.st { color: var(--gold-deep); font-weight: 600; }
 .lr-say.st.hot { color: #b8382e; font-weight: 700; }
 
 .lr-dice {
@@ -349,7 +349,7 @@
   font-weight: 600;
   line-height: 1.15;
   letter-spacing: 0.2vw;
-  color: #23262d;
+  color: var(--ink);
 }
 
 .lr-core-s {
@@ -364,7 +364,7 @@
   font-size: 9vw;
   font-weight: 700;
   line-height: 1;
-  color: #8a5f18;
+  color: var(--gold-deep);
   letter-spacing: -0.2vw;
 }
 
@@ -372,7 +372,7 @@
    它说的不是牌，是刚发生的事 */
 .lr-core-half {
   font-size: 4.4vw;
-  color: #8a5f18;
+  color: var(--gold-deep);
   letter-spacing: 0.4vw;
 }
 
@@ -477,7 +477,7 @@
 .lr-me-name {
   font-size: 3.2vw;
   font-weight: 600;
-  color: #23262d;
+  color: var(--ink);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -486,7 +486,7 @@
 
 .lr-me-tag {
   font-size: 2.4vw;
-  color: #8a5f18;
+  color: var(--gold-deep);
 }
 
 /* 自己连了几把顺子：写在「我的牌」这三行里。
@@ -498,7 +498,7 @@
   font-size: 2.4vw;
   line-height: 1.2;
   font-weight: 600;
-  color: #8a5f18;
+  color: var(--gold-deep);
   white-space: nowrap;
 }
 .lr-me-st.hot { color: #b8382e; font-weight: 700; }
@@ -551,7 +551,7 @@
   font-size: 11vw;
   line-height: 1.1;
   font-weight: 700;
-  color: #23262d;
+  color: var(--ink);
   letter-spacing: 0.4vw;
 }
 
@@ -606,8 +606,11 @@
 /* 自己那一行：整行淡淡刷一层金、名字转金。
    摊牌这一屏一列就是五六行，光靠名字后面那两个字「（我）」找不到自己
    （用户 2026-11-12：「高亮自己不够明显」），跟圆桌上那张座位卡用同一套金。 */
-.lr-rv.me { background: rgba(181, 137, 63, 0.12); }
-.lr-rv.me .lr-rv-n { color: #8a5f18; }
+.lr-rv.me {
+  background: rgba(181, 137, 63, 0.12);
+  box-shadow: inset 0.9333vw 0 0 var(--gold-2);
+}
+.lr-rv.me .lr-rv-n { color: var(--gold-deep); }
 
 .lr-rv-m {
   flex: 0 0 19vw;
@@ -620,7 +623,7 @@
 .lr-rv-n {
   font-size: 3vw;
   font-weight: 600;
-  color: #23262d;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -650,7 +653,7 @@
 .lr-rv-st {
   font-size: 2.4vw;
   font-style: normal;
-  color: #8a5f18;
+  color: var(--gold-deep);
   white-space: nowrap;
 }
 .lr-rv-st.hot { color: #b8382e; font-weight: 700; }
@@ -659,7 +662,7 @@
   flex: 0 0 auto;
   padding: 0.8vw 1.6vw;
   border-radius: 1.2vw;
-  background: #8a5f18;
+  background: var(--gold-deep);
   color: #fdf4e3;
   font-size: 3vw;
   font-weight: 700;
@@ -697,8 +700,8 @@
   padding: 5.3333vw 0;
   border: 0;
   border-radius: 4vw;
-  background: #23262d;
-  color: #fbf7ef;
+  background: var(--ink);
+  color: var(--paper);
   font: inherit;
   font-size: 4.5333vw;
   font-weight: 600;
@@ -733,7 +736,7 @@
   background: none;
   font: inherit;
   font-size: 2.6667vw;
-  color: rgba(35, 38, 45, 0.4);
+  color: rgba(35, 38, 45, 0.58);
   text-decoration: underline;
   text-underline-offset: 0.5333vw;
 }
@@ -746,7 +749,7 @@
   padding: 1.8667vw 4.2667vw;
   border-radius: 999px;
   background: rgba(35, 38, 45, 0.88);
-  color: #fbf7ef;
+  color: var(--paper);
   font-size: 2.9333vw;
   white-space: nowrap;
   z-index: 40;
@@ -845,7 +848,7 @@
   font: inherit;
   font-size: 3.2vw;
   font-weight: 700;
-  color: #8a5f18;
+  color: var(--gold-deep);
   text-decoration: none;
 }
 .lr-away-link.is-on {
@@ -899,7 +902,7 @@
   border-radius: 2.6667vw;
   text-align: left;
   background: rgba(35, 38, 45, 0.06);
-  color: #23262d;
+  color: var(--ink);
 }
 .lr-away-opt[hidden] { display: none; }
 .lr-away-opt b { font-size: 4vw; }
@@ -1051,7 +1054,7 @@
   font-size: 4.8vw;
   font-weight: 600;
   letter-spacing: 0.4vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .lr-dbg-s {
   margin-top: -2vw;
@@ -1077,7 +1080,7 @@
 .lr-dbg-k {
   flex: 0 1 auto;
   font-size: 3.4667vw;
-  color: #23262d;
+  color: var(--ink);
 }
 /* 三格那句说明：竖着排在开关左边，别跟标题挤成一行 ——
    「骰盅左边三格」六个字加一句话，横着放一定会折成两三行（第一版就是这么折的） */

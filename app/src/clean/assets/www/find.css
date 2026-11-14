@@ -30,7 +30,7 @@
 .fd-who {
   font-size: 3.7333vw;
   font-weight: 600;
-  color: #23262d;
+  color: var(--ink);
   letter-spacing: 0.1333vw;
 }
 
@@ -89,7 +89,7 @@
 
 /* 轮到他摇：整块反色，扫一眼就知道球在谁手上 */
 .fd-seat.now {
-  background: #23262d;
+  background: var(--ink);
   box-shadow: 0 1.0667vw 2.4vw rgba(35, 38, 45, 0.26);
 }
 .fd-seat.now .fd-n { color: rgba(255, 255, 255, 0.62); }
@@ -98,7 +98,7 @@
 
 /* 这一把被点到的人：金圈 + 抖一下 */
 .fd-seat.hit {
-  box-shadow: 0 0 0 0.5333vw #b5893f, 0 1.3333vw 3.2vw rgba(181, 137, 63, 0.3);
+  box-shadow: 0 0 0 0.5333vw var(--gold-2), 0 1.3333vw 3.2vw rgba(181, 137, 63, 0.3);
   animation: fdShake 0.42s ease;
 }
 .fd-seat.hit .fd-n { color: #7a5a1e; }
@@ -125,7 +125,7 @@
    跟「对上」共用金圈，多这个小标就不会把两笔账看混。
    标签做得很小是有原因的：第一版写「指名 +1」直接压住了座位上的号码（2026-11-10 截图）。 */
 .fd-seat.sel {
-  box-shadow: 0 0 0 0.5333vw #b5893f, 0 1.3333vw 3.2vw rgba(181, 137, 63, 0.26);
+  box-shadow: 0 0 0 0.5333vw var(--gold-2), 0 1.3333vw 3.2vw rgba(181, 137, 63, 0.26);
 }
 
 .fd-tag {
@@ -135,7 +135,7 @@
   right: -1.4vw;
   padding: 0.2vw 0.9333vw;
   border-radius: 999px;
-  background: #b5893f;
+  background: var(--gold-2);
   color: #fff;
   font-size: 1.9vw;
   line-height: 1.4;
@@ -175,7 +175,7 @@
   min-height: 2.4vw;
 }
 .fd-cups.has {
-  color: #8a5f18;
+  color: var(--gold-deep);
   font-weight: 600;
 }
 
@@ -277,8 +277,8 @@
   color: rgba(35, 38, 45, 0.66);
 }
 
-.fd-hint b { color: #23262d; font-weight: 600; }
-.fd-hint .gold { color: #8a5f18; font-weight: 600; }
+.fd-hint b { color: var(--ink); font-weight: 600; }
+.fd-hint .gold { color: var(--gold-deep); font-weight: 600; }
 
 /* 第二行明细：谁因为什么喝、指名点到了谁。
    主行放不下（一次点到五六个人）时全靠这一行，所以它必须能换行 —— 别再套 flex。 */
@@ -305,7 +305,7 @@
 
 /* 「重开」第二下确认的中间态：按钮变浅金，明确告诉人还没生效 */
 .redo-btn.arm {
-  color: #8a5f18;
+  color: var(--gold-deep);
   box-shadow: inset 0 0 0 0.1333vw rgba(181, 137, 63, 0.55);
 }
 

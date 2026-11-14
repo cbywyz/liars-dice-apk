@@ -89,13 +89,13 @@
   height: 15.4667vw;
   border: 0;
   border-radius: 3.7333vw;
-  background: #fbf7ef;
+  background: var(--paper);
   box-shadow: inset 0 0 0 1px rgba(35, 38, 45, 0.08);
   text-align: center;
   font-size: 6.4vw;
   font-weight: 600;
   letter-spacing: 1.2vw;
-  color: #23262d;
+  color: var(--ink);
   font-family: inherit;
   outline: none;
 }
@@ -132,7 +132,7 @@
   padding: calc(2.2vmin + env(safe-area-inset-top)) 3.2vmin
            calc(3.4vmin + env(safe-area-inset-bottom));
   background: radial-gradient(122% 92% at 50% -12%, #2c323c 0%, #1d2027 54%, #14171c 100%);
-  color: #f4f0e9;
+  color: var(--bg-2);
   overflow: hidden;
 }
 
@@ -188,7 +188,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   line-height: 1.1;
-  color: #f0c982;
+  color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
 
@@ -203,7 +203,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.bd-stat b { color: #f0c982; font-weight: 700; }
+.bd-stat b { color: var(--gold); font-weight: 700; }
 .bd-clock {
   flex: 0 0 auto;
   margin-left: auto;
@@ -262,7 +262,7 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   line-height: 1;
-  color: #f0c982;
+  color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
 .bd-hello span {
@@ -290,7 +290,7 @@
   background: rgba(216, 171, 95, 0.12);
   box-shadow: inset 0 0 0 1px rgba(216, 171, 95, 0.35);
   font-size: clamp(10px, 1.7vmax, 18px);
-  color: #f0c982;
+  color: var(--gold);
   white-space: nowrap;
 }
 .bd-vote-i.kick {
@@ -353,7 +353,7 @@
   text-decoration: none;
   font-size: clamp(10px, 1.7vmax, 18px);
   font-weight: 700;
-  color: #f0c982;
+  color: var(--gold);
   font-variant-numeric: tabular-nums;
 }
 
@@ -443,14 +443,14 @@
   font-size: clamp(26px, 6.4vmax, 120px);
   font-weight: 700;
   line-height: 1.05;
-  color: #f4f0e9;
+  color: var(--bg-2);
 }
 
 /* 刚刚换人 / 刚刚结算：名字闪一下金，隔着一张桌子也看得见桌子动了 */
 .bd-turn-n.hot { animation: bdHot 900ms ease-out; }
 @keyframes bdHot {
-  0% { color: #f0c982; transform: scale(1.06); }
-  100% { color: #f4f0e9; transform: scale(1); }
+  0% { color: var(--gold); transform: scale(1.06); }
+  100% { color: var(--bg-2); transform: scale(1); }
 }
 
 .bd-turn-s {
@@ -459,7 +459,7 @@
   line-height: 1.4;
   color: rgba(244, 240, 233, 0.55);
 }
-.bd-turn-s b { color: #f0c982; font-weight: 600; }
+.bd-turn-s b { color: var(--gold); font-weight: 600; }
 
 /* ---------------- 各家的卡片 ---------------- */
 
@@ -517,7 +517,7 @@
 }
 .bd-card.bomb .bd-tag { background: rgba(216, 140, 80, 0.32); color: #ffd9b8; }
 .bd-card.wait .bd-tag { background: rgba(244, 240, 233, 0.1); color: rgba(244, 240, 233, 0.55); }
-.bd-tag.streak { background: rgba(216, 171, 95, 0.24); color: #f0c982; }
+.bd-tag.streak { background: rgba(216, 171, 95, 0.24); color: var(--gold); }
 .bd-away-time {
   font-style: normal;
   font-variant-numeric: tabular-nums;
@@ -589,7 +589,7 @@
   color: rgba(244, 240, 233, 0.48);
   white-space: nowrap;
 }
-.bd-sum-r b { color: #f0c982; font-weight: 700; }
+.bd-sum-r b { color: var(--gold); font-weight: 700; }
 
 
 /* 该他动了：整张卡镶一圈金，比在名字旁边加个箭头好认得多 */
@@ -610,7 +610,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.bd-card.turn .bd-name { color: #f0c982; }
+.bd-card.turn .bd-name { color: var(--gold); }
 
 .bd-num {
   font-size: 26px;
@@ -620,13 +620,13 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.01em;
-  color: #f4f0e9;
+  color: var(--bg-2);
   font-variant-numeric: tabular-nums;
 }
 /* 还没锁分的人这轮没有分数：摆一个破折号，比摆上一轮的数字诚实。
    破折号得比数字小一号 —— 同样的大字号下它就是一根横杠，占满脸。 */
 .bd-num.dash { color: rgba(244, 240, 233, 0.26); font-size: 15px; font-size: min(14cqh, 30cqw, 8vmin); }
-.bd-num.cups { color: #f0c982; }
+.bd-num.cups { color: var(--gold); }
 
 /* 「6 杯」「400 分」的单位。
    原来卡片中间只有一个裸数字：第一次看到的人得先研究一局才明白

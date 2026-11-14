@@ -24,7 +24,7 @@
   text-align: center;
   color: rgba(35, 38, 45, 0.4);
 }
-.page-net .fn-who b { color: #23262d; font-weight: 600; }
+.page-net .fn-who b { color: var(--ink); font-weight: 600; }
 
 .nr-left { display: flex; flex-direction: column; gap: 0.8vw; }
 
@@ -74,7 +74,7 @@
 /* 投票中：字要收窄一点，「重开 1/4」比「重开」宽一倍，不收会顶到房号 */
 .ng-redo.voting { font-size: 2.7vw; letter-spacing: 0.1vw; padding: 0 2vw; }
 /* 还没投：亮白，提示「这里等你点一下」 */
-.ng-redo.ask { color: #f4f0e9; }
+.ng-redo.ask { color: var(--bg-2); }
 /* 已投：跟在线灯同一个绿，一眼看出自己已经点了，再点就是撤回 */
 .ng-redo.on { color: #2f9e63; }
 
@@ -104,7 +104,7 @@
   line-height: 1.1;
   letter-spacing: 2.4vw;
   text-indent: 2.4vw;
-  color: #fbf7ef;
+  color: var(--paper);
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0.8vw 2.4vw rgba(0, 0, 0, 0.35);
 }
@@ -131,7 +131,7 @@
   padding: 1.0667vw 3.2vw;
   border-radius: 99vw;
   background: rgba(0, 0, 0, 0.42);
-  color: #fbf7ef;
+  color: var(--paper);
   font-size: 2.6667vw;
   letter-spacing: 0.2vw;
   white-space: nowrap;
@@ -175,7 +175,7 @@
 }
 .ng-rank-row b {
   font-weight: 600;
-  color: #fbf7ef;
+  color: var(--paper);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -239,6 +239,19 @@
 /* 按钮不许被榜单挤走：榜单自己滚，按钮永远钉在卡片底部 */
 .f3-handoff.over .hd-go { margin-top: 2.1333vw; flex: 0 0 auto; }
 
+/* 底栏的「临时休息」必须自己另起一行，不能跟「摇一摇 / 锁分」挤在同一条 flex 上。
+   .f3-btns 是横向 flex、两颗 .btn 都是 flex:1 1 0；v1.24.28 把 .rest-row 直接 append
+   进这个容器后，它就成了第三个 flex 项，把两颗主按钮压成一小点（用户 11-14 实测）。
+   开 wrap + 让 .rest-row 占满 100% 宽 → 强制换到第二行，两颗主按钮各回一半宽。
+   找朋友 / 吹牛的 .fd-btns 本来就是 column，不用这条。 */
+.page-netgame .f3-btns { flex-wrap: wrap; }
+.page-netgame .f3-btns .rest-row {
+  flex: 0 0 100%;
+  width: 100%;
+  margin-top: 0;
+  justify-content: center;
+}
+
 /* 底栏：跟 .page-f350 一样（那边是 f350.css 里按页写的，联机这页得自己写一遍） */
 .page-netgame .foot {
   flex: 0 0 auto;
@@ -249,7 +262,7 @@
   padding: 2.6667vw 0 3.2vw;
   font-size: 2.6667vw;
   letter-spacing: 0.4vw;
-  color: rgba(35, 38, 45, 0.3);
+  color: rgba(35, 38, 45, 0.46);
 }
 
 /* 名字输入：一个人一行，占位就够，不单独做设置页 */
@@ -271,7 +284,7 @@
   font-size: 3.2vw;
   letter-spacing: 0.2vw;
   text-align: center;
-  color: #23262d;
+  color: var(--ink);
   outline: none;
   -webkit-appearance: none;
 }
@@ -304,7 +317,7 @@
   font-size: 3.2vw;
   letter-spacing: 0.2vw;
   text-align: center;
-  color: #23262d;
+  color: var(--ink);
   outline: none;
   -webkit-appearance: none;
 }
@@ -350,7 +363,7 @@
 .p-stat.is-off { color: #cf4a41; }
 .p-stat.is-off .p-dot { box-shadow: 0 0 0 0.4667vw rgba(207, 74, 65, 0.16); }
 
-/* 轮到他的那张是深色卡，绿红都得提亮一档，否则压在 #23262d 上发闷 */
+/* 轮到他的那张是深色卡，绿红都得提亮一档，否则压在 var(--ink) 上发闷 */
 .p-card.on .p-stat { color: #7fdcaa; }
 .p-card.on .p-stat.is-off { color: #ff9a90; }
 .p-card.on .p-stat .p-dot { box-shadow: 0 0 0 0.4667vw rgba(127, 220, 170, 0.22); }
@@ -362,7 +375,7 @@
 
 /* 轮到一个已经掉线的人：又是当前手、又是离线，两条规则会打架。
    这里把深色卡按住，别让 .off 的浅底把它盖回去。 */
-.p-card.on.off { background: #23262d; }
+.p-card.on.off { background: var(--ink); }
 .p-card.on.off .p-name { color: rgba(255, 255, 255, 0.5); }
 .p-card.on.off .p-score { color: rgba(255, 255, 255, 0.55); }
 
@@ -404,10 +417,10 @@
   outline: 0.6667vw solid #c2943f;
   outline-offset: 0.1333vw;
 }
-.p-card.me .p-name { color: #8a5f18; font-weight: 700; }
+.p-card.me .p-name { color: var(--gold-deep); font-weight: 700; }
 .p-card.me .p-score { color: #7a5a1e; }
 
-/* 轮到我：底色是深色卡，金名字得提亮一档，否则糊在 #23262d 上 */
+/* 轮到我：底色是深色卡，金名字得提亮一档，否则糊在 var(--ink) 上 */
 .p-card.me.on .p-name { color: #f0d79a; }
 .p-card.me.on .p-score { color: #fff; }
 /* 我掉线了：金边留着，字淡一档，别跟「在线」抢 */
@@ -467,7 +480,7 @@
 /* 蓝卡（下一个）跟蓝字一套 */
 .p-card.next .p-ord { background: rgba(47, 127, 196, 0.16); color: #2f7fc4; }
 /* 自己那张：金色，跟金边金名字一套。写在 next 后面 —— 两张卡同时命中时金色赢 */
-.p-card.me .p-ord { background: rgba(194, 148, 63, 0.2); color: #8a5f18; }
+.p-card.me .p-ord { background: rgba(194, 148, 63, 0.2); color: var(--gold-deep); }
 .p-card.me.on .p-ord { background: rgba(240, 215, 154, 0.2); color: #f0d79a; }
 .p-card.off .p-ord { opacity: 0.6; }
 
@@ -557,7 +570,7 @@
   font-weight: 600;
   letter-spacing: 0.4vw;
   line-height: 1.34;
-  color: #23262d;
+  color: var(--ink);
   text-align: center;
   word-break: break-all;
 }
@@ -614,7 +627,7 @@
 }
 .ng-skip[hidden] { display: none; }
 .ng-skip.on {
-  color: #f4f0e9;
+  color: var(--bg-2);
   text-decoration: underline;
   text-underline-offset: 0.9vw;
 }
@@ -711,7 +724,7 @@
   font-weight: 600;
   letter-spacing: 0.5333vw;
   text-align: center;
-  color: #23262d;
+  color: var(--ink);
 }
 .rn-s {
   margin-top: 1.0667vw;
@@ -743,7 +756,7 @@
   font-weight: 600;
   letter-spacing: 0.4vw;
   text-align: center;
-  color: #23262d;
+  color: var(--ink);
   outline: none;
   -webkit-appearance: none;
 }
@@ -801,6 +814,6 @@
 .rn-btn:active { transform: scale(0.97); }
 .rn-btn.is-main {
   color: #ffffff;
-  background: #23262d;
+  background: var(--ink);
   font-weight: 600;
 }

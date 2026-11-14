@@ -32,7 +32,7 @@
   text-align: center;
   color: rgba(35, 38, 45, 0.4);
 }
-.page-findnet .fn-who b { color: #23262d; font-weight: 600; }
+.page-findnet .fn-who b { color: var(--ink); font-weight: 600; }
 
 .fn-lbl {
   font-size: 2.6667vw;
@@ -54,7 +54,7 @@
   font-weight: 600;
   letter-spacing: 1.6vw;
   text-align: center;
-  color: #23262d;
+  color: var(--ink);
   outline: none;
 }
 .fn-inp::placeholder {
@@ -101,7 +101,7 @@
   box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1);
   font: inherit;
   font-size: 2.6667vw;
-  color: #3a3f49;
+  color: var(--ink-2);
 }
 .fn-copy:active { opacity: 0.8; }
 
@@ -120,7 +120,7 @@
   letter-spacing: 3.2vw;
   text-indent: 3.2vw;
   text-align: center;
-  color: #23262d;
+  color: var(--ink);
   line-height: 1.1;
 }
 
@@ -163,7 +163,7 @@
   flex: 1 1 auto;
   font-size: 3.4667vw;
   font-weight: 500;
-  color: #23262d;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -171,7 +171,7 @@
 
 .fn-pl-host {
   font-size: 2.4vw;
-  color: #8a5f18;
+  color: var(--gold-deep);
   padding: 0.4vw 1.6vw;
   border-radius: 999px;
   background: rgba(181, 137, 63, 0.14);
@@ -213,7 +213,7 @@
   outline: 0.6667vw solid #c2943f;
   outline-offset: 0.1333vw;
 }
-.fd-seat.me .fd-n { color: #8a5f18; font-weight: 700; }
+.fd-seat.me .fd-n { color: var(--gold-deep); font-weight: 700; }
 /* 轮到我：座位翻成深色卡，金名字得提亮一档 */
 .fd-seat.me.now .fd-n { color: #f0d79a; }
 .fd-seat.off { opacity: 0.45; }
@@ -260,7 +260,7 @@
   background: none;
   font: inherit;
   font-size: 2.6667vw;
-  color: rgba(35, 38, 45, 0.4);
+  color: rgba(35, 38, 45, 0.58);
   text-decoration: underline;
   text-underline-offset: 0.5333vw;
 }
@@ -273,7 +273,7 @@
   padding: 1.8667vw 4.2667vw;
   border-radius: 999px;
   background: rgba(35, 38, 45, 0.88);
-  color: #fbf7ef;
+  color: var(--paper);
   font-size: 2.9333vw;
   white-space: nowrap;
   z-index: 40;
@@ -295,8 +295,8 @@
   border: 0;
   border-radius: 4.2667vw;
   text-align: left;
-  color: #f4f0e9;
-  background: #23262d;
+  color: var(--bg-2);
+  background: var(--ink);
   box-shadow: 0 1.0667vw 2.9333vw rgba(35, 38, 45, 0.22);
   transition: transform 0.16s ease;
 }
@@ -316,6 +316,6 @@
 }
 /* 灰标不该把金圈盖掉：站到下一位时还是金底「准备」 */
 .page-findnet .fd-seat.out.next .fd-tag {
-  background: #b5893f;
+  background: var(--gold-2);
   box-shadow: 0 0.5333vw 1.2vw rgba(181, 137, 63, 0.34);
 }

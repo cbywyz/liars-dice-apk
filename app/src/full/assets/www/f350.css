@@ -35,7 +35,7 @@
 }
 
 .p-card.on {
-  background: #23262d;
+  background: var(--ink);
   box-shadow: 0 0.8vw 2vw rgba(35, 38, 45, 0.22);
 }
 .p-card.on .p-name { color: rgba(255, 255, 255, 0.66); }
@@ -57,7 +57,7 @@
 .p-score {
   font-size: 4.8vw;
   font-weight: 600;
-  color: #23262d;
+  color: var(--ink);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
@@ -65,7 +65,7 @@
 /* 豹子记录：只做展示，不参与胜负 */
 .p-lion {
   font-size: 2.2667vw;
-  color: #c9922a;
+  color: var(--gold-mid);
   letter-spacing: 0.2667vw;
   line-height: 1;
 }
@@ -88,7 +88,7 @@
   height: 50vw;
   border-radius: 5.3333vw;
   background:
-    radial-gradient(72% 66% at 50% 34%, #2f6344 0%, #224c36 42%, #16301f 100%);
+    radial-gradient(72% 66% at 50% 34%, var(--green) 0%, #224c36 42%, #16301f 100%);
   box-shadow:
     inset 0 1.6vw 5.3333vw rgba(0, 0, 0, 0.55),
     inset 0 -1.6vw 3.2vw rgba(46, 96, 64, 0.22),
@@ -103,6 +103,9 @@
   border-radius: inherit;
   background:
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 2px, rgba(0, 0, 0, 0) 2px 5px);
+  /* 压线画在斜纹这一层：写在桌布本体的 inset 阴影会被上面那圈黑色内阴影压暗，
+     抬到内容层才真是「桌沿一道金」，隔着桌子也看得见。 */
+  box-shadow: inset 0 0 0 0.5333vw rgba(240, 201, 130, 0.72);
   pointer-events: none;
 }
 
@@ -160,13 +163,13 @@
   box-shadow: 0 calc(var(--ds) * 0.05) 0 #cdbb9a,
     0 calc(var(--ds) * 0.1) calc(var(--ds) * 0.05) rgba(90, 70, 45, 0.42),
     0 calc(var(--ds) * 0.22) calc(var(--ds) * 0.28) rgba(0, 0, 0, 0.6),
-    0 0 0 calc(var(--ds) * 0.055) #c9922a,
+    0 0 0 calc(var(--ds) * 0.055) var(--gold-mid),
     inset 0 calc(var(--ds) * 0.04) calc(var(--ds) * 0.06) rgba(255, 255, 255, 0.95),
     inset 0 calc(var(--ds) * -0.05) calc(var(--ds) * 0.08) rgba(158, 136, 102, 0.3);
 }
 
 .f3-dice .die-slot.sel .f3-val {
-  background: #c9922a;
+  background: var(--gold-mid);
   transform: translateY(-14%) scale(1.08);
   box-shadow: 0 0.7vw 1.8vw rgba(120, 84, 20, 0.5);
 }
@@ -183,7 +186,7 @@
   font-style: normal;
   line-height: 1.35;
   color: #fff;
-  background: #c9922a;
+  background: var(--gold-mid);
   box-shadow: 0 0.4vw 1.0667vw rgba(120, 84, 20, 0.35);
   pointer-events: none;
   z-index: 2;
@@ -280,14 +283,14 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.4vw;
-  color: #23262d;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
   transition: color 0.24s ease;
 }
 
 /* 到线了：变色，让人一眼看到可以收手了 */
 .f3-score.ok .f3-score-num { color: #1a7a45; }
-.f3-score.max .f3-score-num { color: #c9922a; }
+.f3-score.max .f3-score-num { color: var(--gold-mid); }
 
 .f3-score-unit {
   font-size: 3.2vw;
@@ -359,7 +362,7 @@
 }
 .f3-hint.warn { color: #c0392b; }
 .f3-hint.good { color: #1a7a45; }
-.f3-hint.gold { color: #c9922a; }
+.f3-hint.gold { color: var(--gold-mid); }
 
 /* ---------------- 按钮 ---------------- */
 
@@ -381,7 +384,7 @@
 /* 主按钮（深色）沿用 .btn.primary，副按钮是白底 */
 .f3-btns .btn.ghost {
   background: rgba(255, 255, 255, 0.9);
-  color: #23262d;
+  color: var(--ink);
   box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1), 0 0.8vw 2vw rgba(35, 38, 45, 0.07);
 }
 
@@ -426,8 +429,8 @@
 }
 .redo-btn:active { transform: scale(0.94); }
 .redo-btn.ask {
-  background: #23262d;
-  color: #f4f0e9;
+  background: var(--ink);
+  color: var(--bg-2);
   box-shadow: 0 0.8vw 2.4vw rgba(35, 38, 45, 0.24);
 }
 
@@ -499,7 +502,7 @@
   font-size: 4.8vw;
   font-weight: 600;
   letter-spacing: 0.5333vw;
-  color: #23262d;
+  color: var(--ink);
   text-align: center;
 }
 
@@ -531,12 +534,12 @@
   justify-content: center;
   font-size: 4.2667vw;
   font-weight: 600;
-  color: #23262d;
+  color: var(--ink);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.1);
 }
 .f3-num.on {
-  background: #23262d;
+  background: var(--ink);
   color: #fff;
   box-shadow: 0 0.8vw 2vw rgba(35, 38, 45, 0.24);
 }
@@ -579,18 +582,18 @@
   color: rgba(35, 38, 45, 0.34);
   font-variant-numeric: tabular-nums;
 }
-.f3-row.win .f3-row-no { color: #c9922a; }
+.f3-row.win .f3-row-no { color: var(--gold-mid); }
 
 .f3-row-name {
   flex: 1 1 auto;
   font-size: 3.7333vw;
-  color: #23262d;
+  color: var(--ink);
   letter-spacing: 0.4vw;
 }
 
 .f3-row-score {
   font-size: 4.8vw;
   font-weight: 700;
-  color: #23262d;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }

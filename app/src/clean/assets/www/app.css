@@ -5,6 +5,36 @@
    七个 css 里陆续补了 66 条局部规则，还是防不胜防 —— 这一条放全站最前面一劳永逸，
    旧的局部补丁留着不冲突，以后可以慢慢删。 */
 [hidden] { display: none !important; }
+
+/* ---------------- 主题令牌（2026-11-14） ----------------
+   七个样式表以前各写各的色值：光米色就有五种、深灰六种、金色八种。
+   这一层把最常用的几个收成变量，后面换配色 / 加夜间模式只改这里一处。
+   每个默认值都等于原来的字面量，所以这一轮替换不改变任何一像素观感。
+   渐层和带透明度的 rgba 保持原样 —— 那些是按光源方向单独调过的。 */
+:root {
+  --ink:        #23262d;
+  --ink-2:      #3a3f49;
+  --paper:      #fbf7ef;
+  --bg-2:       #f4f0e9;
+  --gold:       #f0c982;
+  --gold-mid:   #c9922a;
+  --gold-2:     #b5893f;
+  --gold-deep:  #8a5f18;
+  --green:      #2f6344;
+  --r-card:     5.3333vw;
+  --r-pill:     999px;
+  --r-sm:       3.2vw;
+  --sh-card:    0 2.1333vw 4.8vw rgba(35, 38, 45, 0.10);
+  --sh-line:    inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06);
+  --t-fast:     0.16s;
+  --t-mid:      0.24s;
+  --t-slow:     0.32s;
+  --ease:       cubic-bezier(0.22, 0.61, 0.36, 1);
+  /* 三张玩法卡各认一个色，作用在 .play-card 上，色条 / 图标底 / 短横线共用 */
+  --play-liar:  #3c3a44;
+  --play-350:   #2f6344;
+  --play-find:  #a8622c;
+}
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
 body {
@@ -54,7 +84,7 @@ button[disabled] { opacity: 1; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: radial-gradient(120% 78% at 50% 0%, #fdfaf5 0%, #f4f0e9 46%, #e9e2d6 100%);
+  background: radial-gradient(120% 78% at 50% 0%, #fdfaf5 0%, var(--bg-2) 46%, #e9e2d6 100%);
 }
 
 /* ---------------- 顶部标题 ---------------- */
@@ -81,7 +111,7 @@ button[disabled] { opacity: 1; }
   font-size: 4.5333vw;
   font-weight: 600;
   letter-spacing: 0.8vw;
-  color: #23262d;
+  color: var(--ink);
   text-indent: 0.8vw;
 }
 
@@ -111,7 +141,7 @@ button[disabled] { opacity: 1; }
   background: rgba(255, 255, 255, 0.8);
   box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.09),
               0 0.5333vw 1.3333vw rgba(35, 38, 45, 0.06);
-  color: #23262d;
+  color: var(--ink);
   z-index: 7;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.16s ease, opacity 0.16s ease;
@@ -180,7 +210,7 @@ button[disabled] { opacity: 1; }
   font-size: 2.9333vw;
   font-weight: 500;
   letter-spacing: 0.4vw;
-  color: #23262d;
+  color: var(--ink);
   z-index: 7;
   transition: transform 0.16s ease;
 }
@@ -276,7 +306,7 @@ button[disabled] { opacity: 1; }
   width: 80vw;
   height: 41.3333vw;
   border-radius: 50%;
-  background: radial-gradient(74% 62% at 50% 38%, #2f6344 0%, #1f4733 32%, #132b1d 64%, #07120b 100%);
+  background: radial-gradient(74% 62% at 50% 38%, var(--green) 0%, #1f4733 32%, #132b1d 64%, #07120b 100%);
   box-shadow: inset 0 2.1333vw 4vw rgba(0, 0, 0, 0.6), inset 0 -1.8667vw 3.4667vw rgba(40, 90, 60, 0.28);
   transition: box-shadow 0.32s ease;
 }
@@ -559,7 +589,7 @@ button[disabled] { opacity: 1; }
 
 /* 开盖摇出豹子 / 顺子：这一行变色加粗，其余时候是普通灰字 */
 .hint.face-lion {
-  color: #c9922a;
+  color: var(--gold-mid);
   font-weight: 700;
   letter-spacing: 0.5333vw;
 }
@@ -608,13 +638,13 @@ button[disabled] { opacity: 1; }
 
 .btn.primary {
   background: linear-gradient(180deg, #33373f, #1d2027);
-  color: #fbf7ef;
+  color: var(--paper);
   box-shadow: 0 1.6vw 3.2vw rgba(35, 38, 45, 0.22);
 }
 
 .btn.ghost {
   background: rgba(255, 255, 255, 0.72);
-  color: #3a3f49;
+  color: var(--ink-2);
   box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.12);
 }
 
@@ -725,7 +755,7 @@ button[disabled] { opacity: 1; }
 .vcard-t {
   font-size: 3.1vw;
   line-height: 1.35;
-  color: #23262d;
+  color: var(--ink);
 }
 .vcard-t b { font-weight: 700; color: #b8382e; }
 
@@ -903,7 +933,7 @@ button[disabled] { opacity: 1; }
   font-weight: 600;
   letter-spacing: 2.1333vw;
   text-indent: 2.1333vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .home-t2 {
   margin-top: 1.0667vw;
@@ -931,7 +961,7 @@ button[disabled] { opacity: 1; }
   padding: 9.0667vw 7.4667vw;
   border-radius: 5.3333vw;
   text-align: left;
-  background: linear-gradient(180deg, #ffffff, #fbf7ef);
+  background: linear-gradient(180deg, #ffffff, var(--paper));
   box-shadow: 0 2.1333vw 4.8vw rgba(35, 38, 45, 0.10),
               inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06);
 }
@@ -947,13 +977,13 @@ button[disabled] { opacity: 1; }
   width: 7.4667vw;
   height: 7.4667vw;
   flex: 0 0 auto;
-  color: #23262d;
+  color: var(--ink);
 }
 .mc-title {
   font-size: 5.0667vw;
   font-weight: 600;
   letter-spacing: 0.5333vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .mc-sub {
   font-size: 3.2vw;
@@ -1014,7 +1044,7 @@ button[disabled] { opacity: 1; }
   padding: 8vw 7.4667vw;
   border-radius: 5.3333vw;
   text-align: left;
-  background: linear-gradient(180deg, #ffffff, #fbf7ef);
+  background: linear-gradient(180deg, #ffffff, var(--paper));
   box-shadow: 0 2.1333vw 4.8vw rgba(35, 38, 45, 0.10),
               inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06);
 }
@@ -1030,13 +1060,13 @@ button[disabled] { opacity: 1; }
   width: 7.4667vw;
   height: 7.4667vw;
   flex: 0 0 auto;
-  color: #23262d;
+  color: var(--ink);
 }
 .pc-title {
   font-size: 5.0667vw;
   font-weight: 600;
   letter-spacing: 0.5333vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .pc-sub {
   font-size: 3.2vw;
@@ -1113,7 +1143,7 @@ button[disabled] { opacity: 1; }
   font-size: 4.5333vw;
   font-weight: 600;
   letter-spacing: 0.4vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .rule-x {
   margin-left: auto;
@@ -1175,13 +1205,13 @@ button[disabled] { opacity: 1; }
   display: block;
   margin-bottom: 0.5333vw;
   font-weight: 600;
-  color: #23262d;
+  color: var(--ink);
 }
 /* 「喝多少」那几条里的强调是行内的，不能套上面那个 display:block —— 
    否则一句话会被拆成好几行 */
 .rule-li strong {
   font-weight: 600;
-  color: #23262d;
+  color: var(--ink);
 }
 
 .rule-note {
@@ -1256,7 +1286,7 @@ button[disabled] { opacity: 1; }
   font-size: 4.8vw;
   font-weight: 600;
   line-height: 1.1;
-  color: #23262d;
+  color: var(--ink);
 }
 .ro-face span {
   display: block;
@@ -1353,7 +1383,7 @@ button[disabled] { opacity: 1; }
   box-shadow: inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07),
               0 1.0667vw 2.6667vw rgba(35, 38, 45, 0.05);
   text-align: left;
-  color: #23262d;
+  color: var(--ink);
 }
 .a2hs[hidden] { display: none; }
 .a2hs:active { background: rgba(255, 255, 255, 0.98); }
@@ -1462,8 +1492,8 @@ button[disabled] { opacity: 1; }
   border-radius: 3.2vw;
   font-size: 3.2vw;
   letter-spacing: 0.4vw;
-  color: #f4f0e9;
-  background: #23262d;
+  color: var(--bg-2);
+  background: var(--ink);
 }
 .a2hs-copy:active { opacity: 0.86; }
 .a2hs-copy.done {
@@ -1509,8 +1539,8 @@ button[disabled] { opacity: 1; }
   margin-top: 6.4vw;
   padding: 3.7333vw 0;
   border-radius: 6.4vw;
-  background: #23262d;
-  color: #f4f0e9;
+  background: var(--ink);
+  color: var(--bg-2);
   font-size: 4vw;
   letter-spacing: 0.8vw;
   text-align: center;
@@ -1597,7 +1627,7 @@ button[disabled] { opacity: 1; }
   font-size: 3.3333vw;
   font-weight: 600;
   letter-spacing: 0.4vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .terms-sec:first-of-type .terms-sec-t { margin-top: 4.2667vw; }
 .terms-p {
@@ -1677,7 +1707,7 @@ button[disabled] { opacity: 1; }
   font-size: 6.4vw;
   font-weight: 600;
   letter-spacing: 0.8vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .lion-s {
   margin-top: 1.6vw;
@@ -1759,7 +1789,7 @@ button[disabled] { opacity: 1; }
   letter-spacing: 0.2667vw;
   line-height: 1.3;
 }
-.lion-b.primary { background: #23262d; color: #f4f0e9; }
+.lion-b.primary { background: var(--ink); color: var(--bg-2); }
 .lion-b.primary .lb-sub { color: rgba(244, 240, 233, 0.58); }
 .lion-b.primary:active { opacity: 0.86; }
 .lion-b.ghost {
@@ -1820,7 +1850,7 @@ button[disabled] { opacity: 1; }
   font-size: 4.5333vw;
   font-weight: 600;
   letter-spacing: 0.32vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .lg-sub {
   font-size: 2.6667vw;
@@ -1848,7 +1878,7 @@ button[disabled] { opacity: 1; }
   font: inherit;
   font-size: 3.4667vw;
   letter-spacing: 0.32vw;
-  color: #23262d;
+  color: var(--ink);
 }
 .lg-x:active { background: rgba(35, 38, 45, 0.12); }
 
@@ -1874,8 +1904,8 @@ button[disabled] { opacity: 1; }
 }
 .lg-row[data-k="join"] .lg-dot    { background: #4a9a6a; }
 .lg-row[data-k="start"] .lg-dot   { background: #4a9a6a; }
-.lg-row[data-k="roll"] .lg-dot    { background: #b5893f; }
-.lg-row[data-k="lock"] .lg-dot    { background: #b5893f; }
+.lg-row[data-k="roll"] .lg-dot    { background: var(--gold-2); }
+.lg-row[data-k="lock"] .lg-dot    { background: var(--gold-2); }
 .lg-row[data-k="pick"] .lg-dot    { background: #c2703b; }
 .lg-row[data-k="next"] .lg-dot    { background: #9aa3b2; }
 .lg-row[data-k="skip"] .lg-dot    { background: #9aa3b2; }
@@ -1907,7 +1937,7 @@ button[disabled] { opacity: 1; }
   letter-spacing: 0.32vw;
   color: rgba(35, 38, 45, 0.55);
 }
-.lg-tab.is-on { background: #23262d; color: #fff; }
+.lg-tab.is-on { background: var(--ink); color: #fff; }
 
 /* ---- 「我」牌：三家联机牌桌共用同一颗 --------------------------------
 
@@ -1955,7 +1985,7 @@ button[disabled] { opacity: 1; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.who-row.me .who-n { color: #b5893f; font-weight: 600; }
+.who-row.me .who-n { color: var(--gold-2); font-weight: 600; }
 .who-row.is-off .who-n { color: rgba(35, 38, 45, 0.4); }
 .who-row .who-c {
   flex: 0 0 auto;
@@ -2032,7 +2062,7 @@ button[disabled] { opacity: 1; }
   box-shadow: 0 3vw 9vw rgba(35, 38, 45, 0.28);
   text-align: center;
 }
-.quit-t { font-size: 5.3333vw; font-weight: 600; color: #23262d; }
+.quit-t { font-size: 5.3333vw; font-weight: 600; color: var(--ink); }
 .quit-s { font-size: 3.2vw; line-height: 1.65; color: rgba(35, 38, 45, 0.66); }
 .quit-hint { font-size: 2.6667vw; line-height: 1.6; color: rgba(35, 38, 45, 0.4); }
 .quit-box .btn { width: 100%; }
@@ -2115,7 +2145,7 @@ button[disabled] { opacity: 1; }
   font: inherit;
   background: rgba(84, 110, 146, 0.14);
   box-shadow: inset 0 0 0 0.2667vw rgba(84, 110, 146, 0.42);
-  color: #23262d;
+  color: var(--ink);
 }
 .rest-opt[hidden] { display: none; }
 .rest-opt b { font-size: 4vw; }
@@ -2180,7 +2210,7 @@ button[disabled] { opacity: 1; }
   font: inherit;
   font-size: 3.2vw;
   font-weight: 700;
-  color: #8a5f18;
+  color: var(--gold-deep);
 }
 .rest-link.is-on {
   background: rgba(196, 104, 52, 0.16);
@@ -2227,5 +2257,83 @@ button[disabled] { opacity: 1; }
 .p-card.is-rest { background: rgba(84, 110, 146, 0.18); }
 .p-card.is-rest-wait { background: rgba(150, 97, 42, 0.13); }
 .p-card.is-rest .p-stat { color: #3f5f86; font-weight: 700; }
-.p-card.is-rest-wait .p-stat { color: #8a5f18; font-weight: 700; }
+.p-card.is-rest-wait .p-stat { color: var(--gold-deep); font-weight: 700; }
 .p-card .p-score .rest-time { font-size: 2.4vw; }
+
+
+/* ============================================================
+   v1.24.30 全局美化（2026-11-14）
+   这一层全部是追加规则：上面任何一条老样式都不动，只在层叠末尾覆盖。
+   ============================================================ */
+
+/* ---------- 03 留白读成桌面：米底加一层极淡的同心光晕 ----------
+   原来从座位卡到桌布中间那一大块是纯米色，看着像没画完。
+   这层只给边缘加一点暖灰，中心仍然是干净的 #fdfaf5。 */
+.page {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(96, 74, 46, 0) 54%, rgba(96, 74, 46, 0.030) 100%),
+    radial-gradient(120% 78% at 50% 0%, #fdfaf5 0%, var(--bg-2) 46%, #e9e2d6 100%);
+}
+
+/* ---------- 02 首页标题下方那块空白：极淡点阵 ---------- */
+.page-home::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: 21vw;
+  height: 24vw;
+  background-image: radial-gradient(circle at center,
+      rgba(35, 38, 45, 0.085) 0.9px, rgba(35, 38, 45, 0) 1.2px);
+  background-size: 4.2667vw 4.2667vw;
+  opacity: 0.38;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 34%, #000 66%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 34%, #000 66%, transparent);
+  pointer-events: none;
+}
+
+/* ---------- 02 三张玩法卡各认一个色 ----------
+   色条 / 图标 / 标题后的短横线共用 --play；单机页按 data-play 认，
+   联机页没有 data-play，按 id 认。都不改变卡片尺寸，只换颜色。 */
+.play-card { --play: var(--play-liar); position: relative; }
+.play-card[data-play="liar"], .play-card#playNetLiar { --play: var(--play-liar); }
+.play-card[data-play="f350"], .play-card#playNet350  { --play: var(--play-350); }
+.play-card[data-play="find"], .play-card#playNetFind { --play: var(--play-find); }
+
+.play-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 15%; bottom: 15%;
+  width: 0.9333vw;
+  border-radius: 0 0.9333vw 0.9333vw 0;
+  background: var(--play);
+  opacity: 0.9;
+}
+.play-card .pc-ic { color: var(--play); }
+.play-card .pc-title::after {
+  content: '';
+  display: inline-block;
+  vertical-align: middle;
+  width: 3.2vw;
+  height: 0.5333vw;
+  margin-left: 1.8667vw;
+  border-radius: var(--r-pill);
+  background: var(--play);
+  opacity: 0.75;
+}
+
+/* 首页两张卡沿用同一套色条，但走中性金，不跟玩法色混淆 */
+.mode-card { position: relative; }
+.mode-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 15%; bottom: 15%;
+  width: 0.9333vw;
+  border-radius: 0 0.9333vw 0.9333vw 0;
+  background: var(--gold-2);
+  opacity: 0.55;
+}
+
+/* ---------- 05 淡字提对比度 ---------- */
+.home-t2   { color: rgba(35, 38, 45, 0.44); }
+.home-foot { color: rgba(35, 38, 45, 0.42); }
+.page-ver  { color: rgba(35, 38, 45, 0.40); }
