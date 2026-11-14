@@ -744,6 +744,180 @@
 }
 .lr-off[hidden] { display: none; }
 
+/* ---------------- 临时离开：休息 / 炸弹（2026-11-14） ----------------
+
+   用户：「处于 休息 炸弹 状态的时候应该要有标识让正常玩家清楚看到」。
+   所以不是添一行小字：整张座位卡换底色、名字下那行做成实心小牌，
+   摊牌大表 / 桌上的人 / 顶上那行汇总也各挂一份 —— 圆环上扫一眼就知道谁不在圈里。
+   两套颜色分开：休息 = 冷灰蓝（人不在、骰子不计），炸弹 = 暖橙
+   （人还占着座位，骰子照算，只是不点按钮）。 */
+
+/* 座位卡：底色 + 内描边。自己那张的粗金边要让出来，所以分 :not(.me) 与 .me 两条 */
+.lr-seat.away-rest:not(.me),
+.lr-seat.away-back:not(.me) {
+  background: #e9eef4;
+  box-shadow: inset 0 0 0 0.2667vw rgba(84, 110, 146, 0.55),
+              0 0.8vw 2vw rgba(35, 38, 45, 0.06);
+}
+.lr-seat.away-bomb:not(.me) {
+  background: #fbeee2;
+  box-shadow: inset 0 0 0 0.2667vw rgba(196, 104, 52, 0.62),
+              0 0.8vw 2vw rgba(35, 38, 45, 0.06);
+}
+.lr-seat.away-wait:not(.me) {
+  background: #f2eee6;
+  box-shadow: inset 0 0 0 0.2667vw rgba(138, 95, 24, 0.42),
+              0 0.8vw 2vw rgba(35, 38, 45, 0.06);
+}
+.lr-seat.me.away-rest,
+.lr-seat.me.away-back { background: linear-gradient(180deg, #f5f8fc, #e2eaf5); }
+.lr-seat.me.away-bomb { background: linear-gradient(180deg, #fff6ec, #f8e2d0); }
+.lr-seat.me.away-wait { background: linear-gradient(180deg, #fbf6ea, #f2e7d2); }
+
+/* 卡片最下面那行直接做成实心胶囊，比连顺那行小字显眼得多 */
+.lr-say.away {
+  max-width: 100%;
+  padding: 0.4vw 1.6vw;
+  border-radius: 1.8667vw;
+  font-size: 2vw;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: #fff;
+}
+.lr-say.away.rest,
+.lr-say.away.back { background: #5a6e92; }
+.lr-say.away.bomb { background: #c46834; }
+.lr-say.away.wait { background: rgba(35, 38, 45, 0.16); color: #5c616b; }
+
+/* 摊牌大表：休息那一行不摆骰子，换一句说明；炸弹那一行照常摆骰子（结果有效） */
+.lr-rv.away-rest { background: rgba(84, 110, 146, 0.10); }
+.lr-rv.away-bomb { background: rgba(196, 104, 52, 0.10); }
+.lr-rv.away-wait { background: rgba(138, 95, 24, 0.07); }
+.lr-rv-skip {
+  justify-content: center !important;
+  font-size: 2.6667vw;
+  color: #5a6e92;
+  white-space: nowrap;
+}
+.lr-rv-away {
+  font-size: 2.2667vw;
+  font-style: normal;
+  font-weight: 700;
+  padding: 0.27vw 1.2vw;
+  border-radius: 1.2vw;
+  color: #fff;
+  background: #5a6e92;
+  white-space: nowrap;
+}
+.lr-rv-away.bomb { background: #c46834; }
+.lr-rv-away.wait { background: rgba(35, 38, 45, 0.16); color: #5c616b; }
+
+/* 「桌上的人」那一行 */
+.who-row.is-away-rest { background: rgba(84, 110, 146, 0.10); }
+.who-row.is-away-bomb { background: rgba(196, 104, 52, 0.10); }
+
+/* 按钮区那颗入口：居中、不跟上面那颗深色主按钮抢位置，但必须一眼看得见。
+
+   2026-11-14 用户实测反馈：「下方这个休息 炸弹这个文字 有点不明显，
+   但是当状态挂起之后看起来就比较明显了」。第一版默认态是浅灰下划线小字
+   （2.6667vw / rgba .42），挂起后才有底色加粗 —— 两档差太多，人根本不会
+   发现这里能点。现在**两态都做成实心描边胶囊、同样加粗**，只换颜色：
+   淡金 = 可以选，淡橙 = 已经挂了、点进来是「继续参与」。 */
+.lr-away-link {
+  align-self: center;
+  margin-top: 0.8vw;
+  padding: 1.8667vw 4.5333vw;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(194, 148, 63, 0.16);
+  box-shadow: inset 0 0 0 0.2667vw rgba(194, 148, 63, 0.52);
+  font: inherit;
+  font-size: 3.2vw;
+  font-weight: 700;
+  color: #8a5f18;
+  text-decoration: none;
+}
+.lr-away-link.is-on {
+  background: rgba(196, 104, 52, 0.16);
+  box-shadow: inset 0 0 0 0.2667vw rgba(196, 104, 52, 0.55);
+  color: #8a4318;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* 选择浮层：点开再选，避免牌桌上碰一下就把自己从这一桌摘出去 */
+.lr-away-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6vw;
+  background: rgba(20, 22, 28, 0.46);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.lr-away-mask[hidden] { display: none; }
+.lr-away-card {
+  width: 100%;
+  max-width: 82vw;
+  padding: 5.3333vw 4.8vw 4.2667vw;
+  border-radius: 4vw;
+  background: #fbf8f1;
+  box-shadow: 0 3vw 8vw rgba(0, 0, 0, 0.32),
+              inset 0 0 0 0.2667vw rgba(194, 148, 63, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 2.4vw;
+  animation: lrAwayUp 0.22s ease-out;
+}
+@keyframes lrAwayUp {
+  from { transform: translateY(4vw); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.lr-away-t { font-size: 5.3333vw; font-weight: 800; color: #3a3122; text-align: center; }
+.lr-away-s { font-size: 2.9333vw; line-height: 1.5; text-align: center; color: rgba(35, 38, 45, 0.58); }
+.lr-away-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8vw;
+  width: 100%;
+  padding: 3.2vw 3.7333vw;
+  border: 0;
+  border-radius: 2.6667vw;
+  text-align: left;
+  background: rgba(35, 38, 45, 0.06);
+  color: #23262d;
+}
+.lr-away-opt[hidden] { display: none; }
+.lr-away-opt b { font-size: 4vw; }
+.lr-away-opt span { font-size: 2.8vw; line-height: 1.5; color: rgba(35, 38, 45, 0.62); }
+.lr-away-opt[data-away="rest"] {
+  background: rgba(84, 110, 146, 0.14);
+  box-shadow: inset 0 0 0 0.2667vw rgba(84, 110, 146, 0.42);
+}
+.lr-away-opt[data-away="bomb"] {
+  background: rgba(196, 104, 52, 0.14);
+  box-shadow: inset 0 0 0 0.2667vw rgba(196, 104, 52, 0.46);
+}
+.lr-away-opt.is-back {
+  background: rgba(58, 167, 109, 0.14);
+  box-shadow: inset 0 0 0 0.2667vw rgba(58, 167, 109, 0.5);
+}
+.lr-away-no {
+  width: 100%;
+  padding: 2.6667vw 0;
+  border: 0;
+  border-radius: 2.6667vw;
+  background: rgba(35, 38, 45, 0.08);
+  font: inherit;
+  font-size: 3.4667vw;
+  color: #4a4f59;
+}
+
 /* ---------------- 调试功能（暗门） ----------------
 
    两道门：首页页脚版本号连点 7 下（window.LDDev）+ 长按牌桌顶上那两行字 1.2 秒。
@@ -945,3 +1119,4 @@ body.lr-tap-edit .lr-dslot .die:active { filter: brightness(1.08); }
 body.lr-tap-live .lr-cup-dice,
 body.lr-tap-live .lr-dslot,
 body.lr-tap-live .lr-dslot .die { pointer-events: auto; }
+

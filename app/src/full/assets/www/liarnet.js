@@ -49,7 +49,9 @@
     lidP: 0, lidRound: 0,
     /* 左边那张投票浮卡：kickUntil = 这次投票的作废时刻（按服务端那句「还剩多少」算），
        vcSpan = 总时长（进度条用），vcKey = 这一次投票的身份（换了人就要重新滑进来） */
-    kickUntil: 0, vcSpan: 0, vcKey: '', vcTimer: 0
+    kickUntil: 0, vcSpan: 0, vcKey: '', vcTimer: 0,
+    /* 临时离开浮层的背板保护窗：手指抬起补的那一下 click 别把刚开的卡收掉 */
+    awayOpenedAt: 0
   };
 
   var el = {};
@@ -560,8 +562,10 @@
       var s = st.seats[i];
       var mine = s.id === st.you;
       var off = s.online === false;
+      var bd = awayBadge(s);
       var row = document.createElement('div');
-      row.className = 'who-row' + (mine ? ' me' : '') + (off ? ' is-off' : '');
+      row.className = 'who-row' + (mine ? ' me' : '') + (off ? ' is-off' : '') +
+        (bd && (bd.k === 'rest' || bd.k === 'bomb') ? ' is-away-' + bd.k : '');
 
       var nm = document.createElement('span');
       nm.className = 'who-n';
@@ -578,7 +582,8 @@
       var cu = document.createElement('span');
       cu.className = 'who-c';
       var what = st.phase === 'reveal' ? '已摊牌' : (s.rolled ? '摇了' : '没摇');
-      cu.textContent = what + ' · ' + (off ? '离线' : '在线');
+      /* 这一栏够宽，写完整的一句：座位卡上那四个字在这里解释清楚 */
+      cu.textContent = (bd ? bd.long : what) + ' · ' + (off ? '离线' : '在线');
       row.appendChild(cu);
 
       /* 自己那一行不给按钮：想退出请点右上角「退出」。
@@ -635,10 +640,11 @@
     if (el.gate) el.gate.hidden = screen !== 'gate';
     if (el.lobby) el.lobby.hidden = screen !== 'lobby';
     if (el.table) el.table.hidden = screen !== 'table';
-    if (screen !== 'table') closeKick();
+    if (screen !== 'table') { closeKick(); closeAway(); }
 
     if (screen === 'lobby') paintLobby();
-    if (screen === 'table') paintTable();
+    /* 浮层开着时也要跟着刷：别人摇了、自己刚点完继续，卡上那句话不能停在打开那一刻 */
+    if (screen === 'table') { paintTable(); paintAwayCard(); }
     paintDbg();
   }
 
@@ -679,6 +685,34 @@
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+  /* ---------------- 临时离开：休息 / 炸弹（2026-11-14） ----------------
+
+     服务端下发两个字段：mode = 这一把正在生效的，away = 下一把才生效的。
+     「刚点了休息」和「本把还在休息、已经点了继续」是两种中间态，都得让同桌
+     的人看懂。座位卡只有 19.4vw 宽，牌子一律用四个字，长解释放浮层 /
+     桌上的人 / 摊牌大表里。
+       k: rest 休息中 | bomb 炸弹中 | wait 下一把才生效 | back 本把还在外面、下把回来 */
+  function awayBadge(s) {
+    if (!s) return null;
+    var m = s.mode, w = s.away;
+    if (m === 'rest') return w === 'rest'
+      ? { k: 'rest', t: '休息中', long: '这一把休息 · 不参与' }
+      : { k: 'back', t: '下把回来', long: '本把休息 · 已点继续，下一把回来' };
+    if (m === 'bomb') return w === 'bomb'
+      ? { k: 'bomb', t: '炸弹中', long: '这一把炸弹 · 自动摇，骰子有效' }
+      : { k: 'back', t: '下把回来', long: '本把炸弹 · 已点继续，下一把回来' };
+    if (w === 'rest') return { k: 'wait', t: '下把休息', long: '下一把起休息 · 本把照常' };
+    if (w === 'bomb') return { k: 'wait', t: '下把炸弹', long: '下一把起挂炸弹 · 本把照常' };
+    return null;
+  }
+
+  function myAway() {
+    var st = S.st;
+    if (!st || !st.seats) return null;
+    var i = myIdx();
+    return i >= 0 ? awayBadge(st.seats[i]) : null;
   }
 
   /* 一颗骰子的点数：三段式九宫（CELL）里点亮几个位置。1 和 4 是红的。
@@ -834,7 +868,9 @@
       /* 名字后面挂一个状态小尾巴。摇完就锁，所以只有两种状态：
          摇了的压淡一档（他已经没事了），没摇的标出来（眼睛要找的正是他）。 */
       var mark = '';
-      if (st.phase === 'roll') {
+      /* 休息 / 炸弹的人不写「没摇」：一个不用摇、一个由服务端跟着摇，
+         写了他反而像在拖全桌后腿。牌子已经把状态说清楚了。 */
+      if (st.phase === 'roll' && !s.mode) {
         mark = s.rolled ? '<i class="lr-rd w">摇了</i>' : '<i class="lr-rd n">没摇</i>';
       }
       /* 自己那颗「我」牌挂在名字**前面**：.lr-n 是 ellipsis 截断的，
@@ -845,7 +881,8 @@
       /* 骰子：**只有摊牌那一刻**座位上才报点数。
          自己那 5 颗盖在下面的盅里（点开盖看），不摆在座位上 ——
          座位上一直明着摆自己的牌，那只盅就白盖了。 */
-      if (opened && s.dice) paintDice(se.box, s.dice, false, 'v' + s.dice.join('-') + st.round, opened);
+      /* 休息那一把服务端发的是空数组：别拿它去画点数，按「没摇」画盖着的空格子 */
+      if (opened && s.dice && s.dice.length) paintDice(se.box, s.dice, false, 'v' + s.dice.join('-') + st.round, opened);
       else if (s.rolled) paintDice(se.box, null, true, 'd' + (s.n || 5), false);
       else paintDice(se.box, null, true, 'e' + (s.n || 5), false, true);
 
@@ -854,8 +891,14 @@
          从 2 连起才显示 —— 1 把谈不上「连续」；到 3 连变成红字「罚」，
          这就是桌上那条「连续 3 次顺子罚、间断不算」的提醒。
          2026-11-12 用户：「顺子 4 连 · 罚酒 改为 顺子 4 连 · 罚」—— 两个字够了，罚什么桌上自己说。 */
+      /* 临时离开的牌子压过连顺：先让同桌看清谁不在圈里，连顺等他回来再看。
+         整张卡也跟着换底色 —— 光靠一行四个字，12 人圆环上还是会看漏。 */
+      var bd = awayBadge(s);
       var sk = s.streak | 0;
-      if (sk >= 2) {
+      if (bd) {
+        se.say.textContent = bd.t;
+        se.say.className = 'lr-say away ' + bd.k;
+      } else if (sk >= 2) {
         se.say.textContent = '顺子 ' + sk + ' 连' + (sk >= 3 ? ' · 罚' : '');
         se.say.className = 'lr-say st' + (sk >= 3 ? ' hot' : '');
       } else {
@@ -863,7 +906,7 @@
         se.say.className = 'lr-say';
       }
 
-      var cls = 'lr-seat';
+      var cls = 'lr-seat' + (bd ? ' away-' + bd.k : '');
       if (s.online === false) cls += ' off';
       /* 自己那张卡描一圈淡金：一桌十几个人时，先认出「我在哪儿」 */
       if (s.id === st.you) cls += ' me';
@@ -994,18 +1037,29 @@
         ? '<i class="lr-rv-st' + (sk >= 3 ? ' hot' : '') + '">顺子 ' + sk + ' 连' +
           (sk >= 3 ? ' · 罚' : '') + '</i>'
         : '';
+      /* 这一屏座位卡收起来了，状态只能挂在这一行上：名字底下一枚实心牌 + 整行换底色。
+         炸弹那一行的骰子**照常摆**（结果有效），休息那一行没牌可摆，换一句说明。 */
+      var bd = awayBadge(s);
+      var awayTag = bd ? '<i class="lr-rv-away ' + bd.k + '">' + esc(bd.t) + '</i>' : '';
+      var skip = s.mode === 'rest';
       /* 自己那一行跟着描金：这一屏一列五六行，光靠文字找不到自己。
          「我」还是那颗实底金牌，挂名字前面（跟牌桌、跟另外两家同一个样子）。 */
-      h += '<div class="lr-rv' + (s.id === st.you ? ' me' : '') + '" data-i="' + i + '">' +
+      h += '<div class="lr-rv' + (s.id === st.you ? ' me' : '') +
+        (bd ? ' away-' + bd.k : '') + '" data-i="' + i + '">' +
         '<div class="lr-rv-m">' +
           '<span class="lr-rv-n">' + (s.id === st.you ? '<i class="me-tag">我</i>' : '') +
             esc(s.name) + '</span>' +
-          off + stk +
+          off + awayTag + stk +
         '</div>' + tag +
-        '<div class="lr-rv-d" data-k="' + (s.dice ? s.dice.join('-') : '') + '">';
-      for (var j = 0; j < DICE_N; j++) {
-        var v = s.dice && s.dice[j] ? s.dice[j] : 0;
-        h += '<div class="die lr-die in">' + pipHtml(v) + '</div>';
+        '<div class="lr-rv-d' + (skip ? ' lr-rv-skip' : '') +
+          '" data-k="' + (s.dice ? s.dice.join('-') : '') + '">';
+      if (skip) {
+        h += '这一把休息 · 没参与';
+      } else {
+        for (var j = 0; j < DICE_N; j++) {
+          var v = s.dice && s.dice[j] ? s.dice[j] : 0;
+          h += '<div class="die lr-die in">' + pipHtml(v) + '</div>';
+        }
       }
       h += '</div></div>';
     }
@@ -1189,7 +1243,12 @@
       var t = '';
       /* 「还没摇」只在还能摇的时候说。牌锁了之后（call）再说这句，人就该去找摇骰
          按钮了 —— 而那个按钮根本不会出现，只会让他以为这一桌坏了。 */
-      if (st.phase === 'roll') t = s.rolled
+      /* 自己那块也写明状态：圆环上自己的卡离得远，低头看牌先看的是这里。
+         本把还在外面、已经点了「继续」这两种中间态不能混成一句话。 */
+      if (s.mode === 'rest') t = s.away ? '这一把休息 · 不参与' : '本把休息 · 下把回来';
+      else if (s.mode === 'bomb') t = s.away ? '炸弹 · 自动摇，牌算数' : '本把炸弹 · 下把回来';
+      else if (s.away) t = '下把起' + (s.away === 'rest' ? '休息' : '挂炸弹') + ' · 本把照常';
+      else if (st.phase === 'roll') t = s.rolled
         ? '摇了 · 等别人（' + rd.done + '/' + rd.all + '）'
         : '还没摇 · 点下面摇骰';
       else if (st.phase === 'call') t = '牌锁了 · 桌上叫，想开就点「开牌」';
@@ -1229,6 +1288,18 @@
     return '<button class="btn ' + (cls || '') + '" data-act="' + act + '">' + text + '</button>';
   }
 
+  /* 有人临时离开时，把分母为什么变小写在那行常驻提示里 ——
+     正常玩家最该知道的是「要几票是按几个人算的」。 */
+  function awayHint(st) {
+    var a = st && st.away;
+    if (!a) return '';
+    var r = a.rest | 0, b = a.bomb | 0;
+    if (!r && !b) return '';
+    return ' · 桌上 ' + (a.active | 0) + ' 人在玩（' +
+      (r ? r + ' 人休息' : '') + (r && b ? ' / ' : '') +
+      (b ? b + ' 人炸弹' : '') + '不算分母）';
+  }
+
   function paintBtns() {
     var st = S.st;
     if (!el.btns) return;
@@ -1236,10 +1307,17 @@
     var meS = me >= 0 ? st.seats[me] : null;
     var rd = rollNow(), op = openNow();
     var h = '';
+    /* 本把在休息 / 挂炸弹：不给摇、不给开牌票、不给下一把票。
+       服务端也会拒，但按钮干脆不摆出来，省得点了弹出一句「不行」。 */
+    var out = !!(meS && meS.mode);
 
     if (st.phase === 'roll') {
       if (!meS) {
         h = '<div class="lr-wait">看牌 · ' + rd.done + '/' + rd.all + ' 家已经摇了</div>';
+      } else if (out) {
+        h = '<div class="lr-wait">' + (meS.mode === 'rest'
+          ? '这一把你在休息 · 不用摇'
+          : '这一把你挂着炸弹 · 大家摇完自动跟着摇') + '</div>';
       } else if (!meS.rolled) {
         h = '<button class="lr-roll" data-act="roll">摇一摇</button>';
       } else {
@@ -1247,7 +1325,11 @@
       }
     } else if (st.phase === 'call') {
       /* 牌锁住了，线上一个字都不记。谁想开谁点，够 2/3 就摊 */
-      if (op.mine) {
+      if (out) {
+        h = '<div class="lr-wait">' + (meS.mode === 'rest'
+          ? '这一把你在休息 · 不算开牌人数'
+          : '这一把你挂着炸弹 · 够票自动跟着摊') + '</div>';
+      } else if (op.mine) {
         h = '<div class="lr-wait">你点了开牌 · 等其他人（' + op.done + '/' + op.need + '）</div>';
       } else {
         h = btn('open', '开牌 · ' + op.done + '/' + op.need, 'primary');
@@ -1258,15 +1340,19 @@
       for (var k = 0; k < st.seats.length; k++) if (st.seats[k].online === false) off++;
       h += '<div class="lr-wait">' + (off
         ? '有 ' + off + ' 家掉线了 · 那一票也算 · 点他名字请出去'
-        : '线上不叫点 · 桌上说 · 够 ' + op.need + ' 人点就摊') + '</div>';
+        : '线上不叫点 · 桌上说 · 够 ' + op.need + ' 人点就摊') + awayHint(st) + '</div>';
     } else if (st.phase === 'reveal') {
       /* 摊完不自动洗：有人要对着牌算账。够 2/3 的人点了才开下一局 */
       var nv = st.next || { need: 1, yes: [] };
       var voted = me >= 0 && (nv.yes || []).indexOf(me) >= 0;
-      h = voted
-        ? '<div class="lr-wait">你已经点了 · 等其他人（' + nv.yes.length + '/' + nv.need + '）</div>'
-        : btn('next', '下一把 · ' + nv.yes.length + '/' + nv.need, 'primary');
-      h += '<div class="lr-wait">摊着牌慢慢对 · 够 ' + nv.need + ' 人才洗</div>';
+      if (out) {
+        h = '<div class="lr-wait">这一把没参与 · 等别人点下一把</div>';
+      } else {
+        h = voted
+          ? '<div class="lr-wait">你已经点了 · 等其他人（' + nv.yes.length + '/' + nv.need + '）</div>'
+          : btn('next', '下一把 · ' + nv.yes.length + '/' + nv.need, 'primary');
+      }
+      h += '<div class="lr-wait">摊着牌慢慢对 · 够 ' + nv.need + ' 人才洗' + awayHint(st) + '</div>';
     } else if (st.started) {
       /* 旧版本开的一桌：服务端还留着上一套协议的局面（ready / bid / …），
          上面三个分支一个都进不去，底栏就空着 —— 用户 2026-11-11 就是这么
@@ -1275,7 +1361,56 @@
       h = '<div class="lr-wait">这一桌是旧版本开的 · 点右上角离开，重新开一桌</div>';
     }
 
+    /* 临时离开的入口：牌桌 / 摊牌页都在（.fd-btns 那一屏不收起来）。
+       点开还要再选一次才算数 —— 跟改名 / 请人出去一样防误触。 */
+    if (st.started) {
+      var bd = myAway();
+      h += '<button class="lr-away-link' + (bd ? ' is-on' : '') + '" data-act="away">' +
+        (bd ? bd.t + ' · 点这里改' : '临时离开 · 休息 / 炸弹') + '</button>';
+    }
+
     if (el.btns.innerHTML !== h) el.btns.innerHTML = h;
+  }
+
+  /* ---------------- 临时离开：那张选择卡 ----------------
+
+     两条状态都只改「下一把」：点完当前这把照常打完，下一次洗牌才套上去。
+     所以服务端回了 state 之后，浮层里也会出现「本把还在休息、已经点了继续」
+     这种中间态 —— 选项得跟着 away 走，不能一直摆着「休息一下 / 挂炸弹」。 */
+  function openAway() {
+    if (!el.awayMask || !S.st || !S.st.started) return;
+    el.awayMask.hidden = false;
+    S.awayOpenedAt = Date.now();
+    paintAwayCard();
+  }
+
+  function closeAway() {
+    if (el.awayMask) el.awayMask.hidden = true;
+  }
+
+  function paintAwayCard() {
+    if (!el.awayMask || el.awayMask.hidden) return;
+    var st = S.st;
+    var i = myIdx();
+    var s = i >= 0 && st && st.seats ? st.seats[i] : null;
+    var on = !!(s && s.away);
+    var opts = el.awayMask.querySelectorAll('.lr-away-opt');
+    for (var j = 0; j < opts.length; j++) {
+      var a = opts[j].getAttribute('data-away');
+      /* 已经选了状态 → 两个选择收起来，只留「继续参与」 */
+      opts[j].hidden = a === 'resume' ? !on : on;
+    }
+    if (el.awaySub) {
+      el.awaySub.textContent = on
+        ? '你下一把起' + (s.away === 'rest' ? '休息' : '挂炸弹') + ' · 当前这把照常打完'
+        : '选一个 · 下一把起生效，当前这把照常打完';
+    }
+  }
+
+  function doAway(act) {
+    closeAway();
+    buzz(12);
+    send({ t: act === 'rest' ? 'lrest' : act === 'bomb' ? 'lbomb' : 'lresume' });
   }
 
   /* ---------------- 请人出去 ----------------
@@ -2012,6 +2147,7 @@
         /* 「开牌」是一张票：2/3 的人点了，服务端当场摊牌 */
         else if (act === 'open') { buzz(18); cue('pass'); send({ t: 'lopen' }); }
         else if (act === 'next') { cue('pass'); send({ t: 'lnext' }); }
+        else if (act === 'away') { openAway(); }
       });
     }
 
@@ -2060,6 +2196,22 @@
     });
     click(el.kickNo, function () { closeKick(); });
     click(el.kickGo, function () { doKick(); });
+
+    /* 临时离开那张卡：选项和背板走一个代理。
+       同样留 320ms 保护窗 —— 手指抬起补的那一下 click 正好落在新建的背板上。 */
+    if (el.awayMask) {
+      el.awayMask.addEventListener('click', function (e) {
+        var t = e.target;
+        while (t && t !== el.awayMask &&
+               !(t.getAttribute && t.getAttribute('data-away'))) t = t.parentNode;
+        if (t && t !== el.awayMask) { doAway(t.getAttribute('data-away')); return; }
+        if (e.target === el.awayMask) {
+          if (Date.now() - S.awayOpenedAt < 320) return;
+          closeAway();
+        }
+      });
+    }
+    click(el.awayNo, function () { closeAway(); });
 
     /* 本局记录 / 桌上的人 */
     click(el.logBtn, function () { openSheet('log'); });
@@ -2173,6 +2325,7 @@
       sound: $('lrSound'), soundIc: $('lrSoundIc'),
       kick: $('lrKick'), kickName: $('lrKickName'),
       kickSub: $('lrKickSub'), kickGo: $('lrKickGo'), kickNo: $('lrKickNo'),
+      awayMask: $('lrAway'), awaySub: $('lrAwaySub'), awayNo: $('lrAwayNo'),
       vc: $('lrVote'), vcWho: $('lrVoteWho'), vcS: $('lrVoteS'), vcBar: $('lrVoteBar'),
       vcOk: $('lrVoteOk'),
       top: $('lrRound') ? $('lrRound').parentNode : null,
@@ -2217,9 +2370,11 @@
     enter: enter,
     leave: leave,
     quit: quitRoom,
-    /* 给自动化测试：读状态 / 直接发一条协议 */
+    /* 给自动化测试：读状态 / 直接发一条协议 / 灌一份假桌面量布局。
+       paint 跟 350 的 LDNet.paint 一个用法 —— 不连服务端，直接走 render()。 */
     state: function () { return S.st; },
     send: function (o) { return send(o); },
-    code: function () { return S.code; }
+    code: function () { return S.code; },
+    paint: function (s) { S.code = (s && s.code) || 'TEST'; S.st = s; render(); }
   };
 })();
