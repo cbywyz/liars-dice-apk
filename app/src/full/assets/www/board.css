@@ -136,61 +136,226 @@
   overflow: hidden;
 }
 
+/* 一行塞不下：玩法 / 房号 / 时钟 / 退出四个角标占掉大半，
+   状态条只剩一百来像素，写什么都被 ellipsis 吃掉。分两行：
+   第一行摆角标，第二行整行留给状态条。 */
 .bd-top {
   display: flex;
-  align-items: center;
-  gap: 2.4vmin;
+  flex-direction: column;
+  gap: 0.9vmin;
   flex: 0 0 auto;
+  min-height: 5vmin;
 }
+.bd-top-r1 {
+  display: flex;
+  align-items: center;
+  gap: 1.4vmin;
+}
+.bd-top-r2 { display: flex; align-items: center; }
 
 /* 字号里的 vmax 不是随手写的：竖屏手机上 vmin 取的是宽度（390），
    1vmax 取的是高度（844）—— 一排小字要「隔着桌子看得见」，就该跟着长边走。
    大屏摆在桌上多半是竖着立起来的，这一条比省事重要。 */
 .bd-game {
   flex: 0 0 auto;
-  padding: 1vmin 2.2vmin;
+  padding: 0.9vmin 1.8vmin;
   border-radius: 999px;
   background: rgba(216, 171, 95, 0.14);
   color: #d8ab5f;
-  font-size: clamp(11px, 1.9vmax, 20px);
+  font-size: clamp(11px, 1.7vmax, 18px);
   letter-spacing: 0.12em;
 }
 
-/* 房号是这块屏最该被看见的东西：晚到的人、走开又回来的人，一眼就能对号 */
+/* 房号只在入场对号时最要紧。连上之后收成一颗角标，把那一整行让给状态条；
+   进场那 5 秒由 `.bd-hello` 单独放大一次，两件事不抢同一块地方。 */
+.bd-code-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.8vmin;
+  padding: 0.7vmin 1.8vmin;
+  border-radius: 999px;
+  background: rgba(216, 171, 95, 0.1);
+}
+.bd-code-k {
+  font-style: normal;
+  font-size: clamp(9px, 1.3vmax, 14px);
+  letter-spacing: 0.1em;
+  color: rgba(240, 201, 130, 0.6);
+}
 .bd-code {
-  flex: 1 1 auto;
-  text-align: center;
-  font-size: clamp(28px, 5.4vmax, 110px);
+  font-size: clamp(13px, 2.1vmax, 24px);
   font-weight: 700;
-  letter-spacing: 0.14em;
-  line-height: 1;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
   color: #f0c982;
+  font-variant-numeric: tabular-nums;
+}
+
+.bd-stat {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  font-size: clamp(10px, 1.6vmax, 18px);
+  line-height: 1.3;
+  color: rgba(244, 240, 233, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bd-stat b { color: #f0c982; font-weight: 700; }
+.bd-clock {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: clamp(10px, 1.55vmax, 17px);
+  color: rgba(244, 240, 233, 0.42);
   font-variant-numeric: tabular-nums;
 }
 
 .bd-x {
   flex: 0 0 auto;
-  padding: 1.4vmin 2.6vmin;
+  padding: 1vmin 2vmin;
   border-radius: 999px;
   background: rgba(244, 240, 233, 0.08);
   color: rgba(244, 240, 233, 0.62);
-  font-size: clamp(11px, 1.8vmax, 18px);
+  font-size: clamp(10px, 1.6vmax, 17px);
 }
 .bd-x:active { opacity: 0.7; }
 
-/* 掉线时只在角上亮一颗红点：大屏不该因为网络抖一下就把整桌内容撤掉 */
+/* 掉线时只在角上亮一颗红点：大屏不该因为网络抖一下就把整桌内容撤掉。
+   以前是绝对定位、还写了两条 font-size；现在跟状态条同一排，一条就够。 */
 .bd-off {
-  position: absolute;
-  top: calc(2.2vmin + env(safe-area-inset-top));
-  right: 3.2vmin;
-  padding: 0.6vmin 1.6vmin;
+  flex: 0 0 auto;
+  padding: 0.6vmin 1.4vmin;
   border-radius: 999px;
   background: rgba(224, 104, 92, 0.18);
   color: #e0685c;
-  font-size: clamp(10px, 1.5vmin, 15px);
+  font-size: clamp(10px, 1.55vmax, 16px);
 }
 .bd-off[hidden] { display: none; }
-.bd-off { font-size: clamp(10px, 1.6vmax, 16px); }
+
+/* 进场 5 秒：大字房号单独盖一层，不占布局，收起时下面那块屏一像素都不跳。
+   pointer-events 必须关掉 —— 它盖住整块屏，不能把「退出」挡了。 */
+.bd-hello {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vmin;
+  background: rgba(20, 23, 28, 0.95);
+  pointer-events: none;
+  transition: opacity 700ms ease;
+}
+.bd-hello[hidden] { display: none; }
+.bd-hello.out { opacity: 0; }
+.bd-hello i {
+  font-style: normal;
+  font-size: clamp(12px, 2.2vmax, 24px);
+  letter-spacing: 0.45em;
+  color: rgba(244, 240, 233, 0.42);
+}
+.bd-hello b {
+  font-size: clamp(56px, 13vmax, 180px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  color: #f0c982;
+  font-variant-numeric: tabular-nums;
+}
+.bd-hello span {
+  font-size: clamp(11px, 2vmax, 22px);
+  color: rgba(244, 240, 233, 0.48);
+}
+
+/* 重开 / 踢人投票：手机上浮卡在飘，桌上这块屏也该看得见进度。
+   两条并排，倒计时由 board.js 每秒走，不靠服务端推。 */
+.bd-vote {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1vmin;
+  margin-top: 1.2vmin;
+}
+.bd-vote[hidden] { display: none; }
+.bd-vote-i {
+  display: flex;
+  align-items: center;
+  gap: 1.2vmin;
+  padding: 0.9vmin 2vmin;
+  border-radius: 999px;
+  background: rgba(216, 171, 95, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(216, 171, 95, 0.35);
+  font-size: clamp(10px, 1.7vmax, 18px);
+  color: #f0c982;
+  white-space: nowrap;
+}
+.bd-vote-i.kick {
+  background: rgba(224, 104, 92, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(224, 104, 92, 0.38);
+  color: #e8a099;
+}
+.bd-vote-i strong { font-weight: 700; font-variant-numeric: tabular-nums; }
+.bd-vote-i em {
+  font-style: normal;
+  color: rgba(244, 240, 233, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 吹牛摊牌：只摆逐颗点数的客观分布，不判够不够、不替桌上算顺子豹子。
+   标题那行把话说死，免得有人拿它当「叫牌结果」看。 */
+.bd-tally {
+  flex: 0 0 auto;
+  margin-top: 1.2vmin;
+  padding: 1.2vmin 2vmin;
+  border-radius: 1.6vmin;
+  background: rgba(244, 240, 233, 0.045);
+  box-shadow: inset 0 0 0 1px rgba(244, 240, 233, 0.07);
+}
+.bd-tally[hidden] { display: none; }
+.bd-tally-h {
+  font-size: clamp(9px, 1.35vmax, 15px);
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: rgba(244, 240, 233, 0.38);
+  margin-bottom: 1vmin;
+}
+.bd-tally-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1.8vmin;
+}
+.bd-tally-i {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4vmin;
+  min-width: 3.6vmin;
+}
+.bd-tally-i b {
+  font-size: clamp(10px, 1.6vmax, 17px);
+  color: rgba(244, 240, 233, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+.bd-tally-i .bar {
+  display: block;
+  width: 2.6vmin;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, #d8ab5f, rgba(216, 171, 95, 0.32));
+}
+.bd-tally-i u {
+  text-decoration: none;
+  font-size: clamp(10px, 1.7vmax, 18px);
+  font-weight: 700;
+  color: #f0c982;
+  font-variant-numeric: tabular-nums;
+}
 
 /* 桌上的公骰：350 是这一手摇出来的 7 颗，找朋友是两颗 */
 .bd-dice {
@@ -246,6 +411,15 @@
    顶上那一手（`.bd-dice`）留着动画 —— 那是真摇了一把，该有反馈。 */
 .bd-cd .die { animation: none; opacity: 1; }
 
+/* 吹牛摊牌是 5 颗，不是找朋友那 2 颗：沿用上面的 `--ds` 会
+   5 × 24cqw 直接顶穿卡片（真截出来过：最右那颗只剩半张脸）。
+   宽度留到 16cqw、缝也收窄，84cqw 出头，宽卡窄卡都放得下。 */
+.bd-cd.five {
+  --ds: min(13cqh, 16cqw);
+  gap: min(0.8cqh, 1.2cqw);
+  padding-bottom: calc(var(--ds) * 0.12);
+}
+
 /* ---------------- 轮到谁 ---------------- */
 
 .bd-turn {
@@ -300,11 +474,11 @@
   grid-auto-rows: minmax(0, 1fr);
 }
 
-/* 人数是奇数时，最后一张铺满一整行 —— 否则右下角空一块，
-   看着像「还有人没进来」。3 个人、5 个人、7 个人都会遇上。 */
-.bd-grid > .bd-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
-
+/* 人数是奇数时不再把最后一张拉满整行（那张会比别人大一圈，像多出来一个人）。
+   剩下的格子由 board.js 补一张 `.bd-sum`「本局小结」，虚线边、不算人头，
+   验收脚本数 `.bd-card` 时也不会把它算成一位玩家。 */
 .bd-card {
+  position: relative;
   container-type: size;
   display: flex;
   flex-direction: column;
@@ -317,6 +491,106 @@
   box-shadow: inset 0 0 0 1px rgba(244, 240, 233, 0.07);
   overflow: hidden;
 }
+
+/* 临时离开：整张卡换底色，右上角挂状态牌。同桌抬头一眼能分清
+   「他这一把不打」和「他还没轮到」。 */
+.bd-card.rest {
+  background: rgba(111, 140, 178, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(130, 164, 204, 0.3);
+}
+.bd-card.bomb {
+  background: rgba(168, 83, 31, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(216, 140, 80, 0.34);
+}
+.bd-card.wait { background: rgba(244, 240, 233, 0.035); }
+.bd-tag {
+  position: absolute;
+  top: 0.6vmin;
+  right: 0.6vmin;
+  padding: 0.25vmin 0.9vmin;
+  border-radius: 999px;
+  font-size: clamp(8px, 1.1vmax, 13px);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  background: rgba(111, 140, 178, 0.32);
+  color: #d3e3f8;
+}
+.bd-card.bomb .bd-tag { background: rgba(216, 140, 80, 0.32); color: #ffd9b8; }
+.bd-card.wait .bd-tag { background: rgba(244, 240, 233, 0.1); color: rgba(244, 240, 233, 0.55); }
+.bd-tag.streak { background: rgba(216, 171, 95, 0.24); color: #f0c982; }
+.bd-away-time {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: #a7c6ea;
+}
+.bd-card.bomb .bd-away-time { color: #f0b884; }
+.bd-card.wait .bd-away-time { color: rgba(244, 240, 233, 0.5); }
+
+/* 卡片高的时候补一条细进度条 + 最近一次动作；矮卡（12 人那种 88px）
+   两样都收起来，只留名字 / 数字 / 状态，不然挤成一团反而没人看得清。 */
+.bd-bar {
+  flex: 0 0 auto;
+  width: 72%;
+  height: 0.5vmin;
+  min-height: 2px;
+  border-radius: 999px;
+  background: rgba(244, 240, 233, 0.09);
+  overflow: hidden;
+}
+.bd-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(216, 171, 95, 0.45), #d8ab5f);
+}
+.bd-last {
+  max-width: 92%;
+  font-size: clamp(8px, 1.1vmax, 13px);
+  line-height: 1.2;
+  color: rgba(244, 240, 233, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bd-grid.is-short .bd-bar,
+.bd-grid.is-short .bd-last,
+.bd-grid.is-mid .bd-last { display: none; }
+.bd-grid.is-short .bd-tag {
+  top: 0.3vmin;
+  right: 0.3vmin;
+  padding: 0 0.6vmin;
+  font-size: clamp(7px, 0.95vmax, 11px);
+}
+
+/* 右下角那张「本局小结」：虚线、不画骰子、不带底色，一看就不是一个人 */
+.bd-sum {
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6vmin;
+  padding: 1vmin;
+  border-radius: 2vmin;
+  box-shadow: inset 0 0 0 1px dashed rgba(244, 240, 233, 0.16);
+  overflow: hidden;
+}
+.bd-sum-t {
+  font-size: 13px;
+  font-size: min(10cqh, 26cqw, 4.6vmin);
+  letter-spacing: 0.14em;
+  color: rgba(216, 171, 95, 0.75);
+  white-space: nowrap;
+}
+.bd-sum-r {
+  font-size: 13px;
+  font-size: min(11cqh, 30cqw, 5.2vmin);
+  line-height: 1.25;
+  color: rgba(244, 240, 233, 0.48);
+  white-space: nowrap;
+}
+.bd-sum-r b { color: #f0c982; font-weight: 700; }
+
 
 /* 该他动了：整张卡镶一圈金，比在名字旁边加个箭头好认得多 */
 .bd-card.turn {
@@ -372,14 +646,58 @@
 .bd-num.cups .bd-unit { opacity: 0.82; }
 
 .bd-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.5em;
+  max-width: 100%;
   font-size: 11px;
   font-size: min(10cqh, 34cqw, 5.4vmin);
   line-height: 1.1;
   color: rgba(244, 240, 233, 0.4);
   white-space: nowrap;
+  overflow: hidden;
 }
+/* 只让状态文字那块被截断，计时那块永远留着 —— 离开多久是这块屏
+   最该替桌上说清的一件事，不能因为「本把不参与」五个字就被吃掉。 */
+.bd-sub-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bd-sub .bd-away-time { flex: 0 0 auto; }
 
 /* ---------------- 刚发生了什么 ---------------- */
+
+/* 记录区和卡片区之间得有一道线：以前三行灰字直接贴着卡片底边，
+   抬眼分不清「这是卡片里的一行」还是「刚才发生的事」。标题行顺带报一共几条。 */
+.bd-log-h {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1vmin;
+  margin-top: 1.4vmin;
+  padding-top: 1vmin;
+  border-top: 1px solid rgba(244, 240, 233, 0.1);
+  font-size: clamp(9px, 1.35vmax, 15px);
+  letter-spacing: 0.18em;
+  color: rgba(244, 240, 233, 0.32);
+}
+.bd-log-h-i {
+  flex: 0 0 auto;
+  width: 0.7vmin;
+  height: 0.7vmin;
+  min-width: 4px;
+  min-height: 4px;
+  border-radius: 50%;
+  background: #d8ab5f;
+}
+.bd-log-h em {
+  margin-left: auto;
+  font-style: normal;
+  letter-spacing: 0;
+  color: rgba(244, 240, 233, 0.26);
+}
 
 .bd-log {
   /* 也能缩。原来写 `0 0 auto`（一点都不许缩），摆不下的时候它就被整块挤出屏幕，
@@ -391,7 +709,7 @@
   flex: 0 1 auto;
   min-height: 0;
   justify-content: flex-end;
-  margin-top: 1.6vmin;
+  margin-top: 0.6vmin;
   display: flex;
   flex-direction: column;
   gap: 0.5vmin;
@@ -400,15 +718,43 @@
 }
 
 .bd-log-i {
+  display: flex;
+  align-items: center;
+  gap: 1vmin;
+  padding-left: 1vmin;
   font-size: clamp(12px, 2.1vmax, 22px);
   line-height: 1.35;
   color: rgba(244, 240, 233, 0.34);
   white-space: nowrap;
   overflow: hidden;
+}
+.bd-log-i .dot {
+  flex: 0 0 auto;
+  width: 0.7vmin;
+  height: 0.7vmin;
+  min-width: 4px;
+  min-height: 4px;
+  border-radius: 50%;
+  background: rgba(244, 240, 233, 0.26);
+}
+.bd-log-i .txt {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 最新一条最亮：抬眼一扫就知道刚才发生了什么，不用去读前三行 */
-.bd-log-i:last-child { color: rgba(244, 240, 233, 0.68); }
+/* 日志带 `k`：按类型给色点。豹子/爆了是暖色，离开/踢人是冷色，
+   换人/开局是绿，收分/摇骰这种日常动作保持中性灰。 */
+.bd-log-i.warm .dot { background: #e0a24f; }
+.bd-log-i.hot .dot { background: #e0685c; }
+.bd-log-i.cool .dot { background: #7fa9cf; }
+.bd-log-i.good .dot { background: #5cbf8b; }
+/* 最新一条最亮：抬眼一扫就知道刚才发生了什么，不用去读前三行。
+   金竖条画在盒子内侧（inset），不占布局宽度，三行不会因此错开。 */
+.bd-log-i:last-child {
+  color: rgba(244, 240, 233, 0.72);
+  box-shadow: inset 2px 0 0 #d8ab5f;
+  padding-left: 1.6vmin;
+}
 
 .bd-empty {
   flex: 1 1 auto;
