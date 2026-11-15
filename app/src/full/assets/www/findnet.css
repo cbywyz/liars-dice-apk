@@ -170,7 +170,7 @@
 }
 
 .fn-pl-host {
-  font-size: 2.4vw;
+  font-size: max(11px, 2.4vw);
   color: var(--gold-deep);
   padding: 0.4vw 1.6vw;
   border-radius: 999px;

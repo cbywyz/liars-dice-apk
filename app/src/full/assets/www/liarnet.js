@@ -236,6 +236,8 @@
 
   function connect() {
     if (!S.code) return;
+    /* 手动连之前把已排队的退避重连撤掉，否则旧定时器会把刚连好的 WS 又关一次 */
+    if (S.retryTimer) { clearTimeout(S.retryTimer); S.retryTimer = 0; }
     closeSocket();
     S.alive = true;
 
@@ -276,7 +278,10 @@
     if (!S.alive) return;
     clearTimeout(S.retryTimer);
     S.retry = Math.min(S.retry + 1, 4);
-    S.retryTimer = setTimeout(connect, 500 * Math.pow(2, S.retry));
+    S.retryTimer = setTimeout(function () {
+      S.retryTimer = 0;
+      connect();
+    }, 500 * Math.pow(2, S.retry));
   }
 
   function closeSocket() {
@@ -486,28 +491,35 @@
   }
 
   function createRoom() {
-    if (!S.api) return;
+    if (!S.api || S.connecting) return;
+    S.connecting = true;
     tip('正在开一桌…');
     fetch(S.api + '/api/new?game=liar', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
+        S.connecting = false;
         if (!j || !j.ok) { tip((j && j.msg) || '开房失败，再试一次'); return; }
         tip('');
         enterRoom(j.code);
       })
-      .catch(function () { tip('连不上服务器 · 检查一下网络'); });
+      .catch(function () {
+        S.connecting = false;
+        tip('连不上服务器 · 检查一下网络');
+      });
   }
 
   function joinRoom() {
     var code = (el.code.value || '').replace(/\D/g, '').slice(0, 6);
-    if (code.length !== 4 && code.length !== 6) { tip('房号是 4 位数字'); return; }
+    if (code.length !== 4 && code.length !== 6) { tip('房号是 4 位数字（撞满了才 6 位）'); return; }
     tip('正在找这个房间…');
     fetch(S.api + '/api/has?code=' + code, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) { tip((j && j.why) || '房号不对'); return; }
         if (!j.room) { tip('没有这个房间 · 房号念对了吗'); return; }
-        if (j.room.game && j.room.game !== 'liar') { tip('这个房号不是吹牛的房间'); return; }
+        if (j.room.game && j.room.game !== 'liar') {
+          tip('这个房号是「' + (j.room.game === 'find' ? '找朋友' : '潮汕 350') + '」的房间'); return;
+        }
         tip('');
         enterRoom(code);
       })
@@ -2446,6 +2458,12 @@
     paintDbg();
     S.api = apiBase();
     render();
+
+    /* 切回前台时若 socket 已被系统掐掉但没触发 onclose，主动重连，不等退避 */
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden || !S.alive) return;
+      if (!S.ws) connect();
+    });
 
     /* 第一次按到屏幕就把摇骰声的音频通道打开（见上面 unlockShake 的注释）。
        捕获阶段挂，哪个元素都算数；开一次就摘掉。 */

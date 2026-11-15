@@ -55,6 +55,8 @@
 
   function connect() {
     if (!S.code) return;
+    /* 手动连之前把已排队的退避重连撤掉，否则旧定时器会把刚连好的 WS 又关一次 */
+    if (S.tRetry) { clearTimeout(S.tRetry); S.tRetry = null; }
     closeSocket();
     S.alive = true;
 
@@ -99,7 +101,10 @@
   function retryLater() {
     clearTimeout(S.tRetry);
     var wait = Math.min(8000, 700 * Math.pow(1.7, S.retry++));
-    S.tRetry = setTimeout(connect, wait);
+    S.tRetry = setTimeout(function () {
+      S.tRetry = null;
+      connect();
+    }, wait);
   }
 
   function startPing() {

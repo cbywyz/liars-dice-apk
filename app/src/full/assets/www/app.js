@@ -779,6 +779,27 @@
 
   /* ================= 摇骰 ================= */
 
+  /* 点数落地只有这一份：定时器正常到点走它；切后台定时器被清掉或被冻住，
+     回前台时若还停在「摇骰中」也补跑它，不会卡死在这一步。 */
+  function finishShake() {
+    S.shakeTimer = null;
+    var forced = d.forceOn;
+    var values = forced ? d.forceValues.slice()
+      : slotsOf(d.diceCount).map(function () { return rollOne(); });
+    S.lastValues = values.slice();
+
+    var patch = {
+      dice: makeDice(values),
+      shaking: false,
+      state: 'closed',
+      hasLast: true,
+      hint: '盖着 · 点「开盖」或上滑掀开'
+    };
+    // 装填不清：只要还没开盖，摇多少次都是这个点数（用户要的就是这个）
+    setData(patch);
+    vibrate('light');
+  }
+
   function onShake() {
     if (d.shaking) return;
     if (d.isLocked) {
@@ -799,24 +820,7 @@
     vibrate('medium');
 
     clearTimers();
-    S.shakeTimer = setTimeout(function () {
-      S.shakeTimer = null;
-      var forced = d.forceOn;
-      var values = forced ? d.forceValues.slice()
-        : slotsOf(d.diceCount).map(function () { return rollOne(); });
-      S.lastValues = values.slice();
-
-      var patch = {
-        dice: makeDice(values),
-        shaking: false,
-        state: 'closed',
-        hasLast: true,
-        hint: '盖着 · 点「开盖」或上滑掀开'
-      };
-      // 装填不清：只要还没开盖，摇多少次都是这个点数（用户要的就是这个）
-      setData(patch);
-      vibrate('light');
-    }, SHAKE_MS);
+    S.shakeTimer = setTimeout(finishShake, SHAKE_MS);
   }
 
   /* 把上一把的点数摆回盅里 */
@@ -1480,11 +1484,13 @@
 
     on(el.panelDone, 'click', applyPanel);
 
-    // 页面切走时停音效
+    // 页面切走时停音效、清掉摇骰定时器；回来时若还没落地就补一次，别卡在摇骰中
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) {
         clearTimers();
         stopSound();
+      } else if (!S.shakeTimer && d.state === 'shaking') {
+        finishShake();
       }
     });
   }

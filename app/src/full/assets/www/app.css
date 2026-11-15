@@ -2275,7 +2275,7 @@ body.tap-edit .die-slot:active .die {
   border-radius: 999px;
   background: #c2943f;
   color: #fff;
-  font-size: 2.05vw;
+  font-size: max(11px, 2.05vw);
   font-style: normal;
   font-weight: 600;
   line-height: 1.45;

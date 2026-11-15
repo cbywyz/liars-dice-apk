@@ -61,6 +61,12 @@
       var b = bs[i];
       b.classList.toggle('off', !on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (!b.hasAttribute('aria-label')) b.setAttribute('aria-label', '音效开关');
+      /* 顶栏这五颗是 div[role=button]：补焦点，键盘和读屏用户才够得到 */
+      if (b.tagName !== 'BUTTON') {
+        if (!b.hasAttribute('role')) b.setAttribute('role', 'button');
+        if (!b.hasAttribute('tabindex')) b.setAttribute('tabindex', '0');
+      }
       var ic = b.querySelector('.sound-ic');
       if (ic) ic.textContent = on ? '🔊' : '🔇';
       if (b.__ldSndBound) continue;
@@ -72,6 +78,15 @@
         /* 开着的时候震一下（跟原来联机 350 那颗一样的力道）；
            关掉就别震了 —— 关了声音还在手里嗡一下，容易以为没关掉 */
         try { if (on && navigator.vibrate) navigator.vibrate(14); } catch (err) {}
+      });
+      b.addEventListener('keydown', function (e) {
+        /* 原生 button 的 Enter/Space 会自己合成 click，别重复切一次 */
+        if (this.tagName === 'BUTTON') return;
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          if (e.preventDefault) e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          window.LDSnd.setOn(!on);
+        }
       });
     }
   }

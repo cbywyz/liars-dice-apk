@@ -616,6 +616,8 @@
 
   function connect() {
     if (!S.code) return;
+    /* 手动连之前把已排队的退避重连撤掉，否则旧定时器会把刚连好的 WS 又关一次 */
+    if (S.retryTimer) { clearTimeout(S.retryTimer); S.retryTimer = null; }
     closeSocket();
     S.alive = true;
 
@@ -791,6 +793,7 @@
     var wait = Math.min(4000, 400 * Math.pow(2, Math.min(S.retry, 4)));
     S.retry++;
     S.retryTimer = setTimeout(function () {
+      S.retryTimer = null;
       if (S.alive) connect();
     }, wait);
   }
@@ -1728,27 +1731,36 @@
 
   function createRoom() {
     if (!S.api || S.connecting) return;
+    S.connecting = true;
     tip('正在开房…');
     fetch(S.api + '/api/new', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
+        S.connecting = false;
         if (!j || !j.ok) { tip((j && j.msg) || '开房失败，再试一次'); return; }
         tip('');
         enterRoom(j.code);
       })
-      .catch(function () { tip('连不上服务器 · 检查一下网络'); });
+      .catch(function () {
+        S.connecting = false;
+        tip('连不上服务器 · 检查一下网络');
+      });
   }
 
   function joinRoom() {
     var inp = $('netCode');
     var code = (inp && inp.value || '').replace(/\D/g, '').slice(0, 6);
-    if (code.length !== 4 && code.length !== 6) { tip('房号是 4 位数字'); return; }
+    if (code.length !== 4 && code.length !== 6) { tip('房号是 4 位数字（撞满了才 6 位）'); return; }
     tip('正在找这个房间…');
     fetch(S.api + '/api/has?code=' + code, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) { tip((j && j.why) || '房号不对'); return; }
         if (!j.room) { tip('没有这个房间 · 房号念对了吗'); return; }
+        if (j.room.game && j.room.game !== 'l350') {
+          tip('这个房号是「' + (j.room.game === 'liar' ? '吹牛' : j.room.game === 'find' ? '找朋友' : '其它玩法') + '」的房间');
+          return;
+        }
         tip('');
         enterRoom(code);
       })
@@ -1949,12 +1961,11 @@
       }, 300);
     }
 
-    /* 切回前台时如果连接已经断了，立刻重连，不等 4 秒退避 */
+    /* 切回前台时如果连接已经断了，立刻重连；connect() 会顺手撤掉排队的退避 */
     document.addEventListener('visibilitychange', function () {
       if (document.hidden) return;
       if (!S.alive) return;
-      if (!S.ws && !S.retryTimer) connect();
-      else if (!S.ws) connect();
+      if (!S.ws) connect();
     });
   }
 
