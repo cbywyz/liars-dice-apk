@@ -2362,12 +2362,17 @@
 
   /* ---------------- 进 / 出这一页 ---------------- */
 
+  /* 分享链接的玩法标记：?room=1234&g=350|find|liar。老链接没带 g 的按 350 走 */
+  function shareGame() {
+    return (location.search.match(/[?&]g=(350|find|liar)/) || [])[1] || '350';
+  }
+
   function enter() {
     S.api = apiBase();
     if (el.whoName) el.whoName.textContent = myName();
 
     var room = (location.search.match(/[?&]room=(\d{4}|\d{6})/) || [])[1];
-    if (room) {
+    if (room && shareGame() === 'liar') {
       try {
         if (history.replaceState) history.replaceState(null, '', location.pathname + (location.hash || ''));
       } catch (e) {}
@@ -2412,6 +2417,9 @@
     clearTimeout(S.retryTimer);
     closeSocket();
     closeKick();
+    /* 投票浮卡那个 200ms interval 也得收：切到别的页还挂在后台，
+       回来收到 state 时 paintVoteCard 会自己重新起。 */
+    voteCardOff();
     showOff(false);
   }
 
@@ -2473,9 +2481,16 @@
     }, true);
 
     var room = (location.search.match(/[?&]room=(\d{4}|\d{6})/) || [])[1];
-    if (room) {
+    if (room && shareGame() === 'liar') {
       if (el.code) el.code.value = room;
+      try {
+        if (history.replaceState) history.replaceState(null, '', location.pathname + (location.hash || ''));
+      } catch (e) {}
       enterRoom(room);
+      /* 房号填好、连接起了，再切到这一页；300ms 等首页先摆好 */
+      setTimeout(function () {
+        if (window.F350 && window.F350.switchTo) window.F350.switchTo('liarnet');
+      }, 300);
     }
   }
 

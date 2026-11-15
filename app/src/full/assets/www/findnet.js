@@ -1502,13 +1502,18 @@
 
   /* ---------------- 入口 ---------------- */
 
+  /* 分享链接的玩法标记：?room=1234&g=350|find|liar。老链接没带 g 的按 350 走 */
+  function shareGame() {
+    return (location.search.match(/[?&]g=(350|find|liar)/) || [])[1] || '350';
+  }
+
   function enter() {
     S.api = apiBase();
     /* 开房页那句「以谁的身份进房」：名字在「联机」首页起，这里只回显 */
     if (el.whoName) el.whoName.textContent = myName();
     paintResume();
     var room = (location.search.match(/[?&]room=(\d{4}|\d{6})/) || [])[1];
-    if (room) {
+    if (room && shareGame() === 'find') {
       try {
         if (history.replaceState) history.replaceState(null, '', location.pathname + (location.hash || ''));
       } catch (e) {}
@@ -1559,6 +1564,11 @@
     S.alive = false;
     clearTimeout(S.retryTimer);
     closeSocket();
+    /* 切到别的页就把这一桌的定时器与浮卡收干净：房号和状态按设计留着，
+       回来收到一帧 state 会自己把倒计时重新起（onMsg 里 startTick）。
+       以前只关 socket，有投票时那个 1 秒 interval 会在后台一直重画。 */
+    stopTick();
+    voteCardOff();
     showOff(false);
   }
 
@@ -1594,10 +1604,16 @@
     if (nm) nm.value = me;
 
     var room = (location.search.match(/[?&]room=(\d{4}|\d{6})/) || [])[1];
-    if (room) {
-      var rc = $('fnCode');
-      if (rc) rc.value = room;
+    if (room && shareGame() === 'find') {
+      if (el.code) el.code.value = room;
+      try {
+        if (history.replaceState) history.replaceState(null, '', location.pathname + (location.hash || ''));
+      } catch (e) {}
       enterRoom(room);
+      /* 房号填好、连接起了，再切到这一页；300ms 等首页先摆好 */
+      setTimeout(function () {
+        if (window.F350 && window.F350.switchTo) window.F350.switchTo('findnet');
+      }, 300);
     }
     render();
   }

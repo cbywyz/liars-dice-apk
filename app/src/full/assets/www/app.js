@@ -876,8 +876,8 @@
     if (!S.grabbing) return;
     S.grabbing = false;
 
-    var cancelled = !!(e && e.type === 'touchcancel');
-    var tapped = S.moved < 8;
+    var cancelled = !!(e && (e.type === 'touchcancel' || e.type === 'blur'));
+    var tapped = S.moved < 8 && !cancelled;
 
     if (d.state === 'idle') {
       if (tapped) toast('先摇一摇');
@@ -1421,7 +1421,10 @@
     on(window, 'blur', function () {
       if (!mouseDragging) return;
       mouseDragging = false;
-      onStageEnd({ type: 'mouseup' });
+      /* 失焦不是「点一下」：以前传 type:'mouseup'，onStageEnd 把
+         S.moved<8 当成点击，盖着的盅会自己全开、点数当场泄出去。
+         现在按「手势被打断」处理，停在最后一帧的开度。 */
+      onStageEnd({ type: 'blur' });
     });
 
     // 骰子点击（事件委托）

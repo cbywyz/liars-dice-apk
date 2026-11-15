@@ -828,6 +828,12 @@
     S.handSig = '';
     S.pending = '';
     S.code = '';
+    S.kickUntil = 0;
+    /* 这一桌彻底收了：踢人弹层、投票浮卡、断线条都别留到下一桌。
+       voteCardOff 顺手把 200ms 的重画定时器也清掉。 */
+    closeKick();
+    voteCardOff();
+    showOff(false);
     /* 记录弹层跟着这一桌一起收：换到别的房间还挂着上一桌的战报最容易被误读 */
     if (el.logMask) el.logMask.hidden = true;
     if (el.dice) el.dice.classList.remove('shaking');
@@ -1747,6 +1753,11 @@
       });
   }
 
+  /* 分享链接的玩法标记：?room=1234&g=350|find|liar。老链接没带 g 的按 350 走 */
+  function shareGame() {
+    return (location.search.match(/[?&]g=(350|find|liar)/) || [])[1] || '350';
+  }
+
   function joinRoom() {
     var inp = $('netCode');
     var code = (inp && inp.value || '').replace(/\D/g, '').slice(0, 6);
@@ -1843,6 +1854,27 @@
 
     var c = $('netCreate');
     if (c) c.addEventListener('click', createRoom);
+
+    /* 顶栏那颗常驻房号顺手当「复制房号」用：另两个玩法在大厅各有一颗
+       专门的按钮，350 这颗本来就在右上角，点一下就复制，不用再往
+       已经排好的大厅里塞第三颗按钮。 */
+    var cp = $('ngCode');
+    if (cp) cp.addEventListener('click', function () {
+      var code = S.code || '';
+      if (!code) { toast('先开一桌或进房才有房号'); return; }
+      try {
+        if (navigator.clipboard) navigator.clipboard.writeText(code);
+        else {
+          var ta = document.createElement('textarea');
+          ta.value = code;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+      } catch (e) {}
+      toast('房号已复制：' + code);
+    });
 
     /* 「回到上一桌」：座位上还有自己的位置，服务器凭 token 认人，直接回原位 */
     var rs = $('netResume');
@@ -1941,13 +1973,15 @@
       if (rb) rb.click();
     });
 
-    /* 分享链接 /?room=1234&g=350：别人点开就直接进那一桌。
+    /* 分享链接 /?room=1234&g=350|find|liar：只解析一次，按 g 各回各家。
+       以前三套联机 boot 都无条件消费同一个 ?room=，吹牛/找朋友分享出去的
+       链接会被 350 抢走，或者三套各开一条 WS 连到同一个房间。
        留 300ms 让 f350.js 先把首页摆好，再切页，否则切过去又被打回来。
        进过就把 ?room= 从地址栏擦掉：不然之后每次刷新页面都往那一桌钻，
-       人还以为「这 App 只会回这一个房间」。
+       人还以为「这 App 只会回这一个房间」 */
 
     var room = (location.search.match(/[?&]room=(\d{4}|\d{6})/) || [])[1];
-    if (room) {
+    if (room && shareGame() === '350') {
       var rc = $('netCode');
       if (rc) rc.value = room;
       try {

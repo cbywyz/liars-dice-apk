@@ -353,14 +353,25 @@
     if (!items.length) { el.vote.hidden = true; el.vote.__sig = ''; return; }
     el.vote.hidden = false;
     var sig = items.map(function (x) { return x.cls + x.text + x.yes + '/' + x.need; }).join('|');
-    if (el.vote.__sig === sig) return;
-    el.vote.__sig = sig;
-    el.vote.innerHTML = items.map(function (x) {
-      return '<div class="bd-vote-i' + x.cls + '"><span>' + x.text + '</span>' +
-        '<strong>' + x.yes + '/' + x.need + '</strong>' +
-        '<em class="bd-vote-time" data-left="' + x.left + '" data-at="' + Date.now() + '">' +
-        '还剩 ' + Math.ceil(x.left / 1000) + ' 秒</em></div>';
-    }).join('');
+    if (el.vote.__sig !== sig) {
+      el.vote.__sig = sig;
+      el.vote.innerHTML = items.map(function (x) {
+        return '<div class="bd-vote-i' + x.cls + '"><span>' + x.text + '</span>' +
+          '<strong>' + x.yes + '/' + x.need + '</strong>' +
+          '<em class="bd-vote-time" data-left="' + x.left + '" data-at="' + Date.now() + '">' +
+          '还剩 ' + Math.ceil(x.left / 1000) + ' 秒</em></div>';
+      }).join('');
+    }
+    /* 签名没变也把倒计时基准对齐到服务端这一帧：票面（yes/need）可能
+       一模一样，但断线重连 / 切页回来时 left 已经走过一截，旧 data-at
+       会让 tick() 一路数到「到点了」。 */
+    var nodes = el.vote.querySelectorAll('.bd-vote-time[data-left]');
+    for (var i = 0; i < nodes.length && i < items.length; i++) {
+      var x = items[i];
+      nodes[i].setAttribute('data-left', x.left);
+      nodes[i].setAttribute('data-at', Date.now());
+      nodes[i].textContent = '还剩 ' + Math.ceil(x.left / 1000) + ' 秒';
+    }
   }
 
   /* 吹牛摊牌：服务端 `tally` 是「逐颗骰面 1~6 各几个」的客观计数。
@@ -1144,6 +1155,9 @@
       S.alive = false;
       closeSocket();
       clearTimeout(S.tRetry);
+      /* 回来那一帧强制重画投票条：签名留着的话，票面没变就直接跳过，
+         旧票的倒计时基准也跟着留到下一次连上 */
+      if (el.vote) el.vote.__sig = '';
       hideStage();
     },
     code: function () { return S.code; },
