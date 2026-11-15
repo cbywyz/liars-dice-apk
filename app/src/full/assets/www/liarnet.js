@@ -1369,7 +1369,8 @@
     var meS = me >= 0 ? st.seats[me] : null;
     var rd = rollNow(), op = openNow();
     var h = '';
-    /* 本把在休息 / 挂炸弹：不给摇、不给开牌票、不给下一把票。
+    /* 本把在休息 / 挂炸弹：不给摇、不给开牌票。
+       下一把票另按跨局 away 判（见 reveal 分支），本把 mode 不再卡它。
        服务端也会拒，但按钮干脆不摆出来，省得点了弹出一句「不行」。 */
     var out = !!(meS && meS.mode);
 
@@ -1404,11 +1405,17 @@
         ? '有 ' + off + ' 家掉线了 · 那一票也算 · 点他名字请出去'
         : '线上不叫点 · 桌上说 · 够 ' + op.need + ' 人点就摊') + awayHint(st) + '</div>';
     } else if (st.phase === 'reveal') {
-      /* 摊完不自动洗：有人要对着牌算账。够 2/3 的人点了才开下一局 */
+      /* 摊完不自动洗：有人要对着牌算账。够 2/3 的人点了才开下一局。
+         「下一把」这一票只认下一把会上桌、会自己点按钮的人：
+         can 由服务端按跨局 away 算好下发；旧服务端没下发时，前端按同一套口径
+         认 away，别拿本把 mode 去卡刚点「继续」的人（2026-11-15 用户实测）。 */
       var nv = st.next || { need: 1, yes: [] };
       var voted = me >= 0 && (nv.yes || []).indexOf(me) >= 0;
-      if (out) {
-        h = '<div class="lr-wait">这一把没参与 · 等别人点下一把' + awayClock(meS) + '</div>';
+      var canNext = nv.can !== undefined ? !!nv.can :
+        (!!meS && meS.online !== false &&
+         meS.away !== 'rest' && meS.away !== 'bomb');
+      if (!canNext) {
+        h = '<div class="lr-wait">下一把不用你点 · 等桌上的人' + awayClock(meS) + '</div>';
       } else {
         h = voted
           ? '<div class="lr-wait">你已经点了 · 等其他人（' + nv.yes.length + '/' + nv.need + '）</div>'
