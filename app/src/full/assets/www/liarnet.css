@@ -1182,6 +1182,74 @@ body.lr-tap-live .lr-dslot .die { pointer-events: auto; }
 
    整段都写在「调试功能（暗门）」注释之后，纯净版从那条注释砍到文件末尾，
    这些规则跟着一起消失，不用另外维护。 */
+
+/* 五格：一条卡片 = 抬头（序号 + 当前功能 + 说明）+ 下面一排 chip。
+   2026-11-17 用户要求改成吹牛那套「摊开点选」，不再点一下轮一个。
+   抬头沿用 .dbg-row 的排版，只是右边没有开关 —— 功能由下面亮着的那颗 chip 表示。 */
+.dbg-zrow {
+  padding: 3.2vw 2.6667vw;
+  margin: 0 0 1.6vw;
+  border-radius: 3.2vw;
+  background: rgba(35, 38, 45, 0.035);
+}
+
+.dbg-zhead {
+  display: flex;
+  align-items: center;
+  gap: 2.6667vw;
+}
+
+.dbg-zhead .dbg-n {
+  width: 5.3333vw;
+  flex: 0 0 auto;
+  font-size: 3.2vw;
+  font-weight: 600;
+  color: rgba(35, 38, 45, 0.32);
+  text-align: center;
+}
+
+.dbg-zt {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 3.4667vw;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.dbg-zt b { font-weight: 600; }
+.dbg-zt em {
+  display: block;
+  font-style: normal;
+  font-size: 2.5vw;
+  letter-spacing: 0.16vw;
+  color: rgba(35, 38, 45, 0.36);
+}
+
+/* 五颗 chip 平分一行：字都很短（爆 / 给 1 / 给 5 / 600 / 空），390 屏放得下 */
+.dbg-zchips {
+  display: flex;
+  margin-top: 2.4vw;
+}
+.dbg-zchips .zchip {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 7.7333vw;
+  line-height: 7.7333vw;
+  margin-left: 1.3333vw;
+  padding: 0;
+  border: 0;
+  border-radius: 1.8667vw;
+  font: inherit;
+  font-size: 2.9333vw;
+}
+.dbg-zchips .zchip:first-child { margin-left: 0; }
+
+/* 这一格真会动（总闸开 + 不是空着）：整条提亮，序号变金 */
+.dbg-zrow.is-on { background: rgba(181, 137, 63, 0.12); }
+.dbg-zrow.is-on .dbg-n { color: var(--gold-deep); }
+/* 不会动的时候只是淡淡压一下，**千万别压到看不出能点** —— 这排 chip 永远可点 */
+.dbg-zrow:not(.is-on) .dbg-zchips { opacity: 0.78; }
+
 .page-netgame .nav-title {
   -webkit-user-select: none;
   user-select: none;

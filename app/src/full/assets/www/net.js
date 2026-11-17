@@ -1497,11 +1497,24 @@
       }
 
       if (el.go) {
-        /* 一局已经打完，分数落定了，谁点都能接着开 —— 这里不投票。
-           要投票的是打到一半按「重开」，那才是真的会把牌吞掉。 */
-        el.go.hidden = false;
-        el.go.classList.remove('is-off');
-        el.go.textContent = '再来一局';
+        /* 「再来一局」现在也要 2/3 点头（2026-11-17）——以前谁点谁开，
+           一个人手滑全桌跟着开新局。分母 = 下一局会上桌的人（休息中的不算，
+           他们也不上下一局的桌）；我点过就摆进度，再点一下撤回。 */
+        var nx = s.next;
+        if (nx && nx.can === false) {
+          /* 休息中：这票没你的份，按钮收掉 —— 点「继续」回来由桌上的人凑 */
+          el.go.hidden = true;
+        } else if (nx) {
+          /* 进度跟吹牛「下一把 · 1/2」一个写法 —— 长句会把按钮字挤出去 */
+          el.go.hidden = false;
+          el.go.classList.remove('is-off');
+          el.go.classList.toggle('is-mine', !!nx.mine);
+          el.go.textContent = '再来一局 · ' + nx.done + '/' + nx.need;
+        } else {
+          el.go.hidden = false;
+          el.go.classList.remove('is-off', 'is-mine');
+          el.go.textContent = '再来一局';
+        }
       }
       if (el.skip) el.skip.hidden = true;
       return;
@@ -1550,10 +1563,17 @@
     }
     if (a === 'lock') { vibrate(24); send({ t: 'lock' }, 'lock'); return; }
     if (a === 'skip') { vibrate(14); send({ t: 'skip' }, 'skip'); return; }
-    /* 再来一局：一局已经打完，点一下就走。
+    /* 再来一局：结算页那一下，要 2/3 点头才开 —— 我点过再点一下就是撤回。
        重开：打到一半才要全桌三分之二点头（投过了再点就是撤回）；
-       结算之后按重开等于开下一局，也不用投。 */
+       结算之后按重开走的是同一张票。 */
     if (a === 'again' || (a === 'restart' && s.phase === 'over')) {
+      var nn = s.next;
+      if (nn && nn.mine) {
+        vibrate(8);
+        send({ t: 'unvote' }, 'unvote');
+        toast('撤回了，要开下一局再点一下');
+        return;
+      }
       vibrate(12);
       send({ t: a }, a);
       return;

@@ -239,6 +239,13 @@
 /* 按钮不许被榜单挤走：榜单自己滚，按钮永远钉在卡片底部 */
 .f3-handoff.over .hd-go { margin-top: 2.1333vw; flex: 0 0 auto; }
 
+/* 「再来一局」我投过一票：按钮加一圈暖白实边当「已投」标记（再点一下就是撤回）。
+   文案只摆 x/y —— 以前写「等 N 位点头」整句太长，按钮字被挤出去（用户 11-17 实测）。 */
+.f3-handoff .hd-go.is-mine {
+  outline: 0.6667vw solid rgba(255, 250, 235, 0.85);
+  outline-offset: 0.5333vw;
+}
+
 /* 底栏的「临时休息」必须自己另起一行，不能跟「摇一摇 / 锁分」挤在同一条 flex 上。
    .f3-btns 是横向 flex、两颗 .btn 都是 flex:1 1 0；v1.24.28 把 .rest-row 直接 append
    进这个容器后，它就成了第三个 flex 项，把两颗主按钮压成一小点（用户 11-14 实测）。
@@ -837,7 +844,7 @@
   width: 81.3333vw;
   display: flex;
   align-items: center;
-  gap: 2.4vw;
+  gap: 1.8667vw;
   padding: 2vw 2.1333vw 2vw 3.2vw;
   border-radius: 3.2vw;
   background: rgba(181, 137, 63, 0.1);
@@ -873,7 +880,7 @@
 
 .ng-note-x {
   flex: 0 0 auto;
-  padding: 1.6vw 3.4667vw;
+  padding: 1.6vw 2.6667vw;
   border: 0;
   border-radius: 999px;
   background: #b5893f;
@@ -883,3 +890,20 @@
   letter-spacing: 0.2vw;
 }
 .ng-note-x:active { opacity: 0.86; transform: scale(0.98); }
+
+/* 「为什么」：想了解的那一颗，描边不实底 —— 跟「我知道了」分开主次。
+   条子只有 81vw，「我知道了」为它收窄了左右内边距，两个才排得下。
+   2026-11-17 用户：「在「我知道了」前面增加一个「为什么」的按钮」。 */
+.ng-note-why {
+  flex: 0 0 auto;
+  padding: 1.6vw 2vw;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.5);
+  color: #8a5f18;
+  font: inherit;
+  font-size: 2.6667vw;
+  letter-spacing: 0.12vw;
+}
+.ng-note-why:active { opacity: 0.72; transform: scale(0.98); }
