@@ -2128,8 +2128,8 @@
      抬头显示的全名，tip 是下面那行说明。 */
   var DBG_ACTS = [
     { id: 'bust', name: '强制爆',   short: '爆',   tip: '正在摇的那位 · 下一摇必爆' },
-    { id: 'one',  name: '给一颗 1', short: '给 1', tip: '下一摇塞一颗 1 · 点几次塞几颗' },
-    { id: 'five', name: '给一颗 5', short: '给 5', tip: '下一摇塞一颗 5 · 点几次塞几颗' },
+    { id: 'one',  name: '给一颗 1', short: '给 1', tip: '下一摇塞一颗 1 · 最多装 2 颗' },
+    { id: 'five', name: '给一颗 5', short: '给 5', tip: '下一摇塞一颗 5 · 最多装 2 颗' },
     { id: 'cap',  name: '封顶 600', short: '600',  tip: '除你之外 · 这一轮都不许过 600 · 再点撤掉' },
     { id: '',     name: '空着',     short: '空',   tip: '这一格不绑东西' }
   ];
@@ -2190,11 +2190,13 @@
     if (window.LDDev) window.LDDev.keep();
   }
 
-  /* 给一颗 1 / 5：点一次加一颗，摇之前可以一直点，塞多少自己数。
+  /* 给一颗 1 / 5：点一次加一颗，**上限 2 颗** —— 装满再点就不发了（服务端同样有闸）。
      别人在摇也照给 —— 这条不排除开开关的人，用户要的就是「谁在摇都能塞」。 */
   function fireGive(face) {
     if (!S.state || !S.state.started) return;
     if (!S.ws || S.ws.readyState !== 1) return;
+    var g = S.state.dbg && S.state.dbg.give;
+    if (g && ((g.one | 0) + (g.five | 0)) >= 2) return;
     try { S.ws.send(JSON.stringify({ t: 'give', face: face })); } catch (e) { return; }
     if (window.LDDev) window.LDDev.keep();
   }
@@ -2264,7 +2266,8 @@
         var pack = [];
         if (give.one) pack.push('1×' + give.one);
         if (give.five) pack.push('5×' + give.five);
-        say.push('待给 ' + pack.join(' ') + ' · 下一摇塞进去');
+        say.push('待给 ' + pack.join(' ') +
+          ((give.one | 0) + (give.five | 0) >= 2 ? '（已装满）' : '') + ' · 下一摇塞进去');
       }
       if (cap) say.push('封顶 600 生效中 · 除你之外 · 这一轮打完自动撤');
       el.dbgNote.textContent = say.length
