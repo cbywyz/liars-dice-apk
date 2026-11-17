@@ -464,6 +464,7 @@
     el.hint = $('ngHint');
     el.note = $('ngNote');
     el.noteX = $('ngNoteX');
+    el.noteWhy = $('ngNoteWhy');
     el.btns = $('ngBtns');
     el.redo = $('ngRedo');
     el.skip = $('ngSkip');
@@ -1723,6 +1724,9 @@
     S.pending = '';
 
     cache();
+    /* 又进了一桌：规则提示条重新露一次脸（上一次的「我知道了」只算上一桌） */
+    noteOff = false;
+    paintNote();
     if (window.F350 && window.F350.switchTo) window.F350.switchTo('netgame');
     else location.hash = 'netgame';
 
@@ -2032,24 +2036,74 @@
      350 只收 1 和 5，收到底必然长成 1515151 那样；判定一直是只认清一色，
      可这条规则以前只在「玩法说明」里，桌面当场看不见，一有人摇出来就要吵一遍。
 
-     点「我知道了」就不再出现（ld.f350.lionnote）。只记这台手机：
-     换个新手机、清过缓存的人本来就是「新上桌的」，再看一次正好。 */
-  var NOTE_KEY = 'ld.f350.lionnote';
-
-  function noteSeen() {
-    try { return !!localStorage.getItem(NOTE_KEY); } catch (e) { return false; }
-  }
+     点「我知道了」只在**这一次进房**里收起：退出房间、重进（或者刷新）就再显示一次。
+     2026-11-17 用户：「点一次我知道了好像就再也不出现了，重新进入房间 就显示」。
+     所以不写 localStorage —— 存下来等于「这辈子只看一次」，
+     租来的手机、借人玩一把的，后面的人永远看不到这条规则。
+     记忆只在内存里（noteOff），进房（enterRoom）时清掉。 */
+  var noteOff = false;
 
   function paintNote() {
-    if (el.note) el.note.hidden = noteSeen();
+    if (el.note) el.note.hidden = noteOff;
   }
 
   function bindNote() {
     paintNote();
     if (el.noteX) el.noteX.addEventListener('click', function () {
-      try { localStorage.setItem(NOTE_KEY, '1'); } catch (e) {}
-      if (el.note) el.note.hidden = true;
+      noteOff = true;
+      paintNote();
     });
+    /* 「为什么」：不改「已读」状态 —— 想了解归想了解，看完了照样还能点「我知道了」 */
+    if (el.noteWhy) el.noteWhy.addEventListener('click', openLionWhy);
+  }
+
+  /* 「为什么」那一页。桌上一吵起来，光靠一条横幅说不清，得把道理摆出来。
+
+     **别再用「1/2222」讲这件事**（v1.24.40 改掉）：那个数是一把摇 7 颗、
+     恰好摇成 1/5 混着的概率，可 350 的 1 和 5 是**一颗一颗累计收**上来的。
+     收到第 7 颗那一刻，条件已经成立（这 7 颗必然全是 1/5），该算的是条件概率：
+       清一色  2/128  = 1/64   ≈ 1.6%
+       混 1/5  126/128 = 63/64 ≈ 98%
+     所以「混着」几乎每次收满都出现，一点也不稀罕 —— 这才是「只认正豹」的理由。
+     用户原话：「因为 1 5 是累计的，混合豹子完全是不可取」。 */
+  var WHY_HTML =
+    '<div class="rule-lead">350 只能收 1 和 5 —— 一直收到第 7 颗，收下的必然全是 1 和 5。' +
+    '所以「混着 1 和 5」不稀罕，它只说明这手收满了。豹子只认 <strong>7 颗点数完全相同</strong>。</div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">一、收满 7 颗必然长这样</div>' +
+    '<div class="rule-li"><em></em><span>每回合能拿走的只有 <strong>1</strong>（100 分）和 ' +
+    '<strong>5</strong>（50 分），别的点数留在桌上继续摇。</span></div>' +
+    '<div class="rule-li"><em></em><span>收满的那 7 颗里，混着的占 <strong>126/128（约 98%）</strong>，' +
+    '清一色只有「7 个 1」「7 个 5」两种。</span></div></div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">二、豹子只认「7 颗一样」</div>' +
+    '<div class="rule-li"><em></em><span>7 个 1、7 个 5、7 个 3 —— 同一个点数、一颗不差，才叫豹子。</span></div>' +
+    '<div class="rule-li"><em></em><span><strong>1515151</strong>、<strong>1115555</strong> 混着的，' +
+    '不满足「完全一样」，所以不是豹子，它叫<strong>满堂 1/5</strong>。</span></div></div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">三、不是「两千把一次」，是几乎每次都这样</div>' +
+    '<div class="rule-li"><em></em><span>这 7 颗不是一次摇出来的 —— <strong>1 和 5 是一颗一颗累计</strong>' +
+    '收上来的。收到第 7 颗那一刻，桌上必然全是 1 和 5，这时 7 颗清一色只有 ' +
+    '<strong>1/64</strong>，混着的是 <strong>63/64 ≈ 98%</strong>。</span></div>' +
+    '<div class="rule-li"><em></em><span>一晚上收满十几次，就是十几次混着。它一点都不稀罕，' +
+    '所以才不能算豹子。</span></div>' +
+    '<div class="rule-hit">混着也算豹子，等于「收满就算豹子」：一局能弹好几回，' +
+    '一桌人只会闷头凑 1 和 5，比分数就没意义了。</div></div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">四、混 1/5 不是没奖励</div>' +
+    '<div class="rule-li"><em></em><span>3 个 1 + 4 个 5 = <strong>500 分</strong>，' +
+    '已是全场最高一档（单回合上限 700）。收满直接锁分，不用喊人喝 —— ' +
+    '混 1/5 = 收满了，不是豹子。</span></div></div>';
+
+  function openLionWhy() {
+    var mask = document.getElementById('ruleMask');
+    var t = document.getElementById('ruleTitle');
+    var b = document.getElementById('ruleBody');
+    if (!mask || !t || !b) return;
+    t.textContent = '为什么混合 1/5 不算豹子';
+    b.innerHTML = WHY_HTML;
+    b.scrollTop = 0;
+    mask.style.display = '';
   }
 
   /* ================= 350 调试功能（暗门） ================= */
@@ -2068,11 +2122,16 @@
 
   var DBG_KEY = 'ld_350_dbg';
 
-  /* 五格能绑的功能。加新功能就往这儿加一条 —— 面板、格子、服务端动作
-     全按 id 走，别在别处再写一份名字。 */
+  /* 五格能绑的功能。加新功能就往这儿加一条 —— 面板、chip、格子、服务端动作
+     全按 id 走，别在别处再写一份名字。
+     short 是面板里那颗 chip 上的字（横排 5 颗，位置金贵），name 是这一格
+     抬头显示的全名，tip 是下面那行说明。 */
   var DBG_ACTS = [
-    { id: 'bust', name: '强制爆', tip: '正在摇的那位 · 下一摇必爆' },
-    { id: '',     name: '空着',   tip: '这一格不绑东西' }
+    { id: 'bust', name: '强制爆',   short: '爆',   tip: '正在摇的那位 · 下一摇必爆' },
+    { id: 'one',  name: '给一颗 1', short: '给 1', tip: '下一摇塞一颗 1 · 点几次塞几颗' },
+    { id: 'five', name: '给一颗 5', short: '给 5', tip: '下一摇塞一颗 5 · 点几次塞几颗' },
+    { id: 'cap',  name: '封顶 600', short: '600',  tip: '除你之外 · 这一轮都不许过 600 · 再点撤掉' },
+    { id: '',     name: '空着',     short: '空',   tip: '这一格不绑东西' }
   ];
 
   var DBG_Z_DEF = ['bust', 'bust', 'bust', 'bust', 'bust'];
@@ -2109,56 +2168,156 @@
   }
 
   /* 装填「下一摇必爆」：落在当前正在摇的那位身上，不是自己。
-     服务端只装填不动手 —— 他手上正收着分，这时候凭空清掉等于抢他手机。 */
+     服务端只装填不动手 —— 他手上正收着分，这时候凭空清掉等于抢他手机。
+
+     **一律不弹 toast**（2026-11-17 用户：「怎么点击还给提示问题呢，这样不隐蔽」）：
+     这个提示会明晃晃地出现在牌桌正中，旁边人一眼就看见。
+     反馈只给震动 + 面板里那行状态（面板本身得长按才出，别人看不见）。 */
   function fireBust() {
-    if (!S.state || !S.state.started) { toast('还没开局'); return; }
-    if (!S.ws || S.ws.readyState !== 1) { toast('还没连上，正在重连'); return; }
+    if (!S.state || !S.state.started) return;
+    if (!S.ws || S.ws.readyState !== 1) return;
     try { S.ws.send(JSON.stringify({ t: 'bust' })); } catch (e) { return; }
-    vibrate(18);
     if (window.LDDev) window.LDDev.keep();
   }
 
+  /* 封顶 600：从这一下起到**这一轮打完**（下一局开始）有效，换人不撤，
+     作用在除自己以外的人身上 —— 别人 550 分继续摇只能拿到 5、拿不到 1，
+     到 600 再摇直接爆。这条不是一次性的，再点一下就撤。 */
+  function fireCap() {
+    if (!S.state || !S.state.started) return;
+    if (!S.ws || S.ws.readyState !== 1) return;
+    try { S.ws.send(JSON.stringify({ t: 'cap' })); } catch (e) { return; }
+    if (window.LDDev) window.LDDev.keep();
+  }
+
+  /* 给一颗 1 / 5：点一次加一颗，摇之前可以一直点，塞多少自己数。
+     别人在摇也照给 —— 这条不排除开开关的人，用户要的就是「谁在摇都能塞」。 */
+  function fireGive(face) {
+    if (!S.state || !S.state.started) return;
+    if (!S.ws || S.ws.readyState !== 1) return;
+    try { S.ws.send(JSON.stringify({ t: 'give', face: face })); } catch (e) { return; }
+    if (window.LDDev) window.LDDev.keep();
+  }
+
+  /* 热区那一下真正落到哪个动作 —— 只给验收脚本看，不画到界面上。
+     纯前端钩子，纯净版整段被剪，所以不用管它漏不漏。 */
   function fireAct(id) {
     if (!id) return;
+    try { window.__ld350hit = id + '@' + Date.now(); } catch (e) {}
     if (id === 'bust') fireBust();
+    else if (id === 'one') fireGive(1);
+    else if (id === 'five') fireGive(5);
+    else if (id === 'cap') fireCap();
   }
 
   function paintDbg() {
     if (el.dbg) {
-      var rows = el.dbg.querySelectorAll('.dbg-row[data-k]');
+      /* 总闸那一行还是开关式（只有开 / 关两种） */
+      var hotRow = el.dbg.querySelector('.dbg-row[data-k="hot"]');
+      if (hotRow) hotRow.classList.toggle('is-on', !!dbg.hot);
+
+      /* 五格：每格抬头写当前功能，下面一排 chip 直接点选。
+         以前是「点一行轮一个」，功能一多就得点好几下才知道轮到哪 ——
+         用户 2026-11-17 要求改成吹牛那套：摊开、点哪颗选哪颗。 */
+      var rows = el.dbg.querySelectorAll('.dbg-zrow[data-z]');
       for (var i = 0; i < rows.length; i++) {
-        var k = rows[i].getAttribute('data-k');
-        if (k === 'hot') { rows[i].classList.toggle('is-on', !!dbg.hot); continue; }
-        var zi = parseInt(k.slice(1), 10);
+        var zi = parseInt(rows[i].getAttribute('data-z'), 10);
         var a = actOf(dbg.z[zi]);
         var nm = rows[i].querySelector('[data-z-name]');
-        if (nm) nm.textContent = a.id ? (a.name + ' · ' + a.tip) : a.name;
-        /* 亮 = 这一格真会动。总闸关着的时候全暗，不然一开面板五格都亮着，
-           人会以为已经在用了（找朋友那套的 is-on 是「功能开着」，这里得连总闸一起看） */
+        var tp = rows[i].querySelector('[data-z-tip]');
+        if (nm) nm.textContent = a.name;
+        if (tp) tp.textContent = a.tip;
+
+        /* chip 只在第一次铺，之后只切高亮 —— 每次重建会把手指点的那颗换掉 */
+        var box = rows[i].querySelector('.dbg-zchips');
+        if (box) {
+          if (!box.getAttribute('data-built')) {
+            var h = '';
+            for (var k = 0; k < DBG_ACTS.length; k++) {
+              h += '<button class="qchip zchip" type="button" data-a="' + DBG_ACTS[k].id + '">' +
+                   DBG_ACTS[k].short + '</button>';
+            }
+            box.innerHTML = h;
+            box.setAttribute('data-built', '1');
+          }
+          var chips = box.querySelectorAll('.zchip');
+          for (var j = 0; j < chips.length; j++) {
+            chips[j].classList.toggle('on', chips[j].getAttribute('data-a') === dbg.z[zi]);
+          }
+        }
+
+        /* 亮 = 这一格真会动。总闸关着的时候整格压暗，不然一开面板全亮着，
+           人会以为已经在用了 */
         rows[i].classList.toggle('is-on', !!dbg.hot && !!a.id);
       }
     }
     /* 装填状态以服务端下发的为准，本地不猜 —— 谁装的、装给谁，服务器说了算 */
     if (el.dbgNote) {
-      var bust = S.state && S.state.dbg && S.state.dbg.bust;
+      var d = S.state && S.state.dbg;
+      var bust = d && d.bust;
+      var cap = d && d.cap;
+      var give = d && d.give;
       var who = bust && S.state ? playerById(S.state, bust) : null;
-      el.dbgNote.textContent = bust
-        ? '已装填 · ' + (who ? who.name : '那位') + ' 一摇就爆（只这一次）'
-        : '未装填 · 点一格就是给正在摇的那位装一次爆';
+      var say = [];
+      if (bust) say.push('已装填 · ' + (who ? who.name : '那位') + ' 一摇就爆（只这一次）');
+      if (give && (give.one || give.five)) {
+        var pack = [];
+        if (give.one) pack.push('1×' + give.one);
+        if (give.five) pack.push('5×' + give.five);
+        say.push('待给 ' + pack.join(' ') + ' · 下一摇塞进去');
+      }
+      if (cap) say.push('封顶 600 生效中 · 除你之外 · 这一轮打完自动撤');
+      el.dbgNote.textContent = say.length
+        ? say.join(' · ')
+        : '未装填 · 点「1」到「5」就是给正在摇的那位来一下';
     }
   }
 
-  /* 牌桌横着切五格：左边第 1 格到右边第 5 格。
-     量的是 .f3-stage（整块桌面区，含桌布上下那条空白），不是桌布本身 ——
-     桌布里面被七颗骰子占掉大半，只按桌布切的话，手指基本只能落在边角上。 */
+  /* 五格热区（2026-11-17 用户重新圈定）：
+       上排 1 / 2 / 3 —— 桌布下沿到骰子行上沿那一条空白，横向三等分；
+       下排 4 / 5 —— 骰子行左右两侧的竖条，正好避开骰子和分数。
+     这么切是因为原来「整块桌面竖切五份」有两格落在骰子上，收分时老点错。
+     坐标一律按元素实测，不写死像素：桌布 / 分数区多高都能自己贴。 */
   function hotCellAt(x, y) {
     var st = el.page ? el.page.querySelector('.f3-stage') : null;
     if (!st) return 0;
     var r = st.getBoundingClientRect();
     if (!r.width || !r.height) return 0;
-    if (x < r.left || x > r.right || y < r.top || y > r.bottom) return 0;
-    var i = Math.floor((x - r.left) / (r.width / 5)) + 1;
-    return i < 1 ? 1 : (i > 5 ? 5 : i);
+    if (x < r.left || x > r.right) return 0;
+
+    var table = el.page.querySelector('.f3-table');
+    var panel = el.page.querySelector('.f3-panel');
+    var tr = table ? table.getBoundingClientRect() : null;
+    var pr = panel ? panel.getBoundingClientRect() : null;
+
+    /* 下排那两格长在分数条里（.f3-stage 之外），所以底线要跟着分数条走 */
+    var limB = pr ? pr.bottom : r.bottom;
+    if (y < r.top || y > limB) return 0;
+
+    /* 上排：桌布底边往下，一直到下面的分数条开始为止 */
+    var top = tr ? tr.bottom : r.top + r.height * 0.6;
+    var bot = pr ? pr.top : r.bottom;
+    if (y >= top && y < bot) {
+      var i = Math.floor((x - r.left) / (r.width / 3)) + 1;
+      return i < 1 ? 1 : (i > 3 ? 3 : i);
+    }
+
+    /* 下排：分数条那一整块的两侧。左右边界跟着已收的骰子走 ——
+       没骰子时退到整宽的两端各留 14%，保证随时都点得到。 */
+    if (pr && y >= pr.top && y <= pr.bottom) {
+      var dies = el.page.querySelectorAll('.f3-taken .die');
+      var dl, dr;
+      if (dies.length) {
+        dl = dies[0].getBoundingClientRect().left;
+        dr = dies[dies.length - 1].getBoundingClientRect().right;
+      } else {
+        dl = r.left + r.width * 0.14;
+        dr = r.right - r.width * 0.14;
+      }
+      if (x < dl) return 4;
+      if (x > dr) return 5;
+    }
+    return 0;
   }
 
   function onHotTap(e) {
@@ -2174,6 +2333,9 @@
     var a = actOf(dbg.z[z - 1]);
     if (!a.id) return;
     e.preventDefault();
+    /* 命中就给一下震动 —— 跟吹牛那套一个手感（22~45ms），
+       这是唯一的反馈：不弹字、不变色，旁边人看不出任何东西 */
+    vibrate(30);
     fireAct(a.id);
   }
 
@@ -2197,23 +2359,14 @@
     if (el.dbg) el.dbg.hidden = true;
   }
 
+  /* 总闸那一行：只有开 / 关。五格改成 chip 点选之后，这里不再管「换功能」。 */
   function onDbgRow(k) {
-    if (k === 'hot') {
-      dbg.hot = !dbg.hot;
-      saveDbg();
-      paintDbg();
-      vibrate(dbg.hot ? 18 : 42);
-      if (window.LDDev) window.LDDev.keep();
-      return;
-    }
-    var zi = parseInt(k.slice(1), 10);
-    /* 点一下换下一个功能：两个来回切，以后加了新功能就是依次轮 */
-    var at = 0;
-    for (var i = 0; i < DBG_ACTS.length; i++) if (DBG_ACTS[i].id === dbg.z[zi]) at = i;
-    dbg.z[zi] = DBG_ACTS[(at + 1) % DBG_ACTS.length].id;
+    if (k !== 'hot') return;
+    dbg.hot = !dbg.hot;
     saveDbg();
     paintDbg();
-    vibrate(14);
+    vibrate(dbg.hot ? 18 : 42);
+    if (window.LDDev) window.LDDev.keep();
   }
 
   function dbgBoot() {
@@ -2221,6 +2374,20 @@
     if (el.dbg) {
       el.dbg.addEventListener('click', function (e) {
         if (e.target === el.dbg) { closeDbg(); return; }
+        /* 先认 chip：点哪颗就把这一格换成哪颗，选了立刻生效并记住 */
+        var chip = e.target.closest ? e.target.closest('.dbg-zchips .zchip') : null;
+        if (chip) {
+          var zr = chip.closest ? chip.closest('.dbg-zrow') : null;
+          if (zr) {
+            var zi = parseInt(zr.getAttribute('data-z'), 10);
+            dbg.z[zi] = chip.getAttribute('data-a') || '';
+            saveDbg();
+            paintDbg();
+            vibrate(14);
+            if (window.LDDev) window.LDDev.keep();
+          }
+          return;
+        }
         var row = e.target.closest ? e.target.closest('.dbg-row[data-k]') : null;
         if (row) { onDbgRow(row.getAttribute('data-k')); return; }
       });

@@ -464,6 +464,7 @@
     el.hint = $('ngHint');
     el.note = $('ngNote');
     el.noteX = $('ngNoteX');
+    el.noteWhy = $('ngNoteWhy');
     el.btns = $('ngBtns');
     el.redo = $('ngRedo');
     el.skip = $('ngSkip');
@@ -1714,6 +1715,9 @@
     S.pending = '';
 
     cache();
+    /* 又进了一桌：规则提示条重新露一次脸（上一次的「我知道了」只算上一桌） */
+    noteOff = false;
+    paintNote();
     if (window.F350 && window.F350.switchTo) window.F350.switchTo('netgame');
     else location.hash = 'netgame';
 
@@ -2019,24 +2023,74 @@
      350 只收 1 和 5，收到底必然长成 1515151 那样；判定一直是只认清一色，
      可这条规则以前只在「玩法说明」里，桌面当场看不见，一有人摇出来就要吵一遍。
 
-     点「我知道了」就不再出现（ld.f350.lionnote）。只记这台手机：
-     换个新手机、清过缓存的人本来就是「新上桌的」，再看一次正好。 */
-  var NOTE_KEY = 'ld.f350.lionnote';
-
-  function noteSeen() {
-    try { return !!localStorage.getItem(NOTE_KEY); } catch (e) { return false; }
-  }
+     点「我知道了」只在**这一次进房**里收起：退出房间、重进（或者刷新）就再显示一次。
+     2026-11-17 用户：「点一次我知道了好像就再也不出现了，重新进入房间 就显示」。
+     所以不写 localStorage —— 存下来等于「这辈子只看一次」，
+     租来的手机、借人玩一把的，后面的人永远看不到这条规则。
+     记忆只在内存里（noteOff），进房（enterRoom）时清掉。 */
+  var noteOff = false;
 
   function paintNote() {
-    if (el.note) el.note.hidden = noteSeen();
+    if (el.note) el.note.hidden = noteOff;
   }
 
   function bindNote() {
     paintNote();
     if (el.noteX) el.noteX.addEventListener('click', function () {
-      try { localStorage.setItem(NOTE_KEY, '1'); } catch (e) {}
-      if (el.note) el.note.hidden = true;
+      noteOff = true;
+      paintNote();
     });
+    /* 「为什么」：不改「已读」状态 —— 想了解归想了解，看完了照样还能点「我知道了」 */
+    if (el.noteWhy) el.noteWhy.addEventListener('click', openLionWhy);
+  }
+
+  /* 「为什么」那一页。桌上一吵起来，光靠一条横幅说不清，得把道理摆出来。
+
+     **别再用「1/2222」讲这件事**（v1.24.40 改掉）：那个数是一把摇 7 颗、
+     恰好摇成 1/5 混着的概率，可 350 的 1 和 5 是**一颗一颗累计收**上来的。
+     收到第 7 颗那一刻，条件已经成立（这 7 颗必然全是 1/5），该算的是条件概率：
+       清一色  2/128  = 1/64   ≈ 1.6%
+       混 1/5  126/128 = 63/64 ≈ 98%
+     所以「混着」几乎每次收满都出现，一点也不稀罕 —— 这才是「只认正豹」的理由。
+     用户原话：「因为 1 5 是累计的，混合豹子完全是不可取」。 */
+  var WHY_HTML =
+    '<div class="rule-lead">350 只能收 1 和 5 —— 一直收到第 7 颗，收下的必然全是 1 和 5。' +
+    '所以「混着 1 和 5」不稀罕，它只说明这手收满了。豹子只认 <strong>7 颗点数完全相同</strong>。</div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">一、收满 7 颗必然长这样</div>' +
+    '<div class="rule-li"><em></em><span>每回合能拿走的只有 <strong>1</strong>（100 分）和 ' +
+    '<strong>5</strong>（50 分），别的点数留在桌上继续摇。</span></div>' +
+    '<div class="rule-li"><em></em><span>收满的那 7 颗里，混着的占 <strong>126/128（约 98%）</strong>，' +
+    '清一色只有「7 个 1」「7 个 5」两种。</span></div></div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">二、豹子只认「7 颗一样」</div>' +
+    '<div class="rule-li"><em></em><span>7 个 1、7 个 5、7 个 3 —— 同一个点数、一颗不差，才叫豹子。</span></div>' +
+    '<div class="rule-li"><em></em><span><strong>1515151</strong>、<strong>1115555</strong> 混着的，' +
+    '不满足「完全一样」，所以不是豹子，它叫<strong>满堂 1/5</strong>。</span></div></div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">三、不是「两千把一次」，是几乎每次都这样</div>' +
+    '<div class="rule-li"><em></em><span>这 7 颗不是一次摇出来的 —— <strong>1 和 5 是一颗一颗累计</strong>' +
+    '收上来的。收到第 7 颗那一刻，桌上必然全是 1 和 5，这时 7 颗清一色只有 ' +
+    '<strong>1/64</strong>，混着的是 <strong>63/64 ≈ 98%</strong>。</span></div>' +
+    '<div class="rule-li"><em></em><span>一晚上收满十几次，就是十几次混着。它一点都不稀罕，' +
+    '所以才不能算豹子。</span></div>' +
+    '<div class="rule-hit">混着也算豹子，等于「收满就算豹子」：一局能弹好几回，' +
+    '一桌人只会闷头凑 1 和 5，比分数就没意义了。</div></div>' +
+
+    '<div class="rule-sec"><div class="rule-sec-t">四、混 1/5 不是没奖励</div>' +
+    '<div class="rule-li"><em></em><span>3 个 1 + 4 个 5 = <strong>500 分</strong>，' +
+    '已是全场最高一档（单回合上限 700）。收满直接锁分，不用喊人喝 —— ' +
+    '混 1/5 = 收满了，不是豹子。</span></div></div>';
+
+  function openLionWhy() {
+    var mask = document.getElementById('ruleMask');
+    var t = document.getElementById('ruleTitle');
+    var b = document.getElementById('ruleBody');
+    if (!mask || !t || !b) return;
+    t.textContent = '为什么混合 1/5 不算豹子';
+    b.innerHTML = WHY_HTML;
+    b.scrollTop = 0;
+    mask.style.display = '';
   }
 
   window.LDNet = {

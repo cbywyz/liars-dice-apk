@@ -82,7 +82,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.24.39 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.41 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -155,7 +155,7 @@
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.24.39</span>
+      <span class="page-ver">v1.24.41</span>
     </div>
   </div>
 </div>
@@ -322,7 +322,7 @@
       <div class="fn-note">一人一台手机，各看各的屏<br>房号念一声，人齐就开局</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.39</span>
+        <span class="page-ver">v1.24.41</span>
       </div>
     </div>
   </div>
@@ -364,7 +364,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.39</span>
+        <span class="page-ver">v1.24.41</span>
       </div>
     </div>
   </div>
@@ -468,7 +468,8 @@
          （localStorage ld.f350.lionnote）。绝对定位挂在 .f3-stage 底部，
          不占布局高度 —— 座位条折成三行的时候也不会把牌桌挤变形。 -->
     <div class="ng-note" id="ngNote" hidden>
-      <span class="ng-note-t"><b>混合豹子不算豹子</b><em>如 1515151 · 只认 7 颗一样的正豹</em></span>
+      <span class="ng-note-t"><b>混合豹子不算豹子</b><em>如 1515151 · 只认 7 颗一样</em></span>
+      <button class="ng-note-why" id="ngNoteWhy" type="button">为什么</button>
       <button class="ng-note-x" id="ngNoteX" type="button">我知道了</button>
     </div>
   </div>
@@ -496,7 +497,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.39</span>
+    <span class="page-ver">v1.24.41</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -538,12 +539,13 @@
          · 面板：长按牌桌顶上的「350」1.2 秒
        牌桌横着切五格（坐标是算出来的，见 net.js 的 hotCellAt，没有 DOM 也没有样式），
        点第 N 格 = 面板第 N 行的功能。总闸关着的时候它连碰都不碰手指。
-       五格各自绑什么**不写死**：面板里每行点一下就在功能之间换，换了自动记住。 -->
+       五格各自绑什么**不写死**：面板里每一格下面摊一排功能，点哪颗就是哪颗，
+       选中的那颗压深色底（跟吹牛那三格一模一样的做法，不再「点一下轮一个」）。 -->
   <div class="dbg-mask" id="ngDbg" hidden>
     <div class="dbg-sheet">
       <div class="dbg-head">
         <span class="dbg-title">调试功能</span>
-        <span class="dbg-sub">只对这台手机生效 · 点牌桌五格 = 下面 1~5</span>
+        <span class="dbg-sub">点牌桌 1~5 = 下面五格 · 每格点一颗选中</span>
       </div>
 
       <button class="dbg-row" type="button" data-k="hot">
@@ -551,33 +553,48 @@
         <span class="dbg-t">牌桌五格<em>总闸 · 关掉会连下面五格一起关</em></span>
         <i class="dbg-sw"></i>
       </button>
-      <button class="dbg-row" type="button" data-k="z0">
-        <span class="dbg-n">1</span>
-        <span class="dbg-t">左一格<em data-z-name="0">强制爆</em></span>
-        <i class="dbg-sw"></i>
-      </button>
-      <button class="dbg-row" type="button" data-k="z1">
-        <span class="dbg-n">2</span>
-        <span class="dbg-t">左二格<em data-z-name="1">强制爆</em></span>
-        <i class="dbg-sw"></i>
-      </button>
-      <button class="dbg-row" type="button" data-k="z2">
-        <span class="dbg-n">3</span>
-        <span class="dbg-t">中间格<em data-z-name="2">强制爆</em></span>
-        <i class="dbg-sw"></i>
-      </button>
-      <button class="dbg-row" type="button" data-k="z3">
-        <span class="dbg-n">4</span>
-        <span class="dbg-t">右二格<em data-z-name="3">强制爆</em></span>
-        <i class="dbg-sw"></i>
-      </button>
-      <button class="dbg-row" type="button" data-k="z4">
-        <span class="dbg-n">5</span>
-        <span class="dbg-t">右一格<em data-z-name="4">强制爆</em></span>
-        <i class="dbg-sw"></i>
-      </button>
 
-      <div class="dbg-note" id="ngDbgNote">未装填 · 点一格就是给正在摇的那位装一次爆</div>
+      <div class="dbg-zrow" data-z="0">
+        <div class="dbg-zhead">
+          <span class="dbg-n">1</span>
+          <span class="dbg-zt"><b data-z-name="0">强制爆</b><em data-z-tip="0">正在摇的那位 · 下一摇必爆</em></span>
+        </div>
+        <div class="dbg-zchips" data-zchips="0"></div>
+      </div>
+
+      <div class="dbg-zrow" data-z="1">
+        <div class="dbg-zhead">
+          <span class="dbg-n">2</span>
+          <span class="dbg-zt"><b data-z-name="1">强制爆</b><em data-z-tip="1">正在摇的那位 · 下一摇必爆</em></span>
+        </div>
+        <div class="dbg-zchips" data-zchips="1"></div>
+      </div>
+
+      <div class="dbg-zrow" data-z="2">
+        <div class="dbg-zhead">
+          <span class="dbg-n">3</span>
+          <span class="dbg-zt"><b data-z-name="2">强制爆</b><em data-z-tip="2">正在摇的那位 · 下一摇必爆</em></span>
+        </div>
+        <div class="dbg-zchips" data-zchips="2"></div>
+      </div>
+
+      <div class="dbg-zrow" data-z="3">
+        <div class="dbg-zhead">
+          <span class="dbg-n">4</span>
+          <span class="dbg-zt"><b data-z-name="3">强制爆</b><em data-z-tip="3">正在摇的那位 · 下一摇必爆</em></span>
+        </div>
+        <div class="dbg-zchips" data-zchips="3"></div>
+      </div>
+
+      <div class="dbg-zrow" data-z="4">
+        <div class="dbg-zhead">
+          <span class="dbg-n">5</span>
+          <span class="dbg-zt"><b data-z-name="4">强制爆</b><em data-z-tip="4">正在摇的那位 · 下一摇必爆</em></span>
+        </div>
+        <div class="dbg-zchips" data-zchips="4"></div>
+      </div>
+
+      <div class="dbg-note" id="ngDbgNote">未装填 · 点一格给正在摇的那位来一下</div>
       <button class="dbg-close" id="ngDbgX" type="button">收起</button>
     </div>
   </div>
@@ -641,7 +658,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.24.39</span>
+      <span class="page-ver">v1.24.41</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -762,7 +779,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.39</span>
+    <span class="page-ver">v1.24.41</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -819,7 +836,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.39</span>
+    <span class="page-ver">v1.24.41</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -869,7 +886,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.24.39</span>
+        <span class="page-ver">v1.24.41</span>
       </div>
     </div>
   </div>
@@ -955,7 +972,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.24.39</span>
+      <span class="page-ver">v1.24.41</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -1089,7 +1106,7 @@
       </div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.39</span>
+        <span class="page-ver">v1.24.41</span>
       </div>
     </div>
   </div>
@@ -1211,7 +1228,7 @@
     <div class="fd-btns" id="lrBtns"></div>
 
     <div class="foot">
-      <span class="page-ver">v1.24.39</span>
+      <span class="page-ver">v1.24.41</span>
       <button class="mode-link" id="lrLogBtn" type="button">记录</button>
       <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
       <button class="mode-link" id="lrRule2" type="button">玩法说明</button>

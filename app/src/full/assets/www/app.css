@@ -1526,6 +1526,21 @@ body.tap-edit .die-slot:active .die {
   color: var(--ink);
 }
 
+/* 说明层里「这一页最要紧的一句」：单独压一块浅金底，左沿一道实边。
+   350「为什么」用它放结论 —— 用户明确要求这句要高亮，别跟别的条目一样灰着。
+   不是 .rule-li（没有圆点、不走 flex），自己撑一行。 */
+.rule-hit {
+  margin-top: 3.7333vw;
+  padding: 3.2vw 3.7333vw;
+  border-left: 0.8vw solid #b8862a;
+  border-radius: 0 2.1333vw 2.1333vw 0;
+  background: rgba(190, 155, 60, 0.15);
+  font-size: 3.4667vw;
+  line-height: 1.62;
+  font-weight: 600;
+  color: #6b4a10;
+}
+
 .rule-note {
   margin-top: 5.3333vw;
   padding-top: 3.2vw;
