@@ -458,8 +458,13 @@
     } else if (st.phase === 'lion') {
       s = '<b>豹子</b> · 其他每人 2 杯';
     } else if (st.phase === 'over') {
-      k = '本局最高';
-      n = winName(P);
+      /* 350 抓的是分**最低**的那个：分数是攒着往 350 冲的，冲得最少的背锅。
+         以前这里写「本局最高」还把最高分顶上头版，跟手机端结算
+         （net.js rankRows：升序、同分后锁的在前、本把休息的不背锅）
+         正好拧着 —— 2026-11-17 用户指出后两边统一。 */
+      var lowP = lowName(P, st.order);
+      k = '分最低的背';
+      n = lowP ? lowP.name : '—';
       s = '一局打完了 · 桌上谁点「重开」都行';
     } else if (st.phase === 'handoff') {
       s = '这一手收下了 · 等下一位接手';
@@ -483,8 +488,14 @@
 
     var maxScore = 1;
     for (var q = 0; q < P.length; q++) maxScore = Math.max(maxScore, P[q].score | 0);
+    /* 摆卡顺序：over 时按结算口径（分低在前、休息沉底），其余时候按座位序，
+     * 方便看「下一位是谁」。 */
+    var seq;
+    if (st.phase === 'over') seq = rankSeq(P, st.order);
+    else { seq = []; for (var sq = 0; sq < P.length; sq++) seq.push(sq); }
     var rows = [];
-    for (var j = 0; j < P.length; j++) {
+    for (var si = 0; si < seq.length; si++) {
+      var j = seq[si];
       var p = P[j], ai = awayInfo(p, st);
       /* 卡片底下那行小字得跟顶上那句话说的是同一件事。
          原来一律写成「正在摇」—— 可轮到他、骰子早落地了（phase 已经 rolled），
@@ -509,7 +520,7 @@
         unit: p.locked ? '分' : '',
         dash: !p.locked,
         sub: sub,
-        turn: j === st.turn && st.started && st.phase !== 'over',
+        turn: st.phase === 'over' ? (si === 0 && !ai.rest) : (j === st.turn && st.started),
         off: p.online === false,
         tag: ai.tag, tagCls: ai.cls, rest: ai.rest, bomb: false, wait: ai.wait,
         clock: ai.clock,
@@ -520,23 +531,49 @@
     paintGrid(rows, colsFor(P.length), sum350(st, P));
   }
 
-  function winName(P) {
-    if (!P.length) return '—';
-    var best = P[0];
-    for (var i = 1; i < P.length; i++) if ((P[i].score | 0) > (best.score | 0)) best = P[i];
-    return best.name;
+  /* 结算口径与 net.js rankRows 同款：分低在前；同分时**后锁**的在前
+     （2026-11-12 用户定的「第一个 500、第二个 500，最后一个拿到一样分数的是最低分」，
+     order 里序号越大锁得越晚，比较时倒过来）；本把休息的不背锅。 */
+  function lowName(P, order) {
+    function at(p) { return order ? order.lastIndexOf(p.id) : -1; }
+    var rows = P.filter(function (p) { return !p.rest; });
+    if (!rows.length) return null;
+    rows.sort(function (a, b) {
+      if ((a.score | 0) !== (b.score | 0)) return (a.score | 0) - (b.score | 0);
+      return at(b) - at(a);
+    });
+    return rows[0];
+  }
+  /* over 时座位卡的摆卡顺序：按 lowName 同一口径排，休息的沉到末尾
+     （人还在桌上，卡照摆，只是不参与排名）。 */
+  function rankSeq(P, order) {
+    function at(p) { return order ? order.lastIndexOf(p.id) : -1; }
+    return P.map(function (_, i) { return i; }).sort(function (a, b) {
+      var x = P[a], y = P[b];
+      var rx = x.rest ? 1 : 0, ry = y.rest ? 1 : 0;
+      if (rx !== ry) return rx - ry;
+      if ((x.score | 0) !== (y.score | 0)) return (x.score | 0) - (y.score | 0);
+      return at(y) - at(x);
+    });
   }
 
   function sum350(st, P) {
-    var locked = 0, best = 0;
+    var locked = 0, best = 0, low = -1;
     for (var i = 0; i < P.length; i++) {
       if (P[i].locked) locked++;
       best = Math.max(best, P[i].score | 0);
+      /* 休息的本把不背锅，不进「最少」的统计（与 lowName 口径一致） */
+      if (!P[i].rest) {
+        var v = P[i].score | 0;
+        if (low < 0 || v < low) low = v;
+      }
     }
     return {
       t: '本局小结',
       rows: ['已锁 <b>' + locked + '</b>/' + P.length + ' 人',
-             '最高 <b>' + best + '</b> 分']
+             st.phase === 'over' && low >= 0
+               ? '最少 <b>' + low + '</b> 分'
+               : '最高 <b>' + best + '</b> 分']
     };
   }
 
