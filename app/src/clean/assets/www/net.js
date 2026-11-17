@@ -462,6 +462,8 @@
     el.score = $('ngScoreBox');
     el.scoreNum = $('ngScoreNum');
     el.hint = $('ngHint');
+    el.note = $('ngNote');
+    el.noteX = $('ngNoteX');
     el.btns = $('ngBtns');
     el.redo = $('ngRedo');
     el.skip = $('ngSkip');
@@ -1828,6 +1830,8 @@
 
     cache();
 
+    bindNote();
+
     /* 音效开关：顶栏那颗 🔊 由 snd.js 统一绑（五颗一个写法），
        这里只把图标按当前状态画一遍。
        第一次碰屏幕先哑播一下，把 iOS / 微信的音频解锁掉 —— 只解一次。 */
@@ -2007,6 +2011,32 @@
     document.addEventListener('DOMContentLoaded', boot);
   } else {
     boot();
+  }
+
+  /* ================= 规则提示条 =================
+
+     桌布下面那条空白摆一句「混合豹子不算豹子 · 只认 7 颗一样」。
+     350 只收 1 和 5，收到底必然长成 1515151 那样；判定一直是只认清一色，
+     可这条规则以前只在「玩法说明」里，桌面当场看不见，一有人摇出来就要吵一遍。
+
+     点「我知道了」就不再出现（ld.f350.lionnote）。只记这台手机：
+     换个新手机、清过缓存的人本来就是「新上桌的」，再看一次正好。 */
+  var NOTE_KEY = 'ld.f350.lionnote';
+
+  function noteSeen() {
+    try { return !!localStorage.getItem(NOTE_KEY); } catch (e) { return false; }
+  }
+
+  function paintNote() {
+    if (el.note) el.note.hidden = noteSeen();
+  }
+
+  function bindNote() {
+    paintNote();
+    if (el.noteX) el.noteX.addEventListener('click', function () {
+      try { localStorage.setItem(NOTE_KEY, '1'); } catch (e) {}
+      if (el.note) el.note.hidden = true;
+    });
   }
 
   window.LDNet = {

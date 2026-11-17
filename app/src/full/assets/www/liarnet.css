@@ -1173,3 +1173,18 @@ body.lr-tap-live .lr-cup-dice,
 body.lr-tap-live .lr-dslot,
 body.lr-tap-live .lr-dslot .die { pointer-events: auto; }
 
+
+/* ---------------- 350 调试（暗门） ----------------
+
+   面板本身复用 find.css 那套 .dbg-mask / .dbg-sheet / .dbg-row（都是全局类），
+   所以这里只有一条：长按标题 1.2 秒时不能把「350」选中、也不能弹复制菜单 ——
+   手机上那个灰色选区一闪，暗门就露了。
+
+   整段都写在「调试功能（暗门）」注释之后，纯净版从那条注释砍到文件末尾，
+   这些规则跟着一起消失，不用另外维护。 */
+.page-netgame .nav-title {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+

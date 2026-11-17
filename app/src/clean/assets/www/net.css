@@ -817,3 +817,69 @@
   background: var(--ink);
   font-weight: 600;
 }
+
+/* ---------------- 规则提示条（桌布下方那条空白） ----------------
+   把 .f3-stage 改成竖向排：桌布 + 提示条一起居中，提示条就自然贴在桌布下沿，
+   不用绝对定位去猜位置。两块都 flex:0 0 auto，屏幕矮的时候宁可整体溢出一点，
+   也不让提示条被压成一条线（那样等于没写）。
+
+   为什么要摆这一条：桌上一有人摇出 1515151，「这算不算豹子」就要吵一遍。
+   规则早就只认清一色，但以前只有「玩法说明」里写着，桌面当场看不见。 */
+.page-netgame .f3-stage {
+  flex-direction: column;
+  gap: 2.1333vw;
+}
+
+.page-netgame .f3-stage .f3-table { flex: 0 0 auto; }
+
+.ng-note {
+  flex: 0 0 auto;
+  width: 81.3333vw;
+  display: flex;
+  align-items: center;
+  gap: 2.4vw;
+  padding: 2vw 2.1333vw 2vw 3.2vw;
+  border-radius: 3.2vw;
+  background: rgba(181, 137, 63, 0.1);
+  box-shadow: inset 0 0 0 0.2667vw rgba(181, 137, 63, 0.24);
+  font-size: 2.6667vw;
+  line-height: 1.35;
+  letter-spacing: 0.1vw;
+  color: #6f5729;
+  box-sizing: border-box;
+}
+
+.ng-note[hidden] { display: none; }
+
+.ng-note-t { flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+
+/* 两行：上面一句就是结论（桌上争的就是这一句），下面给个例子。
+   挤成一行会折在「颗一样 / 的正豹」中间，读起来像病句。 */
+.ng-note-t b {
+  display: block;
+  font-weight: 600;
+  font-size: 3.2vw;
+  letter-spacing: 0.16vw;
+  color: #8a5f18;
+}
+.ng-note-t em {
+  display: block;
+  margin-top: 0.5333vw;
+  font-style: normal;
+  font-size: 2.6667vw;
+  letter-spacing: 0.14vw;
+  color: rgba(111, 87, 41, 0.72);
+}
+
+.ng-note-x {
+  flex: 0 0 auto;
+  padding: 1.6vw 3.4667vw;
+  border: 0;
+  border-radius: 999px;
+  background: #b5893f;
+  color: #ffffff;
+  font: inherit;
+  font-size: 2.6667vw;
+  letter-spacing: 0.2vw;
+}
+.ng-note-x:active { opacity: 0.86; transform: scale(0.98); }

@@ -462,6 +462,8 @@
     el.score = $('ngScoreBox');
     el.scoreNum = $('ngScoreNum');
     el.hint = $('ngHint');
+    el.note = $('ngNote');
+    el.noteX = $('ngNoteX');
     el.btns = $('ngBtns');
     el.redo = $('ngRedo');
     el.skip = $('ngSkip');
@@ -485,6 +487,9 @@
     el.logList = $('ngLogList');
     el.logBtn = $('ngLogBtn');
     el.logX = $('ngLogX');
+    /* LD350DBG_CALL */
+    el.dbg = $('ngDbg'); el.dbgNote = $('ngDbgNote'); el.dbgX = $('ngDbgX');
+    /* LD350DBG_ENDCALL */
     el.off = null;            // 断线提示条，第一次需要时再插
   }
 
@@ -638,6 +643,9 @@
         token: seat && seat.token
       }));
       startPing();
+      /* LD350DBG_CALL */
+      tellDbg();
+      /* LD350DBG_ENDCALL */
     };
 
     ws.onmessage = function (ev) {
@@ -916,6 +924,9 @@
     renderHandoff();
     renderRedo();
     renderKick();
+    /* LD350DBG_CALL */
+    paintDbg();
+    /* LD350DBG_ENDCALL */
   }
 
   function renderLobby() {
@@ -1828,6 +1839,12 @@
 
     cache();
 
+    bindNote();
+
+    /* LD350DBG_CALL */
+    dbgBoot();
+    /* LD350DBG_ENDCALL */
+
     /* 音效开关：顶栏那颗 🔊 由 snd.js 统一绑（五颗一个写法），
        这里只把图标按当前状态画一遍。
        第一次碰屏幕先哑播一下，把 iOS / 微信的音频解锁掉 —— 只解一次。 */
@@ -2008,6 +2025,234 @@
   } else {
     boot();
   }
+
+  /* ================= 规则提示条 =================
+
+     桌布下面那条空白摆一句「混合豹子不算豹子 · 只认 7 颗一样」。
+     350 只收 1 和 5，收到底必然长成 1515151 那样；判定一直是只认清一色，
+     可这条规则以前只在「玩法说明」里，桌面当场看不见，一有人摇出来就要吵一遍。
+
+     点「我知道了」就不再出现（ld.f350.lionnote）。只记这台手机：
+     换个新手机、清过缓存的人本来就是「新上桌的」，再看一次正好。 */
+  var NOTE_KEY = 'ld.f350.lionnote';
+
+  function noteSeen() {
+    try { return !!localStorage.getItem(NOTE_KEY); } catch (e) { return false; }
+  }
+
+  function paintNote() {
+    if (el.note) el.note.hidden = noteSeen();
+  }
+
+  function bindNote() {
+    paintNote();
+    if (el.noteX) el.noteX.addEventListener('click', function () {
+      try { localStorage.setItem(NOTE_KEY, '1'); } catch (e) {}
+      if (el.note) el.note.hidden = true;
+    });
+  }
+
+  /* ================= 350 调试功能（暗门） ================= */
+  /* LD350DBG_BEGIN
+
+     两道门，跟单机、找朋友、吹牛那三套一模一样：
+       · 总闸：首页页脚那行版本号连点 7 下（window.LDDev，全站只有这一个）
+       · 面板：长按牌桌顶上的「350」1.2 秒
+
+     和另外两套最大的区别：吹牛 / 找朋友的开关只改**自己**的骰子，
+     这里的「强制爆」要落在**正在摇的那一位**身上，所以服务端多一道门 ——
+     先报一条 {t:'ldbg', on:true} 才算开门，没开门发过去的动作一律不认。
+
+     牌桌横着切五格：坐标算出来的（hotCellAt），没有 DOM 也没有样式，
+     桌布怎么改都不会把热区碰歪。五格各绑什么由面板决定，换完自动记住（localStorage）。 */
+
+  var DBG_KEY = 'ld_350_dbg';
+
+  /* 五格能绑的功能。加新功能就往这儿加一条 —— 面板、格子、服务端动作
+     全按 id 走，别在别处再写一份名字。 */
+  var DBG_ACTS = [
+    { id: 'bust', name: '强制爆', tip: '正在摇的那位 · 下一摇必爆' },
+    { id: '',     name: '空着',   tip: '这一格不绑东西' }
+  ];
+
+  var DBG_Z_DEF = ['bust', 'bust', 'bust', 'bust', 'bust'];
+  var dbg = { hot: false, z: DBG_Z_DEF.slice() };
+
+  function actOf(id) {
+    for (var i = 0; i < DBG_ACTS.length; i++) if (DBG_ACTS[i].id === id) return DBG_ACTS[i];
+    return DBG_ACTS[DBG_ACTS.length - 1];
+  }
+
+  function dbgArm() { return !!(window.LDDev && window.LDDev.on()); }
+  function dbgHotOn() { return dbgArm() && dbg.hot; }
+
+  function loadDbg() {
+    try {
+      var o = JSON.parse(localStorage.getItem(DBG_KEY) || 'null');
+      if (o) {
+        dbg.hot = !!o.hot;
+        for (var i = 0; i < 5; i++) {
+          if (o.z && typeof o.z[i] === 'string' && actOf(o.z[i]).id === o.z[i]) dbg.z[i] = o.z[i];
+        }
+      }
+    } catch (e) {}
+  }
+
+  function saveDbg() {
+    try { localStorage.setItem(DBG_KEY, JSON.stringify(dbg)); } catch (e) {}
+  }
+
+  /* 报门：服务端只认先报过 ldbg 的这台手机。重连是新的一轮，得再报一次 */
+  function tellDbg() {
+    if (!S.ws || S.ws.readyState !== 1) return;
+    try { S.ws.send(JSON.stringify({ t: 'ldbg', on: dbgArm() })); } catch (e) {}
+  }
+
+  /* 装填「下一摇必爆」：落在当前正在摇的那位身上，不是自己。
+     服务端只装填不动手 —— 他手上正收着分，这时候凭空清掉等于抢他手机。 */
+  function fireBust() {
+    if (!S.state || !S.state.started) { toast('还没开局'); return; }
+    if (!S.ws || S.ws.readyState !== 1) { toast('还没连上，正在重连'); return; }
+    try { S.ws.send(JSON.stringify({ t: 'bust' })); } catch (e) { return; }
+    vibrate(18);
+    if (window.LDDev) window.LDDev.keep();
+  }
+
+  function fireAct(id) {
+    if (!id) return;
+    if (id === 'bust') fireBust();
+  }
+
+  function paintDbg() {
+    if (el.dbg) {
+      var rows = el.dbg.querySelectorAll('.dbg-row[data-k]');
+      for (var i = 0; i < rows.length; i++) {
+        var k = rows[i].getAttribute('data-k');
+        if (k === 'hot') { rows[i].classList.toggle('is-on', !!dbg.hot); continue; }
+        var zi = parseInt(k.slice(1), 10);
+        var a = actOf(dbg.z[zi]);
+        var nm = rows[i].querySelector('[data-z-name]');
+        if (nm) nm.textContent = a.id ? (a.name + ' · ' + a.tip) : a.name;
+        /* 亮 = 这一格真会动。总闸关着的时候全暗，不然一开面板五格都亮着，
+           人会以为已经在用了（找朋友那套的 is-on 是「功能开着」，这里得连总闸一起看） */
+        rows[i].classList.toggle('is-on', !!dbg.hot && !!a.id);
+      }
+    }
+    /* 装填状态以服务端下发的为准，本地不猜 —— 谁装的、装给谁，服务器说了算 */
+    if (el.dbgNote) {
+      var bust = S.state && S.state.dbg && S.state.dbg.bust;
+      var who = bust && S.state ? playerById(S.state, bust) : null;
+      el.dbgNote.textContent = bust
+        ? '已装填 · ' + (who ? who.name : '那位') + ' 一摇就爆（只这一次）'
+        : '未装填 · 点一格就是给正在摇的那位装一次爆';
+    }
+  }
+
+  /* 牌桌横着切五格：左边第 1 格到右边第 5 格。
+     量的是 .f3-stage（整块桌面区，含桌布上下那条空白），不是桌布本身 ——
+     桌布里面被七颗骰子占掉大半，只按桌布切的话，手指基本只能落在边角上。 */
+  function hotCellAt(x, y) {
+    var st = el.page ? el.page.querySelector('.f3-stage') : null;
+    if (!st) return 0;
+    var r = st.getBoundingClientRect();
+    if (!r.width || !r.height) return 0;
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) return 0;
+    var i = Math.floor((x - r.left) / (r.width / 5)) + 1;
+    return i < 1 ? 1 : (i > 5 ? 5 : i);
+  }
+
+  function onHotTap(e) {
+    if (!dbgHotOn()) return;
+    /* 面板开着时那几下点的是面板，别顺手又装一发 */
+    if (el.dbg && !el.dbg.hidden) return;
+    /* 落在真按钮 / 骰子上的那一下归它自己 —— 热区再大也不抢。
+       规则提示条也排除：它就压在 stage 底部，那一条不是给暗门用的。 */
+    var t = e.target;
+    if (t && t.closest && t.closest('button, a, input, select, textarea, .die-slot, .die, .ng-note')) return;
+    var z = hotCellAt(e.clientX, e.clientY);
+    if (!z) return;
+    var a = actOf(dbg.z[z - 1]);
+    if (!a.id) return;
+    e.preventDefault();
+    fireAct(a.id);
+  }
+
+  function openDbg() {
+    if (!el.dbg) return;
+    if (window.LDDev) window.LDDev.keep();
+    vibrate(16);
+    loadDbg();
+    paintDbg();
+    el.dbg.hidden = false;
+    /* 手指还按在标题上：松手那一下会被当成面板里的一次点击，
+       先把面板挡 400ms（另外两套也是这么处理的） */
+    var sheet = el.dbg.querySelector('.dbg-sheet');
+    if (sheet) {
+      sheet.style.pointerEvents = 'none';
+      setTimeout(function () { sheet.style.pointerEvents = ''; }, 400);
+    }
+  }
+
+  function closeDbg() {
+    if (el.dbg) el.dbg.hidden = true;
+  }
+
+  function onDbgRow(k) {
+    if (k === 'hot') {
+      dbg.hot = !dbg.hot;
+      saveDbg();
+      paintDbg();
+      vibrate(dbg.hot ? 18 : 42);
+      if (window.LDDev) window.LDDev.keep();
+      return;
+    }
+    var zi = parseInt(k.slice(1), 10);
+    /* 点一下换下一个功能：两个来回切，以后加了新功能就是依次轮 */
+    var at = 0;
+    for (var i = 0; i < DBG_ACTS.length; i++) if (DBG_ACTS[i].id === dbg.z[zi]) at = i;
+    dbg.z[zi] = DBG_ACTS[(at + 1) % DBG_ACTS.length].id;
+    saveDbg();
+    paintDbg();
+    vibrate(14);
+  }
+
+  function dbgBoot() {
+    loadDbg();
+    if (el.dbg) {
+      el.dbg.addEventListener('click', function (e) {
+        if (e.target === el.dbg) { closeDbg(); return; }
+        var row = e.target.closest ? e.target.closest('.dbg-row[data-k]') : null;
+        if (row) { onDbgRow(row.getAttribute('data-k')); return; }
+      });
+    }
+    if (el.dbgX) el.dbgX.addEventListener('click', closeDbg);
+
+    /* 长按标题 1.2 秒。总闸关着的时候连计时都不起 —— 跟一块普通文字没区别 */
+    var t = el.page ? el.page.querySelector('.nav-title') : null;
+    if (t) {
+      var timer = 0;
+      function start() {
+        if (!dbgArm()) return;
+        clearTimeout(timer);
+        timer = setTimeout(function () { timer = 0; openDbg(); }, 1200);
+      }
+      function stop() {
+        if (timer) { clearTimeout(timer); timer = 0; }
+      }
+      t.addEventListener('touchstart', start, { passive: true });
+      t.addEventListener('touchend', stop);
+      t.addEventListener('touchcancel', stop);
+      t.addEventListener('mousedown', start);
+      t.addEventListener('mouseup', stop);
+      t.addEventListener('mouseleave', stop);
+      /* 手机上长按会弹「选择文字 / 复制」，弹出来就把长按这件事全暴露了 */
+      t.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    }
+
+    /* 五格认「点在哪片坐标」，不认「点在哪个元素上」 */
+    document.addEventListener('click', onHotTap);
+  }
+  /* LD350DBG_END */
 
   window.LDNet = {
     open: open,
