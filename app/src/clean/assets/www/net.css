@@ -166,10 +166,11 @@
 .ng-rank[hidden] { display: none; }
 
 .ng-rank-row {
-  /* 三列固定网格（2026-11-18 用户拍板）：名字列吃剩余、分数列定宽右对齐、
-     计数列右贴齐 —— 以前 space-between 流式摆，名字一长分数就跟着漂 */
+  /* 三列全部定宽（2026-11-18 用户拍板）：名字列吃剩余、分数列定宽居中、
+     计数列定宽右贴齐 —— 计数列不能给 auto（auto 随每行内容变宽，
+     会把分数列的起点挤得不一样，分数就错位了），三列每行完全相同才齐 */
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 12vw auto;
+  grid-template-columns: minmax(0, 1fr) 17vw 32vw;
   align-items: baseline;
   gap: 2.1333vw;
   font-size: 3.2vw;
@@ -191,9 +192,9 @@
   text-align: right;
   white-space: nowrap;
 }
-/* 分数右对齐：个位对个位（tabular-nums 保证数字等宽），计数列右缘也齐 */
+/* 分数居中（用户点名「原来在中间对齐就行」），列定宽所以每行中心都在同一条线上 */
 .ng-rank-row > span {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
