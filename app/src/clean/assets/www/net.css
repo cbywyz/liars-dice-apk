@@ -168,9 +168,12 @@
 .ng-rank-row {
   /* 三列全部定宽（2026-11-18 用户拍板）：名字列吃剩余、分数列定宽居中、
      计数列定宽右贴齐 —— 计数列不能给 auto（auto 随每行内容变宽，
-     会把分数列的起点挤得不一样，分数就错位了），三列每行完全相同才齐 */
+     会把分数列的起点挤得不一样，分数就错位了），三列每行完全相同才齐。
+     ⚠️ 列宽是按 .ng-rank 总宽 62vw 算的：分数列 12vw（「450 分」≈9vw）、
+     计数列 20vw（「爆×17 全爆×1」≈18vw），名字列还剩 25vw ——
+     51 版给 17+32 直接把名字挤成省略号（用户截图实测），别再加宽 */
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 17vw 32vw;
+  grid-template-columns: minmax(0, 1fr) 12vw 20vw;
   align-items: baseline;
   gap: 2.1333vw;
   font-size: 3.2vw;
