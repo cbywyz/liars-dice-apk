@@ -70,10 +70,16 @@
   line-height: 1;
 }
 .p-card.on .p-lion { color: #e8b653; }
-/* 爆次：跟豹子拼同一行（.p-lion 的 i 子元素），砖红色和金色的豹子分开。
-   卡上只写合并总数，普通爆/满手爆的分账在结算榜上分清 */
+/* 爆次独立徽标：跟豹子拼同一行（.p-lion 的子元素），砖红和金色分开；
+   全爆（7 颗全在第一把就爆 · 罚分双倍）再深一档 */
 .p-lion .p-busts { font-style: normal; color: #c46a4f; margin-left: 1.0667vw; }
-.p-card.on .p-lion .p-busts { color: #e0907e; }
+.p-lion .p-bustsf { font-style: normal; color: #a03e2c; margin-left: 1.0667vw; }
+.p-card.on .p-lion .p-busts,
+.p-card.on .p-lion .p-bustsf { color: #e0907e; }
+/* 豹子+两种爆同框（极罕见）：字距收紧防挤爆 82px 的卡 */
+.p-lion.is-crowded { letter-spacing: 0; font-size: 2.1vw; }
+.p-lion.is-crowded .p-busts,
+.p-lion.is-crowded .p-bustsf { margin-left: 0.8vw; }
 
 /* ---------------- 桌面 ---------------- */
 

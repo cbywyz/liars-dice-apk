@@ -1093,24 +1093,31 @@
       }
 
       if (p.lion || p.busts || p.bustsFull) {
-        /* 爆次跟豹子拼同一行：卡片只有 82px 宽，几个徽标分两行会把整排格子顶高。
-           卡上只摆一个合并总数「爆 ×N」（普通爆 + 满手爆一起算）——
-           怎么爆的（收过骰子爆 / 7 颗全在爆）到结算榜上分开写清楚
-           （2026-11-18 用户拍板「只在排名榜显示清楚也行」）。
+        /* 爆次独立显示（2026-11-18 用户实测后拍板：合并总数看不清谁怎么爆的）：
+           「爆 ×N」= 收过骰子（手不满 7 颗）爆的，砖红；
+           「全爆 ×N」= 7 颗全在第一把摇就爆（罚分双倍那种），深红。
+           跟豹子拼同一行不顶高卡片；三种同框时整行字号缩一档防挤爆（见 f350.css）。
            锁分走人后数值留着（不再涨），整局打完下一局才清。 */
-        var allBusts = (p.busts | 0) + (p.bustsFull | 0);
         var l = document.createElement('div');
         l.className = 'p-lion';
+        var nBadges = (p.lion ? 1 : 0) + (p.busts ? 1 : 0) + (p.bustsFull ? 1 : 0);
+        if (nBadges >= 3) l.classList.add('is-crowded');
         if (p.lion) {
           var lt = document.createElement('span');
           lt.textContent = '豹子 ×' + p.lion;
           l.appendChild(lt);
         }
-        if (allBusts) {
+        if (p.busts) {
           var bt = document.createElement('i');
           bt.className = 'p-busts';
-          bt.textContent = '爆 ×' + allBusts;
+          bt.textContent = '爆 ×' + p.busts;
           l.appendChild(bt);
+        }
+        if (p.bustsFull) {
+          var bf = document.createElement('i');
+          bf.className = 'p-bustsf';
+          bf.textContent = '全爆 ×' + p.bustsFull;
+          l.appendChild(bf);
         }
         div.appendChild(l);
       }
