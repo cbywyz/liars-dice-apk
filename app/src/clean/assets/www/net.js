@@ -973,7 +973,7 @@
     var nxIdx = s.phase === 'over' ? -1 : nextIdx(s);
     var key = s.players.map(function (p) {
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
-        ':' + (p.lion || 0) + ':' + (p.busts || 0) + ':' + (p.rest ? 1 : 0) + ':' + (p.away || '') +
+        ':' + (p.lion || 0) + ':' + (p.busts || 0) + ':' + (p.bustsFull || 0) + ':' + (p.rest ? 1 : 0) + ':' + (p.away || '') +
         /* 回归告示那几把也得进 key：窗口一开一关要整排重画 */
         ':' + (p.awayBack ? 1 : 0);
     }).join('|') + '#' + s.turn + '#' + s.phase
@@ -1083,10 +1083,13 @@
         div.appendChild(od);
       }
 
-      if (p.lion || p.busts) {
-        /* 爆次跟豹子拼同一行：卡片只有 82px 宽，两个徽标分两行会把整排格子顶高。
-           爆了记一笔、锁分走人后数值留着（不再涨），整局打完下一局才清 ——
-           「他爆了 4 次才攒够」这种事得让全桌看一整局（2026-11-18 用户拍板）。 */
+      if (p.lion || p.busts || p.bustsFull) {
+        /* 爆次跟豹子拼同一行：卡片只有 82px 宽，几个徽标分两行会把整排格子顶高。
+           卡上只摆一个合并总数「爆 ×N」（普通爆 + 满手爆一起算）——
+           怎么爆的（收过骰子爆 / 7 颗全在爆）到结算榜上分开写清楚
+           （2026-11-18 用户拍板「只在排名榜显示清楚也行」）。
+           锁分走人后数值留着（不再涨），整局打完下一局才清。 */
+        var allBusts = (p.busts | 0) + (p.bustsFull | 0);
         var l = document.createElement('div');
         l.className = 'p-lion';
         if (p.lion) {
@@ -1094,10 +1097,10 @@
           lt.textContent = '豹子 ×' + p.lion;
           l.appendChild(lt);
         }
-        if (p.busts) {
+        if (allBusts) {
           var bt = document.createElement('i');
           bt.className = 'p-busts';
-          bt.textContent = '爆 ×' + p.busts;
+          bt.textContent = '爆 ×' + allBusts;
           l.appendChild(bt);
         }
         div.appendChild(l);
@@ -1487,7 +1490,8 @@
           sc.textContent = rows[i].score + ' 分';
           var lk = document.createElement('i');
           lk.textContent = (rows[i].lion ? ' 豹子×' + rows[i].lion : '') +
-            (rows[i].busts ? ' 爆×' + rows[i].busts : '');
+            (rows[i].busts ? ' 爆×' + rows[i].busts : '') +
+            (rows[i].bustsFull ? ' 全爆×' + rows[i].bustsFull : '');
           r.appendChild(nm);
           r.appendChild(sc);
           r.appendChild(lk);
