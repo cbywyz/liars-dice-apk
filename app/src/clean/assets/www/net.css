@@ -191,8 +191,11 @@
 .ng-rank-row i {
   font-style: normal;
   color: rgba(255, 255, 255, 0.5);
-  justify-self: end;
-  text-align: right;
+  /* 计数列左对齐（2026-11-18 用户拍板）：每行第一个「爆」从同一条线起步，
+     上下扫一眼就对齐 —— 右贴齐的话短计数（爆×7）会飘到最右边去跟
+     长计数（爆×17 全爆×1）的尾巴对，第一个爆反而错位，不好看 */
+  justify-self: start;
+  text-align: left;
   white-space: nowrap;
 }
 /* 分数居中（用户点名「原来在中间对齐就行」），列定宽所以每行中心都在同一条线上 */
