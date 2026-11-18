@@ -973,7 +973,7 @@
     var nxIdx = s.phase === 'over' ? -1 : nextIdx(s);
     var key = s.players.map(function (p) {
       return p.id + ':' + p.score + ':' + (p.locked ? 1 : 0) + ':' + (p.online ? 1 : 0) +
-        ':' + (p.lion || 0) + ':' + (p.rest ? 1 : 0) + ':' + (p.away || '') +
+        ':' + (p.lion || 0) + ':' + (p.busts || 0) + ':' + (p.rest ? 1 : 0) + ':' + (p.away || '') +
         /* 回归告示那几把也得进 key：窗口一开一关要整排重画 */
         ':' + (p.awayBack ? 1 : 0);
     }).join('|') + '#' + s.turn + '#' + s.phase
@@ -1083,10 +1083,23 @@
         div.appendChild(od);
       }
 
-      if (p.lion) {
+      if (p.lion || p.busts) {
+        /* 爆次跟豹子拼同一行：卡片只有 82px 宽，两个徽标分两行会把整排格子顶高。
+           爆了记一笔、锁分走人后数值留着（不再涨），整局打完下一局才清 ——
+           「他爆了 4 次才攒够」这种事得让全桌看一整局（2026-11-18 用户拍板）。 */
         var l = document.createElement('div');
         l.className = 'p-lion';
-        l.textContent = '豹子 ×' + p.lion;
+        if (p.lion) {
+          var lt = document.createElement('span');
+          lt.textContent = '豹子 ×' + p.lion;
+          l.appendChild(lt);
+        }
+        if (p.busts) {
+          var bt = document.createElement('i');
+          bt.className = 'p-busts';
+          bt.textContent = '爆 ×' + p.busts;
+          l.appendChild(bt);
+        }
         div.appendChild(l);
       }
       /* 有人正在申请请他出去：票数直接写在卡上，不然全桌只有发起人知道 */
@@ -1473,7 +1486,8 @@
           var sc = document.createElement('span');
           sc.textContent = rows[i].score + ' 分';
           var lk = document.createElement('i');
-          lk.textContent = rows[i].lion ? ' 豹子×' + rows[i].lion : '';
+          lk.textContent = (rows[i].lion ? ' 豹子×' + rows[i].lion : '') +
+            (rows[i].busts ? ' 爆×' + rows[i].busts : '');
           r.appendChild(nm);
           r.appendChild(sc);
           r.appendChild(lk);

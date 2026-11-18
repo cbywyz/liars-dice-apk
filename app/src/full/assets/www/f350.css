@@ -70,6 +70,9 @@
   line-height: 1;
 }
 .p-card.on .p-lion { color: #e8b653; }
+/* 爆次：跟豹子拼同一行（.p-lion 的 i 子元素），砖红色和金色的豹子分开 */
+.p-lion .p-busts { font-style: normal; color: #c46a4f; margin-left: 1.0667vw; }
+.p-card.on .p-lion .p-busts { color: #e0907e; }
 
 /* ---------------- 桌面 ---------------- */
 
