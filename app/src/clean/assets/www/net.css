@@ -166,9 +166,11 @@
 .ng-rank[hidden] { display: none; }
 
 .ng-rank-row {
-  display: flex;
+  /* 三列固定网格（2026-11-18 用户拍板）：名字列吃剩余、分数列定宽右对齐、
+     计数列右贴齐 —— 以前 space-between 流式摆，名字一长分数就跟着漂 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 12vw auto;
   align-items: baseline;
-  justify-content: space-between;
   gap: 2.1333vw;
   font-size: 3.2vw;
   color: rgba(255, 255, 255, 0.72);
@@ -182,9 +184,19 @@
   white-space: nowrap;
 }
 .ng-rank-row.top b { color: #e8b653; }
-.ng-rank-row i { font-style: normal; color: rgba(255, 255, 255, 0.5); flex: 0 0 auto; }
-/* 分数跟名字抢位置时，分数不能缩（缩了就成「4…」），名字让位 */
-.ng-rank-row > span { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.ng-rank-row i {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.5);
+  justify-self: end;
+  text-align: right;
+  white-space: nowrap;
+}
+/* 分数右对齐：个位对个位（tabular-nums 保证数字等宽），计数列右缘也齐 */
+.ng-rank-row > span {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 /* ---- 结算态：内容比交接多一大截，得换一种排法 ------------------------
 
