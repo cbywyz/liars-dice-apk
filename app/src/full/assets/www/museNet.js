@@ -299,7 +299,7 @@
       else if (st.phase === 'reveal') tag = p.res ? kindTxt(p.res.kind) : '';
       e.st.textContent = tag;
       /* cups 是累计净杯：正=净赢、负=净输，摊牌后才落账 */
-      e.cup.textContent = p.cups ? ('净' + (p.cups > 0 ? '+' : '') + p.cups + ' 杯') : '';
+      e.cup.textContent = p.cups ? ('净' + (p.cups > 0 ? '+' : '') + p.cups) : '';
       e.cup.classList.toggle('is-gain', p.cups > 0);
       e.cup.classList.toggle('is-loss', p.cups < 0);
       if (e.banker) {
@@ -416,27 +416,30 @@
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i], player = st.players[r.seat] || {};
       var net = r.net || 0, isMe = r.id === st.you;
-      var badge = net > 0 ? ('净赢 ' + net + ' 杯') : (net < 0 ? ('净输 ' + (-net) + ' 杯') : '打平');
+      var badge = net > 0 ? ('净赢 ×' + net) : (net < 0 ? ('净输 ×' + (-net)) : '打平');
       var cls = net > 0 ? 'is-gain' : (net < 0 ? 'is-loss' : 'is-even');
       var mark = isBank && r.isBanker ? '<span class="bd-banker">庄</span>' : '';
+      /* 点数 / 牌型 / 倍率紧跟在牌后面做高亮标签，一桌人一眼扫到（用户 2026-11-20 要求） */
+      var kindHtml = '<span class="bd-kind">' +
+        '<b class="bd-pt">' + (r.unit === undefined ? '-' : ('点数 ' + r.unit)) + '</b>' +
+        '<em class="bd-kd">' + (r.kind ? kindTxt(r.kind) : '普通牌') +
+          (r.mult > 1 ? ' ×' + r.mult : '') + '</em>' +
+        (flushLabel(player.hand) ? '<i class="bd-flush">同花</i>' : '') +
+        '</span>';
       h += '<div class="bd-row ' + cls + (isMe ? ' is-me' : '') +
              (isBank && r.isBanker ? ' is-banker' : '') + '">' +
              '<div class="bd-head">' +
                '<span class="bd-name">' + (r.name || (r.seat + 1) + ' 号') + mark + '</span>' +
                '<span class="bd-badge">' + badge + '</span>' +
              '</div>' +
-             '<div class="bd-cards">' + (player.hand && player.hand.length ? handHtml(player.hand) : '') + '</div>' +
+             '<div class="bd-cards">' + (player.hand && player.hand.length ? handHtml(player.hand) : '') +
+               kindHtml + '</div>' +
              '<div class="bd-foot">' +
-               '<span class="bd-kind">' +
-                 '点数 ' + (r.unit === undefined ? '-' : r.unit) + ' · ' +
-                 (r.kind ? kindTxt(r.kind) : '') +
-                 (r.mult > 1 ? ' ×' + r.mult : '') +
-                 (flushLabel(player.hand) ? ' · 同花' : '') + '</span>' +
                '<span class="bd-flow">收 ' + (r.gain || 0) + ' · 付 ' + (r.lose || 0) + '</span>' +
              '</div>' +
            '</div>';
     }
-    h += '<div class="bd-sum">本局流水 ' + (res.turnover || 0) + ' 杯 · ' +
+    h += '<div class="bd-sum">本局流水 ' + (res.turnover || 0) + ' · ' +
       (isBank ? '庄家吃全桌，玩家只对庄家 · ' +
         (res.keepBanker ? '净赢续庄' : '没赢换庄')
         : '大吃小，大家都是庄') + '</div>';
