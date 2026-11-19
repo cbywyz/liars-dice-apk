@@ -41,6 +41,7 @@
   padding: 2.4vw 3vw 0;
 }
 .mu-seat {
+  position: relative;
   min-width: 15vw;
   padding: 1.4vw 2vw;
   border-radius: var(--r-sm, 3.2vw);
@@ -57,6 +58,17 @@
   content: '我 ';
   color: var(--gold-mid, #c9922a);
   font-weight: 700;
+}
+/* 补牌顺序角标：上一把赢最多的人排 1，服务端 st.order 下发 */
+.mu-seat .seq {
+  position: absolute;
+  top: 0.35vw;
+  left: 0.9vw;
+  font-size: 1.8vw;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--gold-mid, #c9922a);
+  font-variant-numeric: tabular-nums;
 }
 .mu-seat .nm { display: block; font-weight: 600; }
 .mu-seat .st { display: block; font-size: 2vw; opacity: 0.6; }

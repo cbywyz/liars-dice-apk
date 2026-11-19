@@ -1411,6 +1411,13 @@ body.tap-edit .die-slot:active .die {
 .page-solo .home-head { padding-top: 0; }
 .page-solo .home-cards { margin-top: 13.3333vw; }
 
+/* 联机大厅从 4 张卡涨到 5 张（加了木塞）+ 底下一条公共屏带，单列大卡一屏放不下，
+   实测 solo-body 925px > 视口 844px、公共屏被顶到视口外。
+   只收紧这一页的卡间距 / 卡内边距 / 标题留白，不动单机选玩法页那套 ——
+   两页还是一家的，只是这页多一张卡，压到一屏刚好装下。 */
+.page-netmodes .home-cards { margin-top: 11vw; gap: 4.5vw; }
+.page-netmodes .play-card { padding: 6vw 7.4667vw; }
+
 /* 版本号贴在选玩法页底部：.solo-body 已经 flex:1 把上面撑满，
    这里只要别再带 .foot 的上外边距，给足安全区，免得压在手势条下面 */
 .solo-foot {

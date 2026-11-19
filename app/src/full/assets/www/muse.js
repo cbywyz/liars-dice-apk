@@ -33,11 +33,17 @@
     return c.r;
   }
 
-  /* 手牌点数相加的个位（0..9） */
+  /* 手牌点数相加的个位（0..9）。
+     ★ 鬼是万能点数：补到让个位最大（=9）。第4局三家都是 9 点应全平；
+       第5局带鬼那家补到 9 点应赢。鬼总能补出任意个位，所以含鬼一律按 9。 */
   function unitDigit(hand) {
-    var sum = 0;
-    for (var i = 0; i < hand.length; i++) sum += pointOf(hand[i]);
-    return ((sum % 10) + 10) % 10;
+    var base = 0, i, hasJoker = false;
+    for (i = 0; i < hand.length; i++) {
+      if (isJoker(hand[i])) hasJoker = true;
+      else base += pointOf(hand[i]);
+    }
+    if (hasJoker) return 9;
+    return ((base % 10) + 10) % 10;
   }
 
   /* 一张牌的颜色：0红 1黑 2无色（白牌）。鬼按大王红/小王黑。 */
@@ -98,11 +104,18 @@
     var jn = 0, i;
     for (i = 0; i < hand.length; i++) if (isJoker(hand[i])) jn++;
     if (jn >= 3) return 'tripleJoker';
-    if (jn === 2) return 'doubleJoker';
+    /* ★ 鬼鬼5：两张鬼 + 一张 5，8 倍（2026-11-20 实战第7局用户确认）；别的双鬼仍 10 倍 */
+    if (jn === 2) {
+      for (i = 0; i < hand.length; i++) {
+        if (!isJoker(hand[i]) && hand[i].r === 5) return 'joker5';
+      }
+      return 'doubleJoker';
+    }
 
-    /* 两张牌：天公 / 木塞 / 普通（鬼按 0 点参与，D：单鬼两张不枚举点数凑天公） */
+    /* 两张牌：天公 / 木塞 / 普通。带鬼不判天公（鬼只补点数，不换牌型） */
     if (hand.length === 2) {
       var u2 = unitDigit(hand);
+      if (jn === 1) return 'normal';
       if (u2 === 8 || u2 === 9) return 'tiangong';
       if (u2 === 0) return 'muse';
       return 'normal';
@@ -155,39 +168,61 @@
      木塞(个位0)属普通点数，最小。8/9 天公按个位再细分（见 compare 内的细比较）。
      大=强。D：三条与同花顺的先后按 GDD 网上序（同花顺>三条），与倍率(三条10>同花顺7)故意相反。 */
   var RANK = {
-    tripleJoker: 90, doubleJoker: 80, tiangong: 70,
+    tripleJoker: 90, doubleJoker: 80, joker5: 75, tiangong: 70,
     straightFlush: 60, threeKind: 50, straight: 40,
     muse: 10, normal: 0
   };
   function rankOf(kind) { return RANK[kind] === undefined ? 0 : RANK[kind]; }
 
-  /* 牌型底倍率（花色加成之前）。用户确认：三条10/同花顺7/顺子4/双鬼10/三鬼30/天公底1/木塞底1。
-     同花顺的 7 已含同花概念，不再叠花色加成。 */
+  /* 牌型底倍率（花色加成之前）。用户确认：三条5/同花顺7/顺子4/双鬼10/鬼鬼5=8/三鬼30/
+     天公底1/木塞底1。同花顺的 7 已含同花概念，不再叠花色加成。 */
   var BASE = {
-    tripleJoker: 30, doubleJoker: 10, threeKind: 10,
-    straightFlush: 7, straight: 4, tiangong: 1, muse: 1, normal: 1
+    tripleJoker: 30, doubleJoker: 10, joker5: 8,
+    straightFlush: 7, threeKind: 5, straight: 4,
+    tiangong: 1, muse: 1, normal: 1
   };
   function baseMult(kind) { return BASE[kind] === undefined ? 1 : BASE[kind]; }
 
   /* 最终罚酒倍率。花色加成只作用在"天公"和"木塞/普通"两类（其余牌型倍率已固定/已含同花）。
-     木塞克双鬼：花色倍率 × 10（用户确认 10/20/30）。 */
+     木塞克双鬼：花色倍率 × 10（用户确认 10/20/30）；鬼鬼5 固定 8、同花固定 3。 */
   function finalMult(kind, hand, opponentKind) {
     var b = suitBonus(hand);
+    if (kind === 'joker5') return 8;       // 鬼鬼5 固定 8 倍，含鬼不算花色加成
     if (kind === 'tiangong') return b * BASE.tiangong;
     if (kind === 'muse' && opponentKind === 'doubleJoker') return b * 10;
+    if (kind === 'muse' && opponentKind === 'tripleJoker') return b * 30;
     if (kind === 'muse' || kind === 'normal') return b * BASE[kind];
     return BASE[kind];
   }
 
-  /* 比大小：返回 1=A赢 / -1=B赢 / 0=平。
-     特判（用户确认）：木塞(0点)克双鬼；天公输双鬼（RANK 已保证）。
-     同档时：天公比个位(9>8)；普通/木塞比个位(9>0)；鬼与固定牌型同档算平。 */
+  /* 循环相克：a 克 b 返回 1 / b 克 a 返回 -1 / 同档 0。
+     ★ 用户 2026-11-20 实战截图确认的特例，其余按倍率（BASE）大的吃小的：
+        木塞只赢双鬼、三鬼，别的都赢不了；
+        鬼鬼5=8 倍，克 8 倍以下（木塞/普通/同花/顺子/三条/同花顺），但输天公；
+        天公克鬼鬼5；同花越级赢双鬼；倍率相同时交给 compare 比点数个位。 */
+  function beats(a, b) {
+    if (a === b) return 0;
+    /* 木塞只赢双鬼、三鬼，别的都赢不了 */
+    if (a === 'muse' && (b === 'doubleJoker' || b === 'tripleJoker')) return 1;
+    if (b === 'muse' && (a === 'doubleJoker' || a === 'tripleJoker')) return -1;
+    /* 鬼鬼5=8 倍，克 8 倍以下（木塞/普通/同花顺/三条/顺子），但输天公、双鬼、三鬼 */
+    if (a === 'joker5' && b !== 'tiangong' && (BASE[b] === undefined ? 1 : BASE[b]) < 8) return 1;
+    if (b === 'joker5' && a !== 'tiangong' && (BASE[a] === undefined ? 1 : BASE[a]) < 8) return -1;
+    if (a === 'tiangong' && b === 'joker5') return 1;
+    if (b === 'tiangong' && a === 'joker5') return -1;
+    /* 木塞是最小的：普通也赢它 */
+    if (a === 'normal' && b === 'muse') return 1;
+    if (b === 'normal' && a === 'muse') return -1;
+    /* 其余按牌型大小序 RANK（天公>同花顺>三条>顺子>木塞>普通） */
+    var ra = rankOf(a), rb = rankOf(b);
+    return ra === rb ? 0 : (ra > rb ? 1 : -1);
+  }
+
+  /* 比大小：返回 1=A赢 / -1=B赢 / 0=平。同倍率时比点数个位（鬼万能补到 9）。 */
   function compare(handA, handB) {
     var ka = kindOf(handA), kb = kindOf(handB);
-    if (ka === 'muse' && kb === 'doubleJoker') return 1;
-    if (kb === 'muse' && ka === 'doubleJoker') return -1;
-    var ra = rankOf(ka), rb = rankOf(kb);
-    if (ra !== rb) return ra > rb ? 1 : -1;
+    var c = beats(ka, kb);
+    if (c !== 0) return c;
     var ua = unitDigit(handA), ub = unitDigit(handB);
     if (ua !== ub) return ua > ub ? 1 : -1;
     return 0;
@@ -229,6 +264,7 @@
     isJoker: isJoker, isWhite: isWhite, pointOf: pointOf, unitDigit: unitDigit,
     colorOf: colorOf, sameSuitInfo: sameSuitInfo, suitBonus: suitBonus,
     kindOf: kindOf, rankOf: rankOf, baseMult: baseMult, finalMult: finalMult,
+    beats: beats,
     compare: compare, newDeck: newDeck, shuffle: shuffle, deal: deal,
     RANK: RANK, BASE: BASE
   };

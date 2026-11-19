@@ -96,11 +96,18 @@
     };
   }
   var KIND_TXT = {
-    tripleJoker: '三鬼', doubleJoker: '双鬼', tiangong: '天公',
+    tripleJoker: '三鬼', doubleJoker: '双鬼', joker5: '鬼鬼5', tiangong: '天公',
     straightFlush: '同花顺', threeKind: '三条', straight: '顺子',
     muse: '木塞', normal: '普通牌'
   };
   function kindTxt(k) { return KIND_TXT[k] || '普通牌'; }
+  /* 摊牌显示用的「同花」标签：三张普通牌同花色。只是标注，不改牌型判定与倍率 */
+  function flushLabel(hand) {
+    if (!hand || hand.length !== 3 || typeof hand[0].s !== 'number') return '';
+    var s = hand[0].s;
+    for (var i = 1; i < hand.length; i++) if (hand[i].s !== s) return '';
+    return '同花';
+  }
   function handHtml(hand) {
     var h = '';
     for (var i = 0; i < hand.length; i++) {
@@ -248,10 +255,11 @@
       var s = document.createElement('div');
       s.className = 'mu-seat';
       s.setAttribute('data-i', String(i));
-      s.innerHTML = '<span class="nm"></span><span class="st"></span><span class="cup"></span><span class="banker"></span>';
+      s.innerHTML = '<span class="seq"></span><span class="nm"></span><span class="st"></span><span class="cup"></span><span class="banker"></span>';
       el.seats.appendChild(s);
       seatEls.push({
         root: s,
+        seq: s.querySelector('.seq'),
         nm: s.querySelector('.nm'),
         st: s.querySelector('.st'),
         cup: s.querySelector('.cup'),
@@ -277,6 +285,10 @@
     for (var i = 0; i < st.players.length; i++) {
       var p = st.players[i], e = seatEls[i];
       if (!e) continue;
+      /* 座位角标 = 本局补牌顺序（服务端 st.order 下发）：从上一把赢最多者起循环；
+         坐庄模式庄家挪到最后补牌，所以庄家角标总是最大号 */
+      var ord = st.order ? (st.order.indexOf(p.seat) + 1) : (i + 1);
+      if (e.seq) e.seq.textContent = ord ? String(ord) : '';
       e.nm.textContent = p.name || (i + 1) + ' 号';
       var isMe = p.id === st.you;
       e.root.classList.toggle('is-me', isMe);
@@ -315,7 +327,8 @@
     /* 牌型提示 */
     if (el.kind) {
       if (opened && me && me.res) {
-        el.kind.innerHTML = kindTxt(me.res.kind) +
+        el.kind.innerHTML = '点数 ' + (me.res.unit === undefined ? '-' : me.res.unit) +
+          ' · ' + kindTxt(me.res.kind) +
           (me.res.mult > 1 ? ' · <span class="mult">×' + me.res.mult + '</span>' : '');
       } else {
         el.kind.textContent = '';
@@ -393,7 +406,8 @@
     var isBank = (res.mode || st.mode) === 'bank';
     var rows = res.rows || st.players.map(function (p) {
       return { seat: p.seat, id: p.id, name: p.name, kind: p.res && p.res.kind,
-        mult: p.res && p.res.mult, gain: 0, lose: 0, net: p.res && p.res.pay,
+        unit: p.res && p.res.unit, mult: p.res && p.res.mult,
+        gain: 0, lose: 0, net: p.res && p.res.pay,
         isBanker: st.mode === 'bank' && st.banker === p.seat };
     });
     rows = rows.slice().sort(function (a, b) { return (b.net || 0) - (a.net || 0); });
@@ -413,8 +427,11 @@
              '</div>' +
              '<div class="bd-cards">' + (player.hand && player.hand.length ? handHtml(player.hand) : '') + '</div>' +
              '<div class="bd-foot">' +
-               '<span class="bd-kind">' + (r.kind ? kindTxt(r.kind) : '') +
-                 (r.mult > 1 ? ' ×' + r.mult : '') + '</span>' +
+               '<span class="bd-kind">' +
+                 '点数 ' + (r.unit === undefined ? '-' : r.unit) + ' · ' +
+                 (r.kind ? kindTxt(r.kind) : '') +
+                 (r.mult > 1 ? ' ×' + r.mult : '') +
+                 (flushLabel(player.hand) ? ' · 同花' : '') + '</span>' +
                '<span class="bd-flow">收 ' + (r.gain || 0) + ' · 付 ' + (r.lose || 0) + '</span>' +
              '</div>' +
            '</div>';
