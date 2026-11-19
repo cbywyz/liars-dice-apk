@@ -1,0 +1,214 @@
+/* ==========================================================================
+   木塞（MU SE）—— 第五个玩法，扑克牌型。
+   · 55 张扑克 = 52 普通 + 大鬼 + 小王 + 白牌（第三鬼，无色）
+   · 只做联机：服务端发牌，每人一台手机只看得到自己的手牌，
+     各自决定补不补第三张，摊牌比大小、按倍率罚杯（不封顶）
+   · 本文件放牌桌通用件（手牌 / 座位 / 牌型 / 摊牌结果），联机页 museNet.css 复用。
+   尺寸一律 vw（750 宽 → 1vw = 7.5px），色值走 app.css 的令牌。
+   ========================================================================== */
+
+/* .page 是 display:flex，会盖过 [hidden]，单独声明 */
+.page-muse[hidden] { display: none; }
+
+/* ---------------- 顶部状态行 ---------------- */
+.mu-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2vw;
+  padding: 1.6vw 4vw 0;
+  font-size: 2.6667vw;
+  color: var(--ink-2, #3a3f49);
+}
+.mu-turn {
+  color: var(--gold-deep, #8a5f18);
+  font-weight: 600;
+  text-align: center;
+  flex: 1 1 auto;
+}
+.mu-left {
+  opacity: 0.65;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------- 座位：名字 + 当前状态 + 累计罚杯 ---------------- */
+.mu-seats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.6vw;
+  padding: 2.4vw 3vw 0;
+}
+.mu-seat {
+  min-width: 15vw;
+  padding: 1.4vw 2vw;
+  border-radius: var(--r-sm, 3.2vw);
+  background: var(--paper, #fbf7ef);
+  box-shadow: var(--sh-line, inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06));
+  text-align: center;
+  font-size: 2.4vw;
+  line-height: 1.35;
+}
+.mu-seat.is-turn {
+  box-shadow: inset 0 0 0 0.32vw var(--gold-mid, #c9922a);
+}
+.mu-seat.is-me .nm::before {
+  content: '我 ';
+  color: var(--gold-mid, #c9922a);
+  font-weight: 700;
+}
+.mu-seat .nm { display: block; font-weight: 600; }
+.mu-seat .st { display: block; font-size: 2vw; opacity: 0.6; }
+.mu-seat .cup {
+  display: block;
+  color: #8a4a2c;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 牌桌中央：手牌 + 遮罩 ---------------- */
+.mu-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 36vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3vw 4vw;
+}
+.mu-hand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.4vw;
+  min-height: 29vw;
+}
+/* 扑克牌：2D 平面，不做 3D 翻转（跟骰子/盅盖一样，动前先定死外观） */
+.mu-card {
+  width: 19vw;
+  height: 27vw;
+  border-radius: 2vw;
+  background: linear-gradient(160deg, #fffdf8 0%, #f4efe4 100%);
+  box-shadow: 0 1.2vw 3vw rgba(35, 38, 45, 0.16),
+              inset 0 0 0 0.2vw rgba(35, 38, 45, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.6vw 1.4vw;
+  font-family: Georgia, 'Times New Roman', serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.mu-card .rk { font-size: 5.2vw; font-weight: 700; line-height: 1; }
+.mu-card .st { font-size: 4vw; line-height: 1; align-self: flex-end; }
+.mu-card.red { color: #b3352c; }
+.mu-card.black { color: var(--ink, #23262d); }
+.mu-card.joker {
+  background: linear-gradient(160deg, #fffbe9 0%, #f0e6c4 100%);
+}
+.mu-card.joker .st { font-size: 2.4vw; font-family: inherit; }
+.mu-card.is-picked {
+  box-shadow: 0 1.2vw 3vw rgba(35, 38, 45, 0.16),
+              inset 0 0 0 0.32vw var(--gold-mid, #c9922a);
+}
+
+/* 遮罩：点一下掀开看牌；看完点「遮回去」再传下一位 */
+.mu-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vw;
+  background: rgba(244, 240, 233, 0.95);
+  cursor: pointer;
+}
+.mu-veil-t {
+  font-size: 4.8vw;
+  font-weight: 700;
+  color: var(--ink, #23262d);
+  text-align: center;
+  padding: 0 6vw;
+}
+.mu-veil-s {
+  font-size: 2.6667vw;
+  color: var(--ink-2, #3a3f49);
+  opacity: 0.75;
+  text-align: center;
+  padding: 0 9vw;
+  line-height: 1.5;
+}
+
+/* ---------------- 牌型提示条 ---------------- */
+.mu-kind {
+  text-align: center;
+  min-height: 6vw;
+  padding: 1vw 4vw 0;
+  font-size: 3.2vw;
+  font-weight: 700;
+  color: var(--gold-deep, #8a5f18);
+}
+.mu-kind .mult { color: #8a4a2c; }
+
+/* ---------------- 摊牌结果 ---------------- */
+.mu-result {
+  padding: 2vw 4vw 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vw;
+}
+.mu-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 2vw;
+  padding: 1.6vw 2.4vw;
+  border-radius: var(--r-sm, 3.2vw);
+  background: var(--paper, #fbf7ef);
+  box-shadow: var(--sh-line, inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.06));
+  font-size: 2.8vw;
+}
+.mu-row.is-win { background: #f6ecd2; }
+.mu-row.is-me .rk-nm::before {
+  content: '我 ';
+  color: var(--gold-mid, #c9922a);
+}
+.mu-row .rk-nm { font-weight: 600; }
+.mu-row .rk-kd { color: var(--gold-deep, #8a5f18); }
+.mu-row .rk-cup {
+  color: #8a4a2c;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+/* 摊牌结果里每人牌面跨整行铺开，放在三列（名字/牌型/罚杯）下方 */
+.mu-row .rk-hand {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2vw;
+  padding-top: 0.8vw;
+}
+.mu-row .rk-card {
+  display: inline-block;
+  min-width: 6.4vw;
+  padding: 0.6vw 1vw;
+  border-radius: 1.2vw;
+  background: #fffdf8;
+  box-shadow: var(--sh-line, inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.08));
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 2.8vw;
+  font-weight: 700;
+}
+.mu-row .rk-card.red { color: #b3352c; }
+.mu-row .rk-card.black { color: var(--ink, #23262d); }
+.mu-total {
+  text-align: center;
+  padding: 2.4vw 0 0;
+  font-size: 3.4667vw;
+  font-weight: 700;
+  color: #8a4a2c;
+}

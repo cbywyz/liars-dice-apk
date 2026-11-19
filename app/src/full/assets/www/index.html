@@ -19,6 +19,8 @@
 <link rel="stylesheet" href="net.css">
 <link rel="stylesheet" href="find.css">
 <link rel="stylesheet" href="789.css">
+<link rel="stylesheet" href="muse.css">
+<link rel="stylesheet" href="museNet.css">
 <link rel="stylesheet" href="findnet.css">
 <link rel="stylesheet" href="liarnet.css">
 <link rel="stylesheet" href="board.css">
@@ -83,7 +85,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.24.63 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.64 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -168,10 +170,12 @@
         </span>
         <span class="pc-sub">2 颗骰 1 个公杯 · 7 加、8 喝一半、9 喝光</span>
       </button>
+
+
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.24.63</span>
+      <span class="page-ver">v1.24.64</span>
     </div>
   </div>
 </div>
@@ -268,6 +272,19 @@
           <span class="pc-sub">2 颗明骰 · 公杯 7/8/9 · 2~12 人</span>
         </button>
 
+        <button class="play-card" id="playNetMuse">
+          <span class="pc-top">
+            <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4.6" y="3" width="14.8" height="18" rx="2.2"
+                    fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M8.4 7.4h7.2v9.2H8.4z" fill="none" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+            </svg>
+            <span class="pc-title">木塞 · 联机</span>
+          </span>
+          <span class="pc-sub">55 张含白牌 · 服务端发牌 · 2~12 人</span>
+        </button>
+
       </div>
 
       <!-- 摆桌上：不是第三种玩法，是给「面对面」加的一块公用屏。
@@ -351,7 +368,7 @@
       <div class="fn-note">一人一台手机，各看各的屏<br>房号念一声，人齐就开局</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.63</span>
+        <span class="page-ver">v1.24.64</span>
       </div>
     </div>
   </div>
@@ -393,7 +410,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.63</span>
+        <span class="page-ver">v1.24.64</span>
       </div>
     </div>
   </div>
@@ -526,7 +543,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.63</span>
+    <span class="page-ver">v1.24.64</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -687,7 +704,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.24.63</span>
+      <span class="page-ver">v1.24.64</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -808,7 +825,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.63</span>
+    <span class="page-ver">v1.24.64</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -865,7 +882,7 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.63</span>
+    <span class="page-ver">v1.24.64</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
 </div>
@@ -922,7 +939,7 @@
   <div class="fd-btns" id="gBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.63</span>
+    <span class="page-ver">v1.24.64</span>
     <button class="mode-link" id="ruleBtn4">玩法说明</button>
   </div>
 </div>
@@ -967,7 +984,7 @@
 
       <div class="fn-note">两颗明骰全场轮流摇 · 7 加公杯 / 8 喝一半 / 9 喝光重倒<br>点数在服务器摇，手机只能喊「我要摇」</div>
       <div class="foot">
-        <span class="page-ver">v1.24.63</span>
+        <span class="page-ver">v1.24.64</span>
       </div>
     </div>
   </div>
@@ -1024,7 +1041,7 @@
 
     <!-- 玩法说明放在牌桌上（边玩边看），跟吹牛 / 找朋友联机一个位置 -->
     <div class="foot">
-      <span class="page-ver">v1.24.63</span>
+      <span class="page-ver">v1.24.64</span>
       <button class="mode-link" id="ruleBtn5">玩法说明</button>
     </div>
 
@@ -1150,7 +1167,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.24.63</span>
+        <span class="page-ver">v1.24.64</span>
       </div>
     </div>
   </div>
@@ -1236,7 +1253,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.24.63</span>
+      <span class="page-ver">v1.24.64</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -1370,7 +1387,7 @@
       </div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.63</span>
+        <span class="page-ver">v1.24.64</span>
       </div>
     </div>
   </div>
@@ -1492,7 +1509,7 @@
     <div class="fd-btns" id="lrBtns"></div>
 
     <div class="foot">
-      <span class="page-ver">v1.24.63</span>
+      <span class="page-ver">v1.24.64</span>
       <button class="mode-link" id="lrLogBtn" type="button">记录</button>
       <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
       <button class="mode-link" id="lrRule2" type="button">玩法说明</button>
@@ -1720,12 +1737,126 @@
   </div>
 </div>
 
-<!-- 提示音先加载：五个玩法都从它取 cue（换人 / 豹子 / 爆点 / 开盖 / 喝） -->
+<!-- ==================== 木塞 · 联机（每人一台手机） ====================
+     发牌 / 补牌 / 判定 / 罚杯全在服务端算，客户端只显示自己那两张（或三张）。
+     进门沿用找朋友、吹牛、七八九那套 home > solo-body > fn-box。 -->
+<div class="page page-net page-muse page-musenet" id="pageMuseNet" hidden>
+
+  <div class="home" id="mnGate">
+    <button class="nav-back" id="mnBack" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">木塞 · 联机</div>
+        <div class="home-t2">MU SE</div>
+      </div>
+
+      <div class="mn-who">以 <b id="mnWhoName">你</b> 的身份进房 · 牌桌上双击自己可改名</div>
+
+      <button class="fn-resume" id="mnResume" type="button" hidden>
+        <span class="nr-left">
+          <span class="nr-kicker">上一桌还没打完</span>
+          <span class="nr-sub">点一下回到原位</span>
+        </span>
+        <span class="nr-code" id="mnResumeCode">----</span>
+      </button>
+
+      <div class="fn-box">
+        <div class="fn-lbl">房号</div>
+        <input class="fn-inp" id="mnJoinCode" type="tel" inputmode="numeric" maxlength="6"
+               placeholder="4 位数字" autocomplete="off" autocorrect="off">
+        <button class="btn primary" id="mnJoin" type="button">进房</button>
+        <button class="btn ghost" id="mnCreate" type="button">开一桌（2~12 人）</button>
+        <div class="fn-tip" id="mnTip"></div>
+      </div>
+
+      <div class="fn-note">55 张牌含白牌第三鬼 · 服务器发牌，谁也改不了自己的牌<br>发两张、各自决定补不补第三张，摊牌比大小、按倍率罚杯（不封顶）</div>
+      <div class="foot">
+        <span class="page-ver">v1.24.64</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mn-table" id="mnTable" hidden>
+    <div class="nav">
+      <button class="nav-back" id="mnBack2" aria-label="暂时离开 · 座位留着">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+        </svg>
+      </button>
+      <div class="sound-btn" id="mnSound" role="button" aria-label="音效">
+        <span class="sound-ic" id="mnSoundIc">🔊</span>
+      </div>
+      <div class="nav-title">
+        <span class="t1">木塞</span>
+        <span class="t2">联机 · 扑克</span>
+      </div>
+      <div class="nav-right">
+        <button class="redo-btn" id="mnRedo" type="button">重开</button>
+        <button class="redo-btn" id="mnCode" type="button" title="点一下复制房号">----</button>
+        <button class="nav-quit" data-quit="musenet" type="button">退出</button>
+      </div>
+    </div>
+
+    <div class="mu-top">
+      <span class="fd-round" id="mnRound">第 1 局</span>
+      <span class="mu-turn" id="mnTurn">等开局</span>
+      <span class="mu-left" id="mnLeft">— 张</span>
+    </div>
+
+    <div class="mu-seats" id="mnSeats"></div>
+
+    <div class="mu-stage">
+      <div class="mu-hand" id="mnHand"></div>
+      <div class="mu-veil" id="mnVeil" hidden>
+        <span class="mu-veil-t" id="mnVeilT">等发牌</span>
+        <span class="mu-veil-s">只有你看得见 · 决定补不补第三张</span>
+      </div>
+    </div>
+
+    <div class="mu-kind" id="mnKind"></div>
+    <div class="fd-hint" id="mnHint"></div>
+    <div class="fd-btns" id="mnBtns"></div>
+
+    <div class="mu-result" id="mnResult" hidden></div>
+
+    <!-- 请人出去 / 改名：页内面板，跟另三家联机一个壳子，不弹浏览器自带对话框 -->
+    <div class="gn-kick" id="mnKick" hidden>
+      <div class="gn-kick-box">
+        <span class="gn-kick-name" id="mnKickName"></span>
+        <span class="gn-kick-sub" id="mnKickSub"></span>
+        <button class="btn primary gn-kick-ok" id="mnKickOk" type="button">踢出房间</button>
+        <button class="btn ghost gn-kick-no" id="mnKickNo" type="button">算了</button>
+      </div>
+    </div>
+    <div class="gn-rename" id="mnRename" hidden>
+      <div class="gn-rename-box">
+        <span class="gn-rename-t">改个名字</span>
+        <span class="gn-rename-sub">最多 8 个字 · 桌上的人都看得见</span>
+        <input class="gn-rename-input" id="mnRenameInput" type="text" maxlength="8" autocomplete="off" />
+        <button class="btn primary gn-rename-ok" id="mnRenameOk" type="button">确定</button>
+        <button class="btn ghost gn-rename-no" id="mnRenameNo" type="button">算了</button>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="page-ver">v1.24.64</span>
+      <button class="mode-link" id="ruleBtn7">玩法说明</button>
+    </div>
+  </div>
+</div>
+
+<!-- 提示音先加载：六个玩法都从它取 cue（换人 / 豹子 / 爆点 / 开盖 / 喝 / 摊牌） -->
 <script src="snd.js"></script>
 <script src="app.js"></script>
 <script src="find.js"></script>
 <script src="789.js"></script>
 <script src="789net.js"></script>
+<script src="muse.js"></script>
+<script src="museNet.js"></script>
 <script src="findnet.js"></script>
 <script src="liarnet.js"></script>
 <script src="f350.js"></script>

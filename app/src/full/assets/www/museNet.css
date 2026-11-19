@@ -1,0 +1,38 @@
+/* ==========================================================================
+   木塞 · 联机：进门 + 牌桌。
+   牌桌本体（手牌 / 遮罩 / 座位 / 牌型 / 摊牌结果）全部复用 muse.css 的 .mu-*，
+   这里只补联机专用的进门说明、牌桌容器和房号顶栏。
+   ========================================================================== */
+
+.page-musenet[hidden] { display: none; }
+
+/* ---------------- 进门 ---------------- */
+.mn-who {
+  text-align: center;
+  font-size: 2.6667vw;
+  color: var(--ink-2, #3a3f49);
+  padding: 1.6vw 4vw 0.8vw;
+}
+.mn-who b { color: var(--gold-deep, #8a5f18); }
+
+/* ---------------- 牌桌容器 ---------------- */
+.mn-table {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+.mn-table[hidden] { display: none; }
+
+/* 顶栏房号：点一下复制，跟七八九/找朋友一个位置 */
+#mnCode {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2vw;
+}
+
+/* 联机座位：名字 + 状态 + 累计罚杯，复用 .mu-seat 的卡身 */
+.mn-table .mu-seats { padding-top: 2vw; }
+
+/* 摊牌后「下一局」投票进度写在提示行 */
+.mn-table .fd-hint.is-vote { color: var(--gold-deep, #8a5f18); font-weight: 600; }

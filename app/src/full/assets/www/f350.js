@@ -1581,6 +1581,12 @@
       switchTo('789net');
     });
 
+    /* 木塞联机：同找朋友 / 吹牛 / 七八九，连接由它自己 enter() 里建（要先有房号） */
+    var playNetMuse = $('playNetMuse');
+    if (playNetMuse) playNetMuse.addEventListener('click', function () {
+      switchTo('musenet');
+    });
+
     /* 摆桌上：也不用先连，等它自己拿到房号再连 */
     var playNetBoard = $('playNetBoard');
     if (playNetBoard) playNetBoard.addEventListener('click', function () {
@@ -1640,6 +1646,8 @@
     if (r4) r4.addEventListener('click', function () { openRules('789'); });
     var r5 = $('ruleBtn5');
     if (r5) r5.addEventListener('click', function () { openRules('789net'); });
+    var r7 = $('ruleBtn7');
+    if (r7) r7.addEventListener('click', function () { openRules('musenet'); });
     var rc = $('ruleClose');
     if (rc) rc.addEventListener('click', function () { closeRules(); });
     var rm = $('ruleMask');
@@ -1674,11 +1682,11 @@
   var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo', find: 'solo',
                  '789': 'solo',
                  netmodes: 'home', net: 'netmodes', findnet: 'netmodes', liarnet: 'netmodes',
-                 '789net': 'netmodes',
+                 '789net': 'netmodes', musenet: 'netmodes',
                  netgame: 'net', board: 'netmodes' };
   var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2, find: 2,
                 '789': 2,
-                netmodes: 1, net: 2, findnet: 2, liarnet: 2, '789net': 2,
+                netmodes: 1, net: 2, findnet: 2, liarnet: 2, '789net': 2, musenet: 2,
                 netgame: 3, board: 2 };
 
   function curMode() {
@@ -1703,6 +1711,7 @@
       findnet: document.getElementById('pageFindNet'),
       liarnet: document.getElementById('pageLiarNet'),
       '789net': document.getElementById('page789Net'),
+      musenet: document.getElementById('pageMuseNet'),
       netgame: document.getElementById('pageNetGame'),
       board: document.getElementById('pageBoard')
     };
@@ -1732,6 +1741,12 @@
     if (window.LD789Net) {
       if (mode === '789net') window.LD789Net.enter();
       else window.LD789Net.leave();
+    }
+
+    /* 木塞联机同理：进门 / 牌桌两屏和 socket 由它自己管 */
+    if (window.LDMuseNet) {
+      if (mode === 'musenet') window.LDMuseNet.enter();
+      else window.LDMuseNet.leave();
     }
 
     /* 摆桌上那块屏：离开就把 socket 松开 —— 它在后台挂着也是白费电，
@@ -2187,6 +2202,72 @@
     note: RULES['789'].note
   };
 
+  /* 木塞：规则由用户（潮汕本地玩家）逐条口述确认，权威在 docs/play-muse.md v1.0。
+     两套维度别混：rankOf 决定谁赢，倍率决定罚几杯。
+     网上流传的三条 5/8、同花顺 6/8 全部作废，以用户确认的 10/7 为准。 */
+  RULES.muse = {
+    title: '木塞 · 怎么玩',
+    lead: '潮汕扑克。55 张牌里藏着三张鬼 —— 一手眼看要输的烂牌，可能被鬼救成通杀。',
+    steps: [
+      ['开局', '选 2~12 人，洗 55 张牌（52 普通 + 大鬼 + 小王 + 白牌），每人先发两张。'],
+      ['轮流看牌', '一台手机轮流传：轮到谁，点遮罩掀开看自己的两张牌，别让旁边人瞄到。'],
+      ['补不补第三张', '保天公（两张个位 8/9）就别补；想搏大的就补一张，最多三张。补完点「遮回去」传给下一位。'],
+      ['摊牌算罚杯', '全都补完一起翻开，比大小定输赢，按「花色倍率 × 牌型倍率」算罚杯，不封顶。']
+    ],
+    rules: [
+      '点数：J/Q/K 记 0、A 记 1、2~10 记面值。手中牌点数相加取个位，9 最大、0 最小。',
+      '木塞 = 个位是 0 的牌型（3+7、1+3+6、J+J+Q 都算）。它能赢双鬼 —— 最小的牌反杀最大的牌，这是这个玩法最爽的一下。',
+      '天公：只发两张、个位是 8 或 9；杂花 1 倍、同花 2 倍。天公一律输给双鬼。',
+      '顺子（三张相连）4 倍、同花顺 7 倍、三条（三张同数字）10 倍。',
+      '双鬼 10 倍、三鬼 30 倍。大鬼算红色、小王算黑色，都能补同花；白牌是第三鬼，但无色、不能凑同花。',
+      '花色倍率：杂花 1、两张同花 2、三张同花 3。最终罚杯 = 花色倍率 × 牌型倍率 —— 所以杂花 / 两同花 / 三同花的木塞克双鬼分别是 10 / 20 / 30 倍。'
+    ],
+    drinks: [
+      '罚杯 = 输家人数 × 赢家牌型倍率。例：3 个输家、赢家三条 10 倍 → 每人 10 杯。',
+      '不封顶：几倍喝几杯，App 只记数字。罚杯较大时会先弹一次确认，看清了再记。',
+      '只记数字，不碰钱、不押注、不做积分兑换。'
+    ],
+    odds: {
+      hint: '天公 19% · 木塞 10.8% · 三鬼约 1/26235',
+      face: '概率是枚举出来的，不引用网上数字：两张按 C(52,2)=1326、三张按 C(52,3)=22100，含鬼按 55 张算。',
+      faces: [
+        { k: '天公', v: '19.00%' },
+        { k: '木塞', v: '10.79%' },
+        { k: '三条', v: '0.235%' },
+        { k: '同花顺', v: '0.199%' },
+        { k: '1 鬼', v: '15.16%' },
+        { k: '3 鬼', v: '1/26235' }
+      ],
+      items: [
+        '两张：天公（个位 8/9）252/1326 = 19.00%；木塞（个位 0）190/1326 = 14.33%。',
+        '三张：木塞 2384/22100 = 10.79%；三条 52 种（约 1/425）；同花顺 44 种（约 1/502）。',
+        '含鬼三张：0 鬼 84.24%、1 鬼 15.16%、2 鬼 0.59%、3 鬼 1/26235 ≈ 0.0038%。三鬼来自白牌，可能但极罕见。'
+      ],
+      note: '天公 19%、木塞 14% 都很常见；双鬼 0.59%、三鬼 0.0038% 是稀有大奖 —— 高频小胜加稀有翻盘，就是这个玩法的节奏。'
+    },
+    note: '大小决定谁赢，倍率决定罚几杯 —— 两套数别混。比如天公排位比三条高，倍率却只有 1~2。'
+  };
+
+  /* 木塞只做联机：规则 / 罚杯 / 概率全部在 muse.js 纯规则层一份，服务端和前端共用；
+     一人一台手机、服务器发牌，谁也改不了自己的牌。 */
+  RULES.musenet = {
+    title: '木塞 · 联机怎么玩',
+    lead: '一人一台手机进同一个房号。发牌、补牌、判定、罚杯全在服务器算 —— ' +
+      '谁也改不了自己的牌，也没人替你喝。',
+    steps: [
+      ['开一桌 / 进房', '点「开一桌」拿一个 4 位房号，念给桌上的人；进别人的桌就输房号点「进房」。名字在「联机」首页起。'],
+      ['开局', '满 2 人谁都能点「开局」。人没到齐也能先开，中途进来的人下一局接得上。'],
+      ['各看各的牌', '服务器给每人发两张，只有你看得见。轮到你时你手机上才有「补一张 / 不补」按钮，别人只看到「等某某」。'],
+      ['补第三张', '想搏大的就补一张（最多三张）；保天公（两张个位 8/9）就点「不补」。选完就定，改不了。'],
+      ['摊牌', '全都补完一起翻开：按牌型比大小、算倍率，罚几杯写在结果里。不封顶。'],
+      ['房号 / 重开 / 退出', '房号常驻牌桌顶栏，点一下复制。重开要在线的三分之二同意。真要放弃座位，点顶栏「退出」。']
+    ],
+    rules: RULES.muse.rules,
+    drinks: RULES.muse.drinks,
+    odds: RULES.muse.odds,
+    note: RULES.muse.note
+  };
+
   /* 吹牛联机：规矩比别的玩法多得多，这一页得写得能让人边喝边查。
      写的时候按「桌上会被问到的顺序」排：怎么叫 → 斋 → 破斋 → 开 → 劈 → 抢开 → 转向/点人。 */
   /* 2026-11-11 用户把玩法砍到只剩「线上只负责给骰子」：
@@ -2320,12 +2401,19 @@
 
     var h = '<button class="rule-back" type="button" data-back="1">‹ 返回玩法</button>';
     h += '<div class="rule-lead">' + o.face + '</div>';
-    /* 六个面各 16.7% 摆成六格：光写一句「六面等概率」容易被当成敷衍，
-       六格一样高摆出来，谁也不好再说「你这点数偏」 */
+    /* 骰子默认六面等概率；木塞是扑克，概率按牌型给（o.faces）。
+       不写死六面，免得木塞那页也摆出六个 16.7% 的骰子面。 */
+    var faces = o.faces;
+    if (!faces) {
+      faces = [];
+      for (var f = 1; f <= 6; f++) {
+        faces.push({ k: String(f), v: '16.7%', score: (f === 1 || f === 5) });
+      }
+    }
     h += '<div class="rule-odds">';
-    for (var f = 1; f <= 6; f++) {
-      h += '<div class="ro-face' + (f === 1 || f === 5 ? ' ro-score' : '') + '">' +
-        '<b>' + f + '</b><span>16.7%</span></div>';
+    for (var fi = 0; fi < faces.length; fi++) {
+      h += '<div class="ro-face' + (faces[fi].score ? ' ro-score' : '') + '">' +
+        '<b>' + faces[fi].k + '</b><span>' + faces[fi].v + '</span></div>';
     }
     h += '</div>';
     for (var m = 0; m < o.items.length; m++) {
@@ -2393,6 +2481,7 @@
             else if (g === 'findnet' && window.LDFindNet) window.LDFindNet.quit();
             else if (g === 'liarnet' && window.LDLiarNet) window.LDLiarNet.quit();
             else if (g === '789net' && window.LD789Net) window.LD789Net.quit();
+            else if (g === 'musenet' && window.LDMuseNet) window.LDMuseNet.quit();
           });
         });
       })(bs[i]);
