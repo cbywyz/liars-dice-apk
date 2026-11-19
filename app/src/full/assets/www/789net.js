@@ -308,6 +308,7 @@
   }
 
   function paint() {
+    layoutG9Hot();
     var st = S.st;
     var my = myIdx();
     /* 顶栏房号常驻：进房那一刻就有，不用点开任何东西 */
@@ -495,7 +496,10 @@
      面板 = 长按牌桌标题 1.2 秒。面板「总」行是全场总闸，下面六行只配「这一格绑什么」。
      作用范围（用户 2026-11-19 拍板）：点桌面六格 = 整房下一次真摇按该格功能出点，
      不管轮到谁摇；一次性，用掉即清，不能一直生效。没激活的人看不到也点不了按钮。
-     面板里点 chip 只改本机绑定（存 localStorage），不 arm、不发服务端。 */
+     面板里点 chip 只改本机绑定（存 localStorage），不 arm、不发服务端。
+     桌面六格是**隐形热区**（2026-11-19 实机纠正）：不画边框背景、不写字、不占布局；
+     开总闸只切「能不能接手指」，绝不切 hidden/display —— 那样既把按钮画出来，
+     又把桌子往上挤。热区用 layoutG9Hot() 贴到提示行上方，开总闸前后桌子纹丝不动。 */
   var G9DBG_KEY = 'ld_g9_dbg';
   /* 六格能绑的功能清单；short 显示在桌面格子和面板 chip 上。空串 = 这格不绑、点了没反应 */
   var G9_ACTS = [
@@ -550,6 +554,17 @@
     if (diff) { saveG9Dbg(); paintG9Dbg(); }
   }
 
+  /* 六格热区贴到提示行上方：它 absolute 脱离文档流，自己不占布局，
+     所以开总闸前后桌子、提示行、按钮的坐标一模一样（用户 2026-11-19 实机要求）。
+     贴着 hint 算，提示文字换行 / 按钮几态变化都不会压到真按钮上。 */
+  function layoutG9Hot() {
+    if (!el.hot || !el.hint || !el.table || el.table.hidden) return;
+    var h = el.hot.offsetHeight;
+    if (!h) return;
+    var top = el.hint.offsetTop - h - 8;
+    el.hot.style.top = (top < 0 ? 0 : top) + 'px';
+  }
+
   function paintG9Dbg() {
     if (el.dbg) {
       var hotRow = el.dbg.querySelector('.dbg-row[data-k="hot"]');
@@ -577,17 +592,10 @@
           ' · 5 ' + g9Short(g9.z[4]) + ' · 6 ' + g9Short(g9.z[5]);
       }
     }
-    if (el.hot) {
-      el.hot.hidden = !g9HotOn();
-      var cells = el.hot.querySelectorAll('i[data-k]');
-      for (var n = 0; n < cells.length; n++) {
-        var idx = Number(cells[n].getAttribute('data-k')) - 1;
-        var id = g9.z[idx];
-        cells[n].textContent = g9Short(id);
-        cells[n].classList.toggle('is-idle', !id);
-        cells[n].classList.toggle('is-on', !!id && g9.once === id);
-      }
-    }
+    /* 六格是**看不见**的热区：开关只切能不能接手指（.on），绝不再切 hidden /
+       display —— 那样会把桌面挤动（用户 2026-11-19 实机反馈）。绑定文字只留在面板
+       chip 同 dbgSub 上，桌面格子不写任何字、不画边框背景、也不做点亮反馈。 */
+    if (el.hot) el.hot.classList.toggle('on', g9HotOn());
   }
 
   /* 点面板总闸：关掉连房间上的一次性档位一起清 */
@@ -875,6 +883,8 @@
     document.addEventListener('touchstart', once, true);
     document.addEventListener('mousedown', once, true);
     document.addEventListener('keydown', once, true);
+    /* 横竖屏切换后把隐形热区重贴到提示行上方（它不占布局，只跟着 hint 走） */
+    window.addEventListener('resize', layoutG9Hot);
 
     el.btns.addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('[data-act]') : null;

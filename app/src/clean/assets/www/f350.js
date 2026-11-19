@@ -1575,6 +1575,12 @@
       switchTo('liarnet');
     });
 
+    /* 七八九联机：同找朋友 / 吹牛，连接由它自己 enter() 里建（要先有房号） */
+    var playNet789 = $('playNet789');
+    if (playNet789) playNet789.addEventListener('click', function () {
+      switchTo('789net');
+    });
+
     /* 摆桌上：也不用先连，等它自己拿到房号再连 */
     var playNetBoard = $('playNetBoard');
     if (playNetBoard) playNetBoard.addEventListener('click', function () {
@@ -1610,6 +1616,8 @@
     if (pF350) pF350.addEventListener('click', function () { switchTo('f350'); });
     var pFind = $('playFind');
     if (pFind) pFind.addEventListener('click', function () { switchTo('find'); });
+    var p789 = $('play789');
+    if (p789) p789.addEventListener('click', function () { switchTo('789'); });
 
     /* 底栏「← 返回」= 退到上一层，跟系统返回键同一个效果 */
     var b1 = $('toSolo');
@@ -1618,6 +1626,8 @@
     if (b2) b2.addEventListener('click', function () { switchTo('solo'); });
     var b3 = $('toSolo3');
     if (b3) b3.addEventListener('click', function () { switchTo('solo'); });
+    var b4 = $('toSolo4');
+    if (b4) b4.addEventListener('click', function () { switchTo('solo'); });
 
     /* 玩法说明：底栏进去，点空白 / 关闭出来 */
     var r1 = $('ruleBtn');
@@ -1626,6 +1636,10 @@
     if (r2) r2.addEventListener('click', function () { openRules('f350'); });
     var r3 = $('ruleBtn3');
     if (r3) r3.addEventListener('click', function () { openRules('find'); });
+    var r4 = $('ruleBtn4');
+    if (r4) r4.addEventListener('click', function () { openRules('789'); });
+    var r5 = $('ruleBtn5');
+    if (r5) r5.addEventListener('click', function () { openRules('789net'); });
     var rc = $('ruleClose');
     if (rc) rc.addEventListener('click', function () { closeRules(); });
     var rm = $('ruleMask');
@@ -1658,10 +1672,14 @@
      联机现在是「首页 -> 选玩法 -> 350 大厅 -> 牌桌」，比单机那条线多一层：
      多出来的那一层是为了以后加别的联机玩法时不用动首页，也不用动 350 大厅。 */
   var PARENT = { home: null, solo: 'home', liar: 'solo', f350: 'solo', find: 'solo',
+                 '789': 'solo',
                  netmodes: 'home', net: 'netmodes', findnet: 'netmodes', liarnet: 'netmodes',
+                 '789net': 'netmodes',
                  netgame: 'net', board: 'netmodes' };
   var DEPTH = { home: 0, solo: 1, liar: 2, f350: 2, find: 2,
-                netmodes: 1, net: 2, findnet: 2, liarnet: 2, netgame: 3, board: 2 };
+                '789': 2,
+                netmodes: 1, net: 2, findnet: 2, liarnet: 2, '789net': 2,
+                netgame: 3, board: 2 };
 
   function curMode() {
     return document.body.getAttribute('data-mode') || 'home';
@@ -1679,10 +1697,12 @@
       liar: document.querySelector('.page-liar'),
       f350: document.getElementById('pageF350'),
       find: document.getElementById('pageFind'),
+      '789': document.getElementById('page789'),
       netmodes: document.getElementById('pageNetModes'),
       net: document.getElementById('pageNet'),
       findnet: document.getElementById('pageFindNet'),
       liarnet: document.getElementById('pageLiarNet'),
+      '789net': document.getElementById('page789Net'),
       netgame: document.getElementById('pageNetGame'),
       board: document.getElementById('pageBoard')
     };
@@ -1708,6 +1728,12 @@
       else window.LDLiarNet.leave();
     }
 
+    /* 七八九联机同理：它自己管建房 / 进房 / 牌桌三屏和 socket，这里只叫它一声 */
+    if (window.LD789Net) {
+      if (mode === '789net') window.LD789Net.enter();
+      else window.LD789Net.leave();
+    }
+
     /* 摆桌上那块屏：离开就把 socket 松开 —— 它在后台挂着也是白费电，
        回来时 LDBoard.enter() 会按上次的房号自己重连。 */
     if (window.LDBoard) {
@@ -1725,6 +1751,11 @@
        进去叫一声让它把桌子摆好，离开时把人数下拉收掉 */
     if (mode === 'find' && window.LDFind) window.LDFind.enter();
     else if (mode !== 'find' && window.LDFind) window.LDFind.leave();
+
+    /* 七八九同理：公杯存量、方向、座位杯数都它自己管，
+       进去摆桌、离开收掉人数下拉和重开确认态。 */
+    if (mode === '789' && window.LD789) window.LD789.enter();
+    else if (mode !== '789' && window.LD789) window.LD789.leave();
 
     /* 离开 350 就把人数弹层收掉：它挂在 body 上，页面藏了它还会浮着 */
     if (mode !== 'f350' && el.pop && el.pop.style.display === 'flex') closeMask();
@@ -1745,7 +1776,7 @@
     /* ld_mode 记"当前在哪一页"，ld_last_play 只记"上次玩哪个玩法"。
        两个混用就会出现「从首页进来被跳过首页」那种 bug，别合。 */
     try { localStorage.setItem('ld_mode', mode); } catch (e) {}
-    if (mode === 'liar' || mode === 'f350' || mode === 'find') {
+    if (mode === 'liar' || mode === 'f350' || mode === 'find' || mode === '789') {
       try { localStorage.setItem('ld_last_play', mode); } catch (e) {}
     }
 
@@ -1836,7 +1867,8 @@
   function markLastPlay() {
     var last = null;
     try { last = localStorage.getItem('ld_last_play'); } catch (e) {}
-    var badges = { liar: $('badgeLiar'), f350: $('badgeF350'), find: $('badgeFind') };
+    var badges = { liar: $('badgeLiar'), f350: $('badgeF350'), find: $('badgeFind'),
+                   '789': $('badge789') };
     for (var k in badges) {
       /* 一次都没玩过时一个都不显示：默认给吹牛挂「上次玩的」是撒谎 */
       if (badges[k]) badges[k].hidden = (k !== last);
@@ -2007,6 +2039,61 @@
       ],
       note: 'App 只负责摇、判、记杯数；喝不喝、喝多少在桌上说好。各地规矩不一样，' +
         '开桌前把「和值算不算」「豹子碰豹子算不算」两句对一遍，免得上桌吵。'
+    },
+    '789': {
+      title: '七八九 · 怎么玩',
+      lead: '一台手机传一圈就能玩：2 颗明骰摊在中间，和值 7/8/9 各有各的喝法，没有胜负，一直玩到散场。',
+      steps: [
+        ['围一圈', '点右上角「N 人」选人数（2~12）。1 号在左上，顺时针排一圈，每个座位下面实时标着喝了几杯。'],
+        ['摇 2 颗', '轮到谁谁点「摇骰」。两颗明骰摊在中间，摇完立刻开，没有盖子。'],
+        ['看和值', '两颗相加：<strong>7</strong> 往公杯加 1 杯；<strong>8</strong> 喝公杯<strong>当前存量</strong>的一半；' +
+          '<strong>9</strong> 喝光公杯再重倒 1 杯。公杯一开始 1 杯。'],
+        ['两个 1 / 对子', '摇到两个 1 → 点一位（可点自己）罚他 1 杯，单独记、不动公杯；' +
+          '摇到别的对子（22 33 55 66）→ 掉头，从当前座位按新方向继续，顶上箭头跟着翻。'],
+        ['7/8/9 接着摇', '摇到 7/8/9 的人不换人，接着摇，直到摇出不是这三档才轮到下一家。'],
+        ['改上限 / 重开', '点中间「上限 N 杯」随时改封顶（1~12 杯，默认 6）；' +
+          '点右上角「重开」要连点两下才真把杯数清掉，防手滑。']
+      ],
+      rules: [
+        '公共杯底酒 1 杯，默认封顶 6 杯，随时可调（能升能降，降到当前存量以下就把公杯压到新上限）。',
+        '和值 <strong>7</strong>：往公杯加 1 杯；已经到封顶就不再加，摇的人接着摇。',
+        '和值 <strong>8</strong>：摇的人喝<strong>公杯当前存量的一半</strong>，另一半留在杯里。' +
+          '公杯 3 杯就喝 1.5 杯、留 1.5 杯；公杯 1 杯就喝 0.5 杯、留 0.5 杯。',
+        '和值 <strong>9</strong>：摇的人喝光公杯（连底带酒），然后重倒 1 杯。',
+        '两个 <strong>1</strong>：摇的人点一位喝 1 杯，可以点自己；这一杯单独记在座位上，不动公杯。',
+        '其他对子（22 33 55 66）：摇骰顺序掉头，从当前座位按新方向继续，顶上的方向箭头会翻转' +
+          '（44=8 已经归到「喝一半」，不算掉头对子）。',
+        '同一把只认一档、不叠加：<strong>4+4=8 归 8</strong>（和值优先于对子），<strong>5+5=10 才归对子</strong>。',
+        '摇到 7/8/9 的人接着摇，不换人，直到摇出不是这三档。',
+        '没有封顶局数 → 没有胜负、没有结算榜、不排名；谁喝了几杯实时挂在座位上，一直玩到散场。'
+      ],
+      drinks: [
+        '7 那 1 杯是倒进公杯的，没人当场喝 —— 攒着等人摇到 8 或 9 才喝掉。',
+        '8 喝公杯当前存量的一半，按 0.5 杯记：公杯 3 杯 → 喝 1.5 杯、留 1.5 杯；' +
+          '公杯 1 杯 → 喝 0.5 杯、留 0.5 杯。',
+        '9 喝光公杯再重倒 1 杯；两个 1 指人那 1 杯固定 1 杯，单独记、不动公杯。',
+        '座位下面记着累计杯数，换人数 / 重开会清掉；重开要连点两下，手滑一下没事。'
+      ],
+      note: 'App 只负责摇、判、记杯数；一杯是多少毫升、喝不喝，在桌上说好。' +
+        '各地「喝一半」讲究不一样，开桌前把「公杯当前存量的一半」这句对一遍。',
+      odds: {
+        hint: '两颗骰 · 7 = 1/6 · 8 = 5/36 · 9 = 1/9',
+        face: '两颗六面骰一共 <strong>36 种</strong>等可能结果。每颗骰子 1~6 点各 ' +
+          '<strong>1/6 ≈ 16.7%</strong>，每把独立重摇 —— 上一把摇出什么，不影响下一把。',
+        items: [
+          '和值 7 有 6 种（1+6、2+5、3+4、4+3、5+2、6+1）= <strong>6/36 = 1/6 ≈ 16.7%</strong>；' +
+            '8 有 5 种 = <strong>5/36 ≈ 13.9%</strong>；9 有 4 种 = <strong>4/36 = 1/9 ≈ 11.1%</strong>。',
+          '7/8/9 合起来 <strong>15/36 = 5/12 ≈ 41.7%</strong>。摇到就接着摇，平均 ' +
+            '<strong>12/7 ≈ 1.7 把</strong>才换人。',
+          '两个 1 只有 11 一种 = <strong>1/36 ≈ 2.8%</strong>，约三十多把碰上一回。',
+          '任意对子（含 11）6 种 = <strong>1/6 ≈ 16.7%</strong>；' +
+            '除掉两个 1、再除掉归到 8 的 44，真正掉头的是 22 33 55 66 = <strong>4/36 ≈ 11.1%</strong>。',
+          '优先级：两个 1 → 和值 7/8/9 → 其他对子 → 过。同一把只认一档、不叠加 —— ' +
+            '4+4=8 归 8，5+5=10 归对子。',
+          '骰子是这台手机的随机数（<strong>Math.random</strong>），不看人、不记仇，落后的人不会因此手气变好。'
+        ],
+        note: '上面的数按两颗六面骰、36 种等可能结果算。「喝公杯一半」按 0.5 杯粒度记，不影响概率。'
+      }
     }
   };
 
@@ -2069,6 +2156,35 @@
     rules: RULES.find.rules,
     drinks: RULES.find.drinks,
     note: RULES.find.note
+  };
+
+  /* 七八九联机：判定、喝多少、概率跟单机那份一模一样，直接借过来，
+     只把「一台手机传着摇、重开连点两下」换成「一人一台手机、重开要投票」——
+     以后改规则只改一处，单机和联机不会各说各的。 */
+  RULES['789net'] = {
+    title: '七八九 · 联机怎么玩',
+    lead: '一人一台手机进同一个房号，两颗明骰轮流摇。点数、公杯、谁喝了几杯全在服务器算 —— ' +
+      '谁也改不了自己的点数，也没人替你喝。',
+    steps: [
+      ['开一桌 / 进房', '点「开一个房间」拿一个 4 位房号，念给桌上的人；' +
+        '进别人的桌就输房号点「进房」。名字在「联机」首页起，进房只回显。'],
+      ['开局', '满 2 人谁都能点「开局」。人没到齐也能先开，中途进来的人照样接得上。'],
+      ['轮到谁谁摇', '轮到你，你手机上才有「摇骰」按钮，别人显示「等 某某 摇」。' +
+        '两颗明骰摊在中间，摇完立刻开，没有盖子。'],
+      ['看和值', '两颗相加：7 往公杯加 1 杯；8 喝公杯<strong>当前存量</strong>的一半；' +
+        '9 喝光公杯再重倒 1 杯。公杯一开始 1 杯。'],
+      ['两个 1 / 对子', '摇到两个 1 → 点一位（可点自己）罚他 1 杯，单独记、不动公杯；' +
+        '摇到别的对子（22 33 55 66）→ 掉头，从当前座位按新方向继续，顶上箭头跟着翻。'],
+      ['7/8/9 接着摇', '摇到 7/8/9 的人不换人，接着摇，直到摇出不是这三档才轮到下一家。'],
+      ['改上限 / 重开', '顶栏点「上限 N 杯」随时改封顶（1~12 杯，默认 6）；' +
+        '顶栏点「重开」要<strong>在线的三分之二同意</strong>，45 秒没人接就作废。'],
+      ['房号 / 退出', '房号常驻牌桌顶栏，点一下就复制，念给朋友。离开再回来，第一屏顶上有' +
+        '「上一桌还没打完」，点一下回原位。真要放弃座位，点顶栏「退出」。']
+    ],
+    rules: RULES['789'].rules,
+    drinks: RULES['789'].drinks,
+    odds: RULES['789'].odds,
+    note: RULES['789'].note
   };
 
   /* 吹牛联机：规矩比别的玩法多得多，这一页得写得能让人边喝边查。
@@ -2276,6 +2392,7 @@
             if (g === 'netgame' && window.LDNet) window.LDNet.quit();
             else if (g === 'findnet' && window.LDFindNet) window.LDFindNet.quit();
             else if (g === 'liarnet' && window.LDLiarNet) window.LDLiarNet.quit();
+            else if (g === '789net' && window.LD789Net) window.LD789Net.quit();
           });
         });
       })(bs[i]);

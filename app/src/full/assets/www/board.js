@@ -199,11 +199,30 @@
 
   function isFind(st) { return st && st.game === 'find'; }
   function isLiar(st) { return st && st.game === 'liar'; }
+  function is789(st) { return st && st.game === '789'; }
   function listOf(st) { return (isFind(st) || isLiar(st)) ? (st.seats || []) : (st.players || []); }
 
-  /* 角标上那个玩法名。服务端给的标识是 find / liar，350 的 pub() 不带 game 字段 */
+  /* 角标上那个玩法名。服务端给的标识是 find / liar / 789：
+     350 的 pub() 不带 game 字段，落到最后的 350。 */
   function gameName(g) {
-    return g === 'find' ? '找朋友' : (g === 'liar' ? '吹牛' : '350');
+    return g === 'find' ? '找朋友' : (g === 'liar' ? '吹牛' : (g === '789' ? '七八九' : '350'));
+  }
+
+  /* 七八九内部 2 个单位 = 1 杯，0.5 杯粒度。大屏跟手机用同一句口径，
+     别在大屏上直接写「2」—— 桌上没人知道那是几杯。 */
+  function cupTxt(u) {
+    u = u | 0;
+    return u ? (u / 2) + ' 杯' : '空杯';
+  }
+
+  /* 跟手机上 nextIdx 同一口径：只在在线、没休息的人里按当前方向挪一格 */
+  function next789(st) {
+    var P = st.players || [], a = [];
+    for (var i = 0; i < P.length; i++) if (P[i].online !== false && !P[i].rest) a.push(i);
+    if (!a.length) return -1;
+    var pos = 0;
+    for (var j = 0; j < a.length; j++) if (a[j] === st.turn) { pos = j; break; }
+    return a[(pos + (st.dir > 0 ? 1 : -1) + a.length) % a.length];
   }
 
   /* 名字是玩家自己敲的，要塞进 innerHTML 的那几处一律过一遍 */
@@ -287,6 +306,7 @@
     paintTop(st);
     if (isFind(st)) renderFind(st);
     else if (isLiar(st)) renderLiar(st);
+    else if (is789(st)) render789(st);
     else render350(st);
     paintVote(st);
     paintTally(st);
@@ -313,6 +333,10 @@
        大字区那句仍写完整版（「本手 200 分，还差 150 分锁分」）。 */
     if (isFind(st)) bits.push('第 <b>' + (st.round | 0) + '</b> 圈');
     else if (isLiar(st)) bits.push('第 <b>' + (st.round | 0) + '</b> 局');
+    /* 七八九没有分数、也没有局数封顶；顶栏摆「公杯几杯 + 往哪转」这两件
+       桌上真正要看的事。写成「本手 0 分」会让人以为还没开局。 */
+    else if (is789(st)) bits.push('公杯 <b>' + cupTxt(st.pot) + '</b> · ' +
+      (st.dir > 0 ? '顺时针' : '逆时针'));
     /* 350 的 round 是「这一手已经收下的分」，收够 350 之后还能接着摇，
        会涨到 600、700。写成 600/350 像是进度条爆了，只报分数就好。 */
     else bits.push('本手 <b>' + (st.round | 0) + '</b> 分');
@@ -590,6 +614,75 @@
       return i;
     }
     return (from + 1) % n;
+  }
+
+  /* ---------- 七八九：明骰、公杯、各家杯数，只展示不排名 ----------
+     这是唯一没有胜负、没有结算的玩法，大屏也就不做排行、不写「谁赢」——
+     只把「现在谁摇、公杯几杯、往哪个方向转、各家喝了几杯」摆清楚。 */
+  function render789(st) {
+    var P = st.players || [];
+    var cur = P[st.turn] || null;
+
+    /* 中间那两颗是全场共用的一副明骰，刚摇完什么就摆什么 */
+    var last = st.last || null;
+    var sig = 'g|' + (last ? last.join(',') : '');
+    if (el.dice && el.dice.__sig !== sig) {
+      el.dice.__sig = sig;
+      el.dice.textContent = '';
+      el.dice.className = 'bd-dice two';
+      if (last) for (var d = 0; d < last.length; d++) el.dice.appendChild(dieEl(last[d], false));
+    }
+
+    var k = '七八九', n = '', s = '';
+    if (!st.started) {
+      k = '等人齐'; n = P.length + ' 人'; s = '满 2 人就能开 · 房号念一声';
+    } else if (st.phase === 'ready' || st.phase === 'again') {
+      k = '轮到'; n = cur ? cur.name : '—';
+      s = (st.phase === 'again' ? '接着摇' : '摇 2 颗') + ' · 公杯 <b>' + cupTxt(st.pot) +
+        '</b> / ' + (st.cap / 2) + ' 杯';
+    } else if (st.phase === 'pick') {
+      k = '两个 1'; n = '点名';
+      s = '<b>' + (cur ? cur.name : '—') + '</b> 指一位 · 罚 1 杯（单独记）';
+    } else if (st.phase === 'handoff') {
+      var nx = P[next789(st)];
+      k = '掉头'; n = nx ? nx.name : '—';
+      s = '从他接着摇 · ' + (st.dir > 0 ? '顺时针' : '逆时针');
+    } else {
+      k = '七八九'; n = cur ? cur.name : '—';
+      s = st.note || '';
+    }
+    /* 掉头 / 喝一半那几把的 note 是桌上最想看清的一句，摆到大字区来 */
+    if (st.note && (st.phase === 'ready' || st.phase === 'again')) {
+      s = st.note + (s ? ' · ' + s : '');
+    }
+    paintTurn(k, n, s, st.started ? st.phase : 'lobby');
+
+    var rows = [];
+    for (var j = 0; j < P.length; j++) {
+      var p = P[j], ai = awayInfo(p, st);
+      var sub;
+      if (ai.rest) sub = '本把不摇';
+      else if (ai.active) sub = '本把照常';
+      else if (p.online === false) sub = '掉线';
+      else sub = (j === st.turn && st.started) ? '正在摇' : '等着喝';
+      rows.push({
+        name: p.name,
+        num: String((p.cups | 0) / 2),
+        unit: '杯',
+        cups: true,
+        sub: sub,
+        turn: j === st.turn && st.started,
+        off: p.online === false,
+        tag: ai.tag, tagCls: ai.cls, rest: ai.rest, bomb: false, wait: ai.wait,
+        clock: ai.clock,
+        last: lastAct(st.log, p.name)
+      });
+    }
+    paintGrid(rows, colsFor(P.length), {
+      t: '本桌小结',
+      rows: ['公杯 <b>' + cupTxt(st.pot) + '</b> / ' + (st.cap / 2) + ' 杯',
+             '方向 <b>' + (st.dir > 0 ? '顺时针' : '逆时针') + '</b> · 第 ' + ((st.shakes | 0) + 1) + ' 把']
+    });
   }
 
   function renderFind(st) {

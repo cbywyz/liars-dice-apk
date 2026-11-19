@@ -416,45 +416,36 @@
 /* 调试面板第六行是占位，点不动，也别看着像能点 */
 .dbg-row[disabled] { opacity: 0.38; }
 
-/* ---------- ⑥ 隐藏六格快捷键：面板绑定 chip ----------
-   位置是用户 2026-11-19 截图划定的：上排 1/2/3、下排 4/5/6。
-   默认 hidden（不占空间、不接手指），面板「总」行开了才露出来。
-   六格显示的是这一格绑的功能（7/8/9/避/对/—），绑定在面板里用 chip 选。
+/* ---------- ⑥ 隐藏六格快捷键：桌面上的隐形热区 ----------
+   位置是用户 2026-11-19 截图划定的：圆桌下方、提示行上方，上排 1/2/3、下排 4/5/6。
+   这一层**完全看不见**：不画边框、不画背景、不写字；而且 absolute 脱离文档流，
+   JS 把它贴到提示行上方 —— 所以开总闸前后桌子一动不动
+   （原来用 hidden 切 display:grid 会把桌子往上挤，用户实机当场指出）。
+   默认 pointer-events:none，面板「总」行开了才 .on 接手指；没开的人看不到也点不了。
    点格子 = arm 一次性档位，全房下一次真摇按它出、用掉自动清（同 350 给1给5）。 */
 .gn-hot {
-  flex: 0 0 auto;
+  position: absolute;
+  left: 1.6vw;
+  right: 1.6vw;
+  height: 27vw;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, 1fr);
   gap: 1.6vw;
-  width: 100%;
-  height: 27vw;
-  padding: 0 1.6vw;
   box-sizing: border-box;
+  z-index: 6;
+  pointer-events: none;
   -webkit-tap-highlight-color: transparent;
 }
-.gn-hot[hidden] { display: none; }
+.gn-hot.on { pointer-events: auto; }
+/* 六格只是热区：不画任何东西，连选中文字/蓝框都别给。位置全交给 grid 算。 */
 .gn-hot > i {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border: 0.32vw solid rgba(194, 148, 63, 0.46);
-  border-radius: 2.4vw;
-  background: rgba(255, 253, 248, 0.72);
-  font-style: normal;
-  font-size: 4vw;
-  font-weight: 700;
-  color: var(--gold-deep, #8a5f18);
-  transition: background 0.12s;
-}
-/* 没绑功能的格子：淡掉、点了只提示去面板里设 */
-.gn-hot > i.is-idle { opacity: 0.32; color: rgba(35, 38, 45, 0.4); }
-/* 已 arm（这一档正等着下一次真摇吃）：描金加亮，跟刚点过区分开 */
-.gn-hot > i:active,
-.gn-hot > i.is-on {
-  background: rgba(194, 148, 63, 0.26);
-  box-shadow: inset 0 0 0 0.32vw var(--gold-2, #b5893f);
+  display: block;
+  pointer-events: inherit;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
 }
 
 /* 面板里的六行绑定：一行一个格子，六个 chip 点哪个就绑哪个功能 */
@@ -500,6 +491,41 @@
   text-align: center;
 }
 .g9chip.on { background: var(--gold-2, #b5893f); color: #fff; }
+
+/* 面板下方逐项说明：六格各绑什么、点了会怎样，写清楚免得靠猜 */
+.g9-help {
+  margin: 1.6vw 0 0.8vw;
+  padding: 2.6667vw;
+  border-radius: 3.2vw;
+  background: rgba(35, 38, 45, 0.035);
+}
+.g9-help-t {
+  margin-bottom: 1.6vw;
+  font-size: 2.8vw;
+  font-weight: 600;
+  color: var(--gold-deep, #8a5f18);
+}
+.g9-help-row {
+  display: flex;
+  align-items: baseline;
+  gap: 1.6vw;
+  font-size: 2.4vw;
+  line-height: 1.5;
+  color: rgba(35, 38, 45, 0.72);
+}
+.g9-help-row + .g9-help-row { margin-top: 1.2vw; }
+.g9-help-row b {
+  flex: 0 0 5.3333vw;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: center;
+}
+/* 逐项说明把面板撑高了，给个滚动，别把「收起」顶出屏幕 */
+#gnDbg .dbg-sheet {
+  max-height: 86vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* ---------- ⑦ 改名：跟踢人一个页内面板，不弹浏览器 prompt ---------- */
 .gn-rename {
