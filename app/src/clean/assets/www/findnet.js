@@ -269,179 +269,6 @@
     return k;
   }
 
-  /* 本地留一份玩家自己的偏好标记，换手机不同步 */
-
-  var DBG_KEY = 'ld_find_dbg';
-  /* 几项都在本地存着，换手机不同步 */
-  var dbg = { hot: false, mid: false, self: false, lion: false, nd: false, must: false };
-
-  /* 五个「只这一把」的开关，用一个键名列表数一数开了几个 —— 对账两边一致时要用 */
-  var DBG_ONCE = ['mid', 'self', 'lion', 'nd', 'must'];
-
-  function dbgAny(d) {
-    for (var i = 0; i < DBG_ONCE.length; i++) if (d[DBG_ONCE[i]]) return true;
-    return false;
-  }
-
-  function loadDbg() {
-    try {
-      var o = JSON.parse(localStorage.getItem(DBG_KEY) || 'null');
-      if (o) {
-        dbg.hot = !!o.hot;
-        for (var i = 0; i < DBG_ONCE.length; i++) dbg[DBG_ONCE[i]] = !!o[DBG_ONCE[i]];
-      }
-    } catch (e) {}
-  }
-
-  function saveDbg() {
-    try { localStorage.setItem(DBG_KEY, JSON.stringify(dbg)); } catch (e) {}
-  }
-
-  /* 把自己的开关告诉房间。只发自己那几项 —— 服务端照着它改牌桌 */
-  function sendDbg() {
-    if (!S.ws || S.ws.readyState !== 1) return;
-    try {
-      S.ws.send(JSON.stringify({
-        t: 'dbg', mid: !!dbg.mid, self: !!dbg.self, lion: !!dbg.lion,
-        nd: !!dbg.nd, must: !!dbg.must
-      }));
-    } catch (e) {}
-  }
-
-  function dbgArm() { return false; }
-
-  /* 四格能不能接手指：总开关 + 四格总闸都开着才算。
-     关着时整条是 pointer-events:none，它不挡座位上的点击。 */
-  function dbgHotOn() { return dbgArm() && dbg.hot; }
-
-  function paintDbg() {
-    var on = dbgArm();
-    if (el.dbg) {
-      var rows = el.dbg.querySelectorAll('.dbg-row[data-k]');
-      for (var i = 0; i < rows.length; i++) {
-        var k = rows[i].getAttribute('data-k');
-        rows[i].classList.toggle('is-on', !!dbg[k]);
-      }
-    }
-    if (el.hot) el.hot.classList.toggle('on', on && dbg.hot);
-  }
-
-  function setDbg(k, v) {
-    dbg[k] = !!v;
-    /* 关总闸 = 全关。用户点「总闸」想的是「把这一套停掉」；
-       只让五格失灵、功能还在暗处生效，是上一版最容易误会的地方
-       （2026-11-10 反馈：明明关了还老出正豹）。 */
-    if (k === 'hot' && !v) {
-      for (var i = 0; i < DBG_ONCE.length; i++) dbg[DBG_ONCE[i]] = false;
-    }
-    saveDbg();
-    paintDbg();
-    /* 完全没有视觉反馈，只能靠手感：开 = 两下短的，关 = 一下长的（跟吹牛一致） */
-    buzz(v ? [14, 75, 14] : 45);
-    /* 关总闸也要发：上面刚把那五项一起灭了，不告诉服务器等于白灭 */
-    if (k !== 'hot' || !v) sendDbg();
-  }
-
-  function openDbg() {
-    if (!el.dbg) return;
-    buzz(16);
-    paintDbg();
-    el.dbg.hidden = false;
-    /* 手指还按在标题上：松手那一下会被当成面板里的一次点击，
-       先把面板挡 400ms（吹牛那边也是这么处理的） */
-    var sheet = el.dbg.querySelector('.dbg-sheet');
-    if (sheet) {
-      sheet.style.pointerEvents = 'none';
-      setTimeout(function () { sheet.style.pointerEvents = ''; }, 400);
-    }
-  }
-
-  function closeDbg() {
-    if (el.dbg) el.dbg.hidden = true;
-  }
-
-  /* 标题：跟一块普通文字一样，不震、不弹。 */
-  function bindTitle() {
-    var t = el.title;
-    if (!t) return;
-    var timer = 0;
-    function start() {
-      if (!dbgArm()) return;
-      clearTimeout(timer);
-      timer = setTimeout(function () { timer = 0; openDbg(); }, 1200);
-    }
-    function stop() {
-      if (timer) { clearTimeout(timer); timer = 0; }
-    }
-    t.addEventListener('touchstart', start, { passive: true });
-    t.addEventListener('touchend', stop);
-    t.addEventListener('touchcancel', stop);
-    t.addEventListener('mousedown', start);
-    t.addEventListener('mouseup', stop);
-    t.addEventListener('mouseleave', stop);
-    /* 手机上长按会弹「选择文字 / 复制」，弹出来就把长按这件事全暴露了 */
-    t.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  }
-
-  /* 点一格 = 开，再点 = 关。五格对应五项，随时能停（用户 2026-11-10 的要求） */
-  var HOT_MAP = { '1': 'mid', '2': 'self', '3': 'lion', '4': 'nd', '5': 'must' };
-
-  /* 这条带是**看不见**的：手指稍微偏一点就落在空白上，什么都不会发生，
-     用起来像「按不到」（2026-11-10 反馈）。所以不认「点在哪个元素上」，
-     改认「点在哪一片坐标」—— 而且比那条带大得多：
-
-       ┌───────┬───────┬───────┐  ← 圆环下方那一整片，横向切三格
-       │   1   │   2   │   3   │     1 避雷区 / 2 公骰避开自己 / 3 出 11
-       └───────┴───────┴───────┘
-       ...（轮到你／等 3 家／摇我的 2 颗）...
-       ┌─────┐      ▲      ┌─────┐  ← 只落在最底下那条页脚的左右两角
-       │  4  │   重开一桌   │  5  │     4 整桌不重复 / 5 必中避己
-       └─────┘           └─────┘
-
-     上排往上一直铺到圆环下半部分（那块是纯展示，没绑定任何点击）。
-     下排**必须躲开「接手 / 等 N 家摇完」那颗大按钮**：量过坐标，那颗按钮
-     贴着底栏，占 y 705~755；原来下排按「带子下方 +69px」算，两格正好搭在
-     按钮的两个下角上 —— 总闸开着的时候点按钮，会顺手把 4 / 5 翻掉
-     （2026-11-10 自查发现）。
-
-     所以下排**不能跟着带子算**：带子会随内容上下移动，底栏那几颗按钮却一直
-     钉在屏幕底边。改成按整个屏幕的高度算 —— 屏幕下方 52~94px 那一条，
-     它上面是按钮（底边 755），下面是「玩法说明」（顶边 805），
-     中间这条正好是空的，而且换谁来摇、按钮叫什么，这条空当都不动。 */
-  function hotCellAt(x, y) {
-    if (!el.hot) return 0;
-    var r = el.hot.getBoundingClientRect();
-    if (!r.width || !r.height) return 0;
-    /* 上排：圆环下半 120px + 这条带本身，三格 */
-    if (y >= r.top - 120 && y <= r.bottom) {
-      var i = Math.floor((x - r.left) / (r.width / 3)) + 1;
-      return i < 1 ? 1 : (i > 3 ? 3 : i);
-    }
-    /* 下排：离屏幕底边 52~94px 那一条，左边归 4、右边归 5，中间留给「重开一桌」 */
-    var vh = window.innerHeight || document.documentElement.clientHeight || 0;
-    if (vh && y > vh - 94 && y <= vh - 52) {
-      var k = (x - r.left) / r.width;
-      if (k < 0.38) return 4;
-      if (k > 0.71) return 5;
-    }
-    return 0;
-  }
-
-  function onHotTap(e) {
-    if (!dbgHotOn()) return;
-    /* 面板开着的时候，它自己就压在带上：那几下点的是面板，别顺手翻两个开关 */
-    if (el.dbg && !el.dbg.hidden) return;
-    /* 手指落在真按钮 / 输入框上，那一下就是按钮的 —— 隐形格再大也不抢。
-       五格自己是 pointer-events:none，所以这一按原本就落到按钮上，
-       这里只是再兜一道：坐标算出来的格子，不许吃掉一个带字的控件。 */
-    var t = e.target;
-    if (t && t.closest && t.closest('button, a, input, select, textarea')) return;
-    var z = hotCellAt(e.clientX, e.clientY);
-    if (!z) return;
-    var k = HOT_MAP[String(z)];
-    if (k) { setDbg(k, !dbg[k]); e.preventDefault(); }
-  }
-
   /* ---------------- 连接 ---------------- */
 
   function wsUrl() {
@@ -534,8 +361,6 @@
       saveSeat();
       /* 真的坐上桌了才记「上一桌」：连都没连上就记，等于给人摆一个点进去扑空的入口 */
       saveLast();
-      /* 自己的那几项标记跟着这条连接报上去（断线重连不用重新点） */
-      sendDbg();
       return;
     }
     /* 被请出去：以前找朋友根本踢不了人，这条消息从来没到过。
@@ -570,30 +395,6 @@
       if (S.st && S.st.game && S.st.game !== 'find') {
         tip('这个房号是「潮汕 350」的房间，不是找朋友');
         return;
-      }
-      /* 换人 = 新的一把：上一把那些一次性标记在这里归零 */
-      var turnKey = (S.st.round | 0) + ':' + (S.st.shaker | 0);
-      var keyShift = !!(S.dbgKey && S.dbgKey !== turnKey);
-      if (keyShift && dbgAny(dbg)) {
-        for (var i = 0; i < DBG_ONCE.length; i++) dbg[DBG_ONCE[i]] = false;
-        saveDbg();
-      }
-      S.dbgKey = turnKey;
-      /* 换人以外的广播（别人摇骰、有人进出）不该动这几个开关，但服务端那份才是准的：
-         重开一局它清过，我这边要是还亮着，就跟着灭掉；反过来我这边亮着它那边没有
-         （刚开局、刚重连），再报一次上去。两边始终是同一份。 */
-      if (!keyShift) {
-        var sb = S.st.dbg;
-        if (sb) {
-          var diff = false;
-          for (var j = 0; j < DBG_ONCE.length; j++) {
-            var k2 = DBG_ONCE[j];
-            if (!!dbg[k2] !== !!sb[k2]) { dbg[k2] = !!sb[k2]; diff = true; }
-          }
-          if (diff) saveDbg();
-        } else if (dbgAny(dbg)) {
-          sendDbg();
-        }
       }
       var prevPhase = prev ? prev.phase : '';
       render();
@@ -742,9 +543,6 @@
 
     if (screen === 'lobby') paintLobby();
     if (screen === 'table') paintTable();
-    /* 三格能不能接手指，取决于首页那个总开关 —— 每次重画都问一句，
-       免得「在首页开了、回来还是按不动」 */
-    paintDbg();
   }
 
   function paintLobby() {
@@ -1271,8 +1069,7 @@
     document.addEventListener('mousedown', once, true);
 
     /* 卡片上那颗「同意」：发的消息跟「桌上的人」里点同一行一模一样
-       （服务端同一个人再点一次就是补一票）。pointerdown 要拦住冒泡 ——
-       页面在 document 上按坐标判调试五格，卡片正好压在那条带子上。 */
+       （服务端同一个人再点一次就是补一票）。 */
     if (el.vcOk) {
       el.vcOk.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
       el.vcOk.addEventListener('click', function (e) {
@@ -1465,19 +1262,6 @@
       if (!S.ws) connect();
     });
 
-    /* 标题与牌桌：普通元素 */
-    bindTitle();
-    /* 挂在 document 上而不是那五格上：它按坐标认位置，手指落偏一点也算。
-       总闸关着（或面板开着）时 onHotTap 第一句就 return，不抢任何点击。 */
-    document.addEventListener('click', onHotTap);
-    if (el.dbg) {
-      el.dbg.addEventListener('click', function (e) {
-        var row = e.target.closest ? e.target.closest('.dbg-row[data-k]') : null;
-        if (row) { setDbg(row.getAttribute('data-k'), !dbg[row.getAttribute('data-k')]); return; }
-        /* 点背板 = 收起（面板本身不是一扇门，不用二次确认） */
-        if (e.target === el.dbg || (e.target.closest && e.target.closest('#dbgClose'))) closeDbg();
-      });
-    }
   }
 
   /* ---------------- 入口 ---------------- */
@@ -1569,13 +1353,10 @@
       logMask: $('fnLog'), logList: $('fnLogList'), whoList: $('fnWhoList'),
       logBtn: $('fnLogBtn'), whoBtn: $('fnWhoBtn'), logX: $('fnLogX'),
       tabLog: $('fnTabLog'), tabWho: $('fnTabWho'),
-      /* 标题与牌桌：普通元素 */
-      title: $('fnTitle'), hot: $('fnHot'),
       vc: $('fnVote'), vcWho: $('fnVoteWho'), vcS: $('fnVoteS'), vcBar: $('fnVoteBar'),
       vcOk: $('fnVoteOk')
     };
     if (!el.gate) return;          // 页面上没有这一页（被裁剪过 / 旧版缓存）
-    loadDbg();
     bind();
     S.api = apiBase();
 

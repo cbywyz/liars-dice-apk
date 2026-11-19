@@ -208,7 +208,7 @@
   document.addEventListener('DOMContentLoaded', paint);
 
   /* 一次性解锁：捕获阶段，先于页面自己的点击逻辑跑。
-     用三个事件是因为 iOS 只认 touchstart，桌面调试只发 mousedown，
+     用三个事件是因为 iOS 只认 touchstart，桌面端只发 mousedown，
      键盘/遥控器还可能是 keydown。 */
   var swung = false;
   function once() {

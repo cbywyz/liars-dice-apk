@@ -215,8 +215,6 @@
       if (m.code) S.code = m.code;
       saveSeat();
       saveLast();
-      /* 重连 / 换机进房：把本机这份档位重新报到服务端，两边始终同一份 */
-      sendG9Dbg();
       return;
     }
     if (m.t === 'quitok') {
@@ -245,7 +243,6 @@
       if (m.s.game && m.s.game !== '789') { tip('这个房号不是七八九'); return; }
       var prev = S.st;
       S.st = m.s;
-      syncG9FromState(m.s.g9);
       render();
       if (m.s.phase === 'pick' && (!prev || prev.phase !== 'pick')) { buzz([16, 60, 16]); cue('lion'); }
       if (m.s.phase === 'handoff' && (!prev || prev.phase !== 'handoff')) cue('pass');
@@ -308,7 +305,6 @@
   }
 
   function paint() {
-    layoutG9Hot();
     var st = S.st;
     var my = myIdx();
     /* 顶栏房号常驻：进房那一刻就有，不用点开任何东西 */
@@ -490,160 +486,6 @@
        点继续摇 / 接手 / 跳过时由按钮处理收掉。 */
   }
   function hideFlash() { if (el.flash) el.flash.hidden = true; }
-
-  /* 本机偏好：几项在本地存着，换手机不同步。 */
-  var G9DBG_KEY = '';
-  /* 六格能绑的功能清单；short 显示在桌面格子和面板 chip 上。空串 = 这格不绑、点了没反应 */
-  var G9_ACTS = [
-    { id: '7', short: '7' },
-    { id: '8', short: '8' },
-    { id: '9', short: '9' },
-    { id: 'avoid', short: '避' },
-    { id: 'pair', short: '对' },
-    { id: '', short: '—' }
-  ];
-  var G9_Z_DEF = ['7', '8', '9', 'avoid', 'pair', ''];
-  var g9 = { hot: false, z: G9_Z_DEF.slice(), once: null };
-
-  function g9Arm() { return false; }
-  function g9HotOn() { return g9Arm() && g9.hot; }
-  function g9Act(id) {
-    for (var i = 0; i < G9_ACTS.length; i++) if (G9_ACTS[i].id === id) return G9_ACTS[i];
-    return null;
-  }
-  function g9Short(id) { var a = g9Act(id); return a ? a.short : '—'; }
-
-  function loadG9Dbg() {}
-  function saveG9Dbg() {}
-
-  /* 总闸单独发：绑定只存本机，不上报。断线重连后把总闸重新报一次。
-     关总闸也要发 on:false —— 服务端收到会把房间上挂着的一次性档位一起清掉。 */
-  function sendG9Dbg() {
-    if (!S.ws || S.ws.readyState !== 1) return;
-    try { S.ws.send(JSON.stringify({ t: 'g9dbg', on: g9Arm() && g9.hot })); } catch (e) {}
-  }
-
-  /* 房间广播回来：整房同一份。once 有值 = 那一档正 arm 着，桌面对应格子高亮；
-     下一次真摇服务端自己清掉，state 回来这里就跟着灭。 */
-  function syncG9FromState(g) {
-    if (!g) return;
-    var on = !!g.on, once = g.once || null;
-    var diff = (g9.hot !== on) || (g9.once !== once);
-    g9.hot = on;
-    g9.once = once;
-    if (diff) { saveG9Dbg(); paintG9Dbg(); }
-  }
-
-  /* 六格热区贴到提示行上方：它 absolute 脱离文档流，自己不占布局，
-     所以开总闸前后桌子、提示行、按钮的坐标一模一样（用户 2026-11-19 实机要求）。
-     贴着 hint 算，提示文字换行 / 按钮几态变化都不会压到真按钮上。 */
-  function layoutG9Hot() {
-    if (!el.hot || !el.hint || !el.table || el.table.hidden) return;
-    var h = el.hot.offsetHeight;
-    if (!h) return;
-    var top = el.hint.offsetTop - h - 8;
-    el.hot.style.top = (top < 0 ? 0 : top) + 'px';
-  }
-
-  function paintG9Dbg() {
-    if (el.dbg) {
-      var hotRow = el.dbg.querySelector('.dbg-row[data-k="hot"]');
-      if (hotRow) hotRow.classList.toggle('is-on', g9Arm() && g9.hot);
-      /* 六行绑定：每行六颗 chip，点哪颗就把这一格改成哪个功能 */
-      for (var i = 0; i < 6; i++) {
-        var box = el.dbg.querySelector('[data-cfg="' + i + '"]');
-        if (!box) continue;
-        if (!box.getAttribute('data-built')) {
-          var h = '';
-          for (var k = 0; k < G9_ACTS.length; k++) {
-            h += '<div class="g9chip" data-a="' + G9_ACTS[k].id + '">' + G9_ACTS[k].short + '</div>';
-          }
-          box.innerHTML = h;
-          box.setAttribute('data-built', '1');
-        }
-        var chips = box.querySelectorAll('.g9chip');
-        for (var j = 0; j < chips.length; j++) {
-          chips[j].classList.toggle('on', chips[j].getAttribute('data-a') === g9.z[i]);
-        }
-      }
-      if (el.dbgSub) {
-        el.dbgSub.textContent = '1 ' + g9Short(g9.z[0]) + ' · 2 ' + g9Short(g9.z[1]) +
-          ' · 3 ' + g9Short(g9.z[2]) + ' · 4 ' + g9Short(g9.z[3]) +
-          ' · 5 ' + g9Short(g9.z[4]) + ' · 6 ' + g9Short(g9.z[5]);
-      }
-    }
-    /* 六格是**看不见**的热区：开关只切能不能接手指（.on），绝不再切 hidden /
-       display —— 那样会把桌面挤动（用户 2026-11-19 实机反馈）。绑定文字只留在面板
-       chip 同 dbgSub 上，桌面格子不写任何字、不画边框背景、也不做点亮反馈。 */
-    if (el.hot) el.hot.classList.toggle('on', g9HotOn());
-  }
-
-  /* 点面板总闸：关掉连房间上的一次性档位一起清 */
-  function setG9Hot() {
-    g9.hot = !g9.hot;
-    if (!g9.hot) g9.once = null;
-    saveG9Dbg();
-    paintG9Dbg();
-    buzz(g9.hot ? [14, 75, 14] : 45);
-    sendG9Dbg();
-  }
-
-  /* 点面板 chip：只改本机这一格的绑定，不 arm、不发服务端 */
-  function setG9Bind(slot, id) {
-    if (!g9Act(id)) return;
-    g9.z[slot] = id;
-    saveG9Dbg();
-    paintG9Dbg();
-    buzz(18);
-  }
-
-  /* 点桌面六格：纯净版没有调试档位，这里是死代码 */
-  function armG9(slot) {
-    if (!g9Arm()) return;
-    var id = g9.z[slot];
-    if (!id) return;
-    if (!g9.hot) {
-      g9.hot = true;
-      saveG9Dbg();
-      sendG9Dbg();
-    }
-    g9.once = id;
-    paintG9Dbg();
-    buzz([14, 75, 14]);
-    /* 纯净版不向房间发任何调试档位 */
-  }
-  function openG9Dbg() {
-    if (!el.dbg) return;
-    buzz(16);
-    paintG9Dbg();
-    el.dbg.hidden = false;
-    var sheet = el.dbg.querySelector('.dbg-sheet');
-    if (sheet) {
-      sheet.style.pointerEvents = 'none';
-      setTimeout(function () { sheet.style.pointerEvents = ''; }, 400);
-    }
-  }
-  function closeG9Dbg() { if (el.dbg) el.dbg.hidden = true; }
-
-  function bindG9Title() {
-    var t = el.title;
-    if (!t) return;
-    var timer = 0;
-    function start() {
-      if (!g9Arm()) return;
-      clearTimeout(timer);
-      timer = setTimeout(function () { timer = 0; openG9Dbg(); }, 1200);
-    }
-    function stop() { if (timer) { clearTimeout(timer); timer = 0; } }
-    t.addEventListener('touchstart', start, { passive: true });
-    t.addEventListener('touchend', stop);
-    t.addEventListener('touchcancel', stop);
-    t.addEventListener('mousedown', start);
-    t.addEventListener('mouseup', stop);
-    t.addEventListener('mouseleave', stop);
-    /* 手机上长按会弹「选择文字 / 复制」，弹出来就把长按这件事全暴露了 */
-    t.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  }
 
   /* ---------------- 请人出去：页内确认面板（不弹系统 confirm） ----------------
      跟 350 的 ngKick 一个口径：房主一点就走，其他人发起后要三分之二同意。
@@ -844,7 +686,6 @@
     closeCapDrop();
     closeKick();
     closeRename();
-    closeG9Dbg();
     hideFlash();
   }
   function quit() {
@@ -858,8 +699,6 @@
     document.addEventListener('touchstart', once, true);
     document.addEventListener('mousedown', once, true);
     document.addEventListener('keydown', once, true);
-    /* 横竖屏切换后把隐形热区重贴到提示行上方（它不占布局，只跟着 hint 走） */
-    window.addEventListener('resize', layoutG9Hot);
 
     el.btns.addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('[data-act]') : null;
@@ -908,22 +747,6 @@
       if (e.target === el.kick) closeKick();
     });
 
-    if (el.dbg) el.dbg.addEventListener('click', function (e) {
-      /* chip 优先：点在绑定行里就改那一格的绑定，不改总闸、不 arm */
-      var chip = e.target.closest ? e.target.closest('.g9chip[data-a]') : null;
-      if (chip && g9Arm()) {
-        var box = chip.parentNode;
-        setG9Bind(Number(box.getAttribute('data-cfg')), chip.getAttribute('data-a'));
-        return;
-      }
-      var row = e.target.closest ? e.target.closest('.dbg-row[data-k]') : null;
-      if (row && g9Arm()) {
-        if (row.getAttribute('data-k') === 'hot') setG9Hot();
-        return;
-      }
-      if (e.target === el.dbg) closeG9Dbg();
-    });
-    if (el.dbgX) el.dbgX.addEventListener('click', closeG9Dbg);
     if (el.renameOk) el.renameOk.addEventListener('click', renameOk);
     if (el.renameNo) el.renameNo.addEventListener('click', closeRename);
     if (el.rename) el.rename.addEventListener('click', function (e) {
@@ -933,8 +756,6 @@
       if (e.key === 'Enter' || e.keyCode === 13) renameOk();
       else if (e.key === 'Escape' || e.keyCode === 27) closeRename();
     });
-    bindG9Title();
-
     if (el.capTop) el.capTop.addEventListener('click', function () {
       if (el.drop.hidden) openCapDrop(); else closeCapDrop();
     });
@@ -1005,7 +826,6 @@
     };
     if (!el.gate) return;      // 页面上没有这一页，不启动
     S.api = apiBase();
-    loadG9Dbg();
     bind();
     setScreen('gate');
     paintGate();

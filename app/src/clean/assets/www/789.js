@@ -662,12 +662,5 @@
     boot();
   }
 
-  /* 给单测和联机调试用的纯函数出口 */
-  window.LD789Rules = {
-    dsum: dsum, isDouble: isDouble, isEleven: isEleven, kindOf: kindOf,
-    shouldContinue: shouldContinue, halfUnits: halfUnits, settle: settle, cupText: cupText,
-    HALF: HALF, MIN_P: MIN_P, MAX_P: MAX_P
-  };
-
   window.LD789 = { enter: enter, leave: leave };
 })();

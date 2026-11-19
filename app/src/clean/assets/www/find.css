@@ -311,7 +311,7 @@
 
 /* ---------------- 座位与提示行之间的留白 ----------------
    一块 13vw 的空档，不接手指：座位点起来不容易连带碰到下面的按钮。 */
-.page-findnet .fn-hot {
+.page-findnet .fn-gap {
   position: relative;
   flex: 0 0 auto;
   display: block;
@@ -320,21 +320,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 总闸一开，这一片就接手指。 */
-.page-findnet .fn-hot.on { pointer-events: auto; }
-
-/* 五格**不画任何东西、也不接手指**：位置只写在 findnet.js 的 hotCellAt 里，
-   靠 document 上的坐标判定。这里留五个 0×0 的 `<i>` 只是当锚点用
-   （数得清是几格、以后想调也有地方挂），免得再出现「CSS 一套坐标、
-   JS 一套坐标，改了一边忘了另一边」——2026-11-10 就是因为这个，
-   下排两格压到「接手」按钮上还不知道。 */
-.page-findnet .fn-hot > i {
-  position: absolute;
-  display: block;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
 
 /* 标题不给选中：长按本来就没有任何功能，选中文字只是碍事 */
 .page-findnet #fnTitle {

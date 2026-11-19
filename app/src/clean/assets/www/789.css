@@ -413,9 +413,6 @@
 #gnDrop .drop-item.drop-wide { grid-column: 1 / -1; }
 .page-789net .gn-cap-top.is-voting { color: #b8382e; }
 
-/* 调试面板第六行是占位，点不动，也别看着像能点 */
-.dbg-row[disabled] { opacity: 0.38; }
-
 /* ---------- ⑦ 改名：跟踢人一个页内面板，不弹浏览器 prompt ---------- */
 .gn-rename {
   position: fixed;
