@@ -1,0 +1,559 @@
+/* ==========================================================================
+   七八九（QIBAJIU） —— 第四个玩法，独立一页。
+   · 2 颗明骰全场共用，摇完立刻开
+   · 中间是「公杯」：7 加 1 杯、8 喝一半、9 喝光重倒
+   · 座位只标「喝了几杯」，不摆骰子（骰子在中间那一对）
+   · 方向箭头：对子掉头后一眼看出往哪边轮
+
+   圆环 / 骰子 / 提示 / 按钮全套复用 find.css 的 .fd-*，这里只补差异。
+   尺寸一律 vw（750 宽 → 1vw = 7.5px），跟其它玩法同一套。
+   ========================================================================== */
+
+/* .page 是 display:flex，会盖过 [hidden]，单独声明 */
+.page-789[hidden] { display: none; }
+
+/* ---------------- 顶部一行复用 .fd-top，方向单独给色 ---------------- */
+
+.g-dir {
+  font-size: 2.6667vw;
+  font-weight: 600;
+  letter-spacing: 0.2vw;
+  color: var(--gold-deep, #8a5f18);
+}
+.g-dir.back { color: #8a4a2c; }
+
+/* ---------------- 中间公杯（在 .fd-ring 正中，盖掉 .fd-core 的内容） ---------------- */
+
+#gRing, .page-789 .fd-ring { position: relative; }
+#gRing { width: 92vw; height: 0; padding-top: 92vw; box-sizing: content-box; }
+#gRing::before {
+  content: '';
+  position: absolute;
+  left: 12%; top: 12%; width: 76%; height: 76%;
+  border-radius: 50%;
+  border: 0.2667vw dashed rgba(35, 38, 45, 0.11);
+  pointer-events: none;
+}
+
+#gCore {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 34vw; height: 34vw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 30%, #fffdf8 0%, #f6f1e6 55%, #ece5d6 100%);
+  box-shadow: inset 0 0 0 0.2667vw rgba(35, 38, 45, 0.05),
+              0 1.6vw 4vw rgba(35, 38, 45, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1vw;
+  box-sizing: border-box;
+}
+
+/* 公杯满（到封顶）时整圈泛红，提示不能再加了 */
+#gCore.full { box-shadow: inset 0 0 0 0.5333vw rgba(192, 57, 43, 0.16), 0 1.6vw 4vw rgba(35, 38, 45, 0.1); }
+#gCore.low  { box-shadow: inset 0 0 0 0.2667vw rgba(35, 38, 45, 0.05), 0 1.6vw 4vw rgba(35, 38, 45, 0.1); }
+
+/* 公杯存量那一行（大字，一眼看清还有多少酒） */
+#gPot {
+  font-size: 4.2667vw;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--gold-deep, #8a5f18);
+  letter-spacing: 0.1333vw;
+}
+#gCore.low #gPot { color: rgba(35, 38, 45, 0.4); }
+#gCore.full #gPot { color: #b03a2b; }
+
+/* 上限可点：点一下弹数字选，随时可调（含往上加） */
+#gCapBtn {
+  font-size: 2.1333vw;
+  line-height: 1.3;
+  padding: 0.4vw 1.8667vw;
+  border-radius: 999px;
+  background: rgba(35, 38, 45, 0.06);
+  color: rgba(35, 38, 45, 0.55);
+  white-space: nowrap;
+}
+#gCapBtn.on { background: var(--gold-2, #b5893f); color: #fff; }
+
+.page-789 .fd-core-tag {
+  font-size: 2.1333vw;
+  color: rgba(35, 38, 45, 0.4);
+}
+
+/* ---------------- 座位：七八九不摆骰子，杯子标记放大 ---------------- */
+
+/* 喝了几杯：七八九的杯数是这一晚的战绩，做得比找朋友显眼 */
+.page-789 .fd-cups {
+  font-size: 2.9333vw;
+  min-height: 3vw;
+}
+.page-789 .fd-seat.now .fd-cups.has { color: #f0d79a; }
+
+/* 两个 1 指人后，被指的那位给个金圈（不叠加在正在摇的人身上） */
+.page-789 .fd-seat.drink {
+  box-shadow: 0 0 0 0.5333vw var(--gold-2, #b5893f), 0 1.3333vw 3.2vw rgba(181, 137, 63, 0.3);
+  animation: fdShake 0.42s ease;
+}
+.page-789 .fd-seat.drink .fd-cups { color: var(--gold-deep, #8a5f18); }
+
+/* 指人阶段整圈呼吸，跟找朋友 11 正豹一个提示法 */
+.page-789 .fd-ring.pick .fd-seat { animation: fdPulse 1.15s ease-in-out infinite; }
+.page-789 .fd-ring.pick .fd-seat.drink { animation: none; }
+
+/* ---------------- 数字下拉：人数和公杯上限共用一套 .drop ---------------- */
+
+/* 上限选项排成一行 12 个，宽度给足，别折行 */
+#gDrop { min-width: 62vw; }
+#gDrop .drop-item:nth-child(-n+12) { min-width: 8vw; }
+
+/* 圆环是 92vw 的正方形（padding-top 撑的），矮屏 / 横屏下会溢出压住底栏，
+   出现「按钮看得见却点不到」。把提示和按钮抬到圆环上面。 */
+.page-789 .fd-hint,
+.page-789 .fd-btns { position: relative; z-index: 2; }
+
+/* ================= 联机版（page789Net）=================
+   进门页 / 大厅 / 顶栏跟找朋友、吹牛联机同一套；圆环 / 骰子 / 座位
+   复用上面 .fd-* 那套。789 没有独立「菜单」层：改名双击座位、退出走
+   全站 quitMask、重开和上限都在顶栏。 */
+
+.page-789net[hidden] { display: none; }
+
+/* ---------- ① 进门页：复用 home / solo-body / home-head / fn-* ---------- */
+/* .home 带 display:flex，[hidden] 会被压掉，补一条兜底（跟另外两家一样） */
+.page-789net .home[hidden],
+.page-789net .gn-table[hidden] { display: none; }
+.page-789net .home { height: 100%; }
+
+/* 进门页标题：跟吹牛/找朋友联机一样走 .page-solo 的小一号字号，
+   否则「七八九 · 联机」在基础 11.2vw 下会折成两行（另两家是 .page-solo）。 */
+.page-789net .home-t1 { font-size: 8.8vw; letter-spacing: 1.6vw; text-indent: 1.6vw; }
+.page-789net .home-head { padding-top: 0; }
+/* 返回箭头回左上角：789net 的 page 没带 .page-solo，通用 .nav-back 的
+   top:50% 会把箭头丢在屏幕左侧正中。这里补齐 .page-solo 的口径；
+   牌桌那个 #gnBack2 在 .nav 里（.nav 自带 relative），不受这条影响。 */
+.page-789net .home .nav-back { top: 3.2vw; margin-top: 0; }
+
+.page-789net .gn-who {
+  margin: 5.3333vw 6vw 0;
+  font-size: 2.6667vw;
+  letter-spacing: 0.2vw;
+  text-align: center;
+  color: rgba(35, 38, 45, 0.4);
+}
+.page-789net .gn-who b { color: var(--ink); font-weight: 600; }
+.page-789net .fn-box .btn { width: 100%; }
+.page-789net .fn-tip { min-height: 5.3333vw; }
+.page-789net .fn-tip.show { opacity: 1; }
+.page-789net .fn-resume[hidden] { display: none; }
+
+/* ---------- ② 牌桌顶栏：房号常驻 / 重开 / 上限 / 退出 ----------
+   789 顶栏比 350 多一颗「上限」（共 4 颗），nav-right 是贴右绝对定位，
+   多一颗就往左长。不收紧的话「重开 / 上限」会压住居中的「七八九」标题
+   （2026-11-19 实机截图）。只收这一页，别动另外三家。 */
+.gn-table { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.page-789net .nav-right { gap: 1vw; right: 2.4vw; }
+.page-789net .nav-right .redo-btn {
+  padding: 0 1.6vw;
+  font-size: 2.5vw;
+  letter-spacing: 0;
+}
+.page-789net .nav-right .nav-quit {
+  padding: 0 1.6vw;
+  font-size: 2.5vw;
+  letter-spacing: 0;
+}
+/* 标题收一点并左挪，给右侧那 4 颗让出地方；副标题更淡，不抢戏 */
+.page-789net .nav-title { padding: 0.4vw 2vw; transform: translateX(-3vw); }
+.page-789net .nav-title .t1 { font-size: 3.4vw; letter-spacing: 0.4vw; text-indent: 0.4vw; }
+.page-789net .nav-title .t2 { font-size: 1.6vw; }
+.gn-cap-top {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.gn-cap-top.is-custom { color: var(--gold-deep, #8a5f18); }
+/* 桌心常驻「封顶 N 杯」：顶栏那颗点开才能改，这里给出当前口径。
+   有待生效的改动就挂个 *，跟顶栏同一口径，别让人以为已经生效了。 */
+.page-789net .gn-cap-desk {
+  font-size: 2.1vw;
+  line-height: 1.2;
+  color: rgba(35, 38, 45, 0.42);
+  white-space: nowrap;
+}
+.page-789net .gn-cap-desk.is-pend { color: var(--gold-deep, #8a5f18); }
+
+/* ---------- ③ 未开局：圆心摆大房号（跟 350 的 ngLobby 同一位置） ---------- */
+/* 只在本玩法给 fd-stage 定位基准，别动全局那条（别的玩法共用 fd-stage） */
+.page-789net .fd-stage { position: relative; }
+/* 圆环视觉重心：竖屏上 flex:1 的 stage 会把圆环压在偏下的位置，
+   看着像「桌子沉底」。用一点 padding-bottom 把居中项轻轻往上顶，
+   保持上下留白接近、仍在视觉中心（别给 10vh 那么多，会顶太高、底下空一大片）。 */
+.page-789net .fd-stage { padding-bottom: 4vh; }
+/* 开局前房号卡：跟 7/8/9 结果卡同一块位置、同一个量级 —— 摆在信息行下面，
+   不压桌心的两颗明骰（用户 2026-11-19：原来那张桌心大卡把整张桌子都挡了）。 */
+.gn-lobby {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 23vw;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  pointer-events: none;
+}
+.gn-lobby[hidden] { display: none; }
+.gn-lobby-card {
+  min-width: 52vw;
+  max-width: 76vw;
+  padding: 2.4vw 5vw 2.8vw;
+  border-radius: 3.6vw;
+  background: rgba(35, 38, 45, 0.94);
+  box-shadow: 0 1.4vw 5vw rgba(35, 38, 45, 0.28);
+  color: #fffdf8;
+  text-align: center;
+  animation: gnFlashIn 0.22s ease-out;
+}
+.gn-lobby-k {
+  display: block;
+  font-size: 2.6vw;
+  letter-spacing: 0.8vw;
+  color: rgba(255, 253, 248, 0.6);
+}
+.gn-lobby-code {
+  display: block;
+  margin-top: 0.6vw;
+  font-size: 9vw;
+  font-weight: 700;
+  letter-spacing: 2vw;
+  text-indent: 2vw;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: #f2c76e;
+}
+.gn-lobby-sub {
+  display: block;
+  margin-top: 1vw;
+  font-size: 2.6vw;
+  color: rgba(255, 253, 248, 0.6);
+}
+
+.gn-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2.4vw 6vw 0;
+  font-size: 2.6667vw;
+  color: rgba(35, 38, 45, 0.48);
+}
+
+/* 本局出手序号角标：buildSeats() 用 left/top 百分比把座位摆成一圈，
+   这靠 find.css 的 .fd-seat { position:absolute; translate(-50%,-50%) }。
+   角标就挂在座位上（座位已是定位祖先），别在这里改成 relative ——
+   一改 left/top 就从「围一圈」变成「相对自身偏移」，两张卡会叠在桌心
+   （2026-11-19 实机截图）。 */
+.fd-ord {
+  position: absolute;
+  top: 0.6vw;
+  left: 0.6vw;
+  min-width: 3vw;
+  height: 3vw;
+  padding: 0 0.3vw;
+  box-sizing: border-box;
+  border-radius: 1.6vw;
+  background: rgba(35, 38, 45, 0.09);
+  color: #4a4f59;
+  font-size: max(10px, 2vw);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 3vw;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.fd-ord[hidden] { display: none; }
+.page-789net .fd-seat.now .fd-ord { background: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.72); }
+.page-789net .fd-seat.me .fd-ord { background: rgba(194, 148, 63, 0.2); color: var(--gold-deep, #8a5f18); }
+.page-789net .fd-seat.off .fd-ord { opacity: 0.6; }
+
+/* 联机座位：名字可点（双击改名 / 点别人请出去），杯数比单机更显眼 */
+.page-789net .fd-seat .fd-n {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 2.8vw;
+  cursor: pointer;
+  padding-left: 3.4vw;   /* 给左上角序号角标让位，长名字的省略号不被压住 */
+}
+.page-789net .fd-seat.rest { opacity: 0.45; }
+.page-789net .fd-seat.off { opacity: 0.42; }
+.page-789net .fd-seat.me .fd-n { color: var(--gold-deep, #8a5f18); font-weight: 700; }
+
+/* ---------- ④ 7/8/9 结果卡：摇出就弹、玩家点「继续摇」才收 ----------
+   不自动消失（用户 2026-11-19：消失太快，没点继续就一直显示），
+   摆在牌桌顶部信息行下方那块空白里，不压住桌心的两颗明骰。 */
+.gn-flash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* 落在 .gn-table 里：顶栏 52 + 信息行 33 下面一点，桌心圆环上方 */
+  top: 23vw;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  pointer-events: none;
+}
+.gn-flash[hidden] { display: none; }
+.gn-flash-card {
+  min-width: 52vw;
+  max-width: 76vw;
+  padding: 2.4vw 5vw 2.8vw;
+  border-radius: 3.6vw;
+  background: rgba(35, 38, 45, 0.94);
+  box-shadow: 0 1.4vw 5vw rgba(35, 38, 45, 0.28);
+  color: #fffdf8;
+  text-align: center;
+  animation: gnFlashIn 0.22s ease-out;
+}
+@keyframes gnFlashIn {
+  from { opacity: 0; transform: translateY(-2vw) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.gn-flash-n {
+  display: inline-block;
+  font-size: 7.2vw;
+  font-weight: 700;
+  line-height: 1;
+  color: #f2c76e;
+}
+.gn-flash-k {
+  display: inline-block;
+  margin-left: 2vw;
+  font-size: 3.8vw;
+  font-weight: 700;
+  letter-spacing: 0.4vw;
+}
+.gn-flash-s {
+  display: block;
+  margin-top: 0.8vw;
+  font-size: 2.6vw;
+  color: rgba(255, 253, 248, 0.6);
+}
+
+/* ---------- ⑤ 请人出去：页内面板，替代浏览器自带 confirm ---------- */
+.gn-kick {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12vw;
+  background: rgba(16, 18, 22, 0.86);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: ruleFade 0.18s ease both;
+}
+.gn-kick[hidden] { display: none; }
+.gn-kick-box {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 7.4667vw 5.8667vw 5.3333vw;
+  border-radius: 6.4vw;
+  background: #fbf8f3;
+  box-shadow: 0 4vw 11vw rgba(20, 22, 26, 0.3);
+  animation: kickPop 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.gn-kick-name {
+  max-width: 100%;
+  font-size: 5.3333vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+  line-height: 1.34;
+  color: var(--ink);
+  text-align: center;
+  word-break: break-all;
+}
+.gn-kick-sub {
+  margin-top: 1.8667vw;
+  font-size: 2.9333vw;
+  line-height: 1.6;
+  letter-spacing: 0.2vw;
+  color: rgba(35, 38, 45, 0.5);
+  text-align: center;
+}
+.gn-kick-ok, .gn-kick-no { width: 100%; flex: 0 0 auto; margin: 0; }
+.gn-kick-ok { margin-top: 5.3333vw; }
+.gn-kick-no { margin-top: 2.1333vw; }
+/* 真会把人送走时才红：房主直接请、或这一票凑够 —— 选择器写到 .btn 这层才压得住 */
+.gn-kick-box .btn.gn-kick-ok.danger {
+  background: linear-gradient(180deg, #d4554a, #b8382e);
+  color: #fdf3f1;
+  box-shadow: 0 1.6vw 3.2vw rgba(184, 56, 46, 0.24);
+}
+
+/* 房主直接改封顶、别人要 2/3 同意，且都要下次开局才生效（2026-11-19） */
+#gnDrop .drop-tip {
+  grid-column: 1 / -1;
+  padding: 0.8vw 0 1.6vw;
+  font-size: 2.8vw;
+  line-height: 1.4;
+  color: rgba(35, 38, 45, 0.58);
+  text-align: center;
+}
+#gnDrop .drop-item.drop-wide { grid-column: 1 / -1; }
+.page-789net .gn-cap-top.is-voting { color: #b8382e; }
+
+/* 调试面板第六行是占位，点不动，也别看着像能点 */
+.dbg-row[disabled] { opacity: 0.38; }
+
+/* ---------- ⑥ 隐藏六格快捷键：面板绑定 chip ----------
+   位置是用户 2026-11-19 截图划定的：上排 1/2/3、下排 4/5/6。
+   默认 hidden（不占空间、不接手指），面板「总」行开了才露出来。
+   六格显示的是这一格绑的功能（7/8/9/避/对/—），绑定在面板里用 chip 选。
+   点格子 = arm 一次性档位，全房下一次真摇按它出、用掉自动清（同 350 给1给5）。 */
+.gn-hot {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 1.6vw;
+  width: 100%;
+  height: 27vw;
+  padding: 0 1.6vw;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+.gn-hot[hidden] { display: none; }
+.gn-hot > i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 0.32vw solid rgba(194, 148, 63, 0.46);
+  border-radius: 2.4vw;
+  background: rgba(255, 253, 248, 0.72);
+  font-style: normal;
+  font-size: 4vw;
+  font-weight: 700;
+  color: var(--gold-deep, #8a5f18);
+  transition: background 0.12s;
+}
+/* 没绑功能的格子：淡掉、点了只提示去面板里设 */
+.gn-hot > i.is-idle { opacity: 0.32; color: rgba(35, 38, 45, 0.4); }
+/* 已 arm（这一档正等着下一次真摇吃）：描金加亮，跟刚点过区分开 */
+.gn-hot > i:active,
+.gn-hot > i.is-on {
+  background: rgba(194, 148, 63, 0.26);
+  box-shadow: inset 0 0 0 0.32vw var(--gold-2, #b5893f);
+}
+
+/* 面板里的六行绑定：一行一个格子，六个 chip 点哪个就绑哪个功能 */
+.dbg-cfgrow {
+  display: flex;
+  align-items: center;
+  gap: 1.4vw;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1.6vw 2.6667vw;
+  margin: 0 0 1.2vw;
+  border-radius: 3.2vw;
+  background: rgba(35, 38, 45, 0.035);
+}
+.dbg-cfgrow .dbg-n {
+  flex: 0 0 4.8vw;
+  width: 4.8vw;
+  font-size: 3.2vw;
+  font-weight: 600;
+  color: var(--gold-deep, #8a5f18);
+  text-align: center;
+}
+.dbg-cfgrow .dbg-l {
+  flex: 0 0 3.2vw;
+  font-size: 2.4vw;
+  color: rgba(35, 38, 45, 0.36);
+}
+.dbg-cfg {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 0.8vw;
+}
+.g9chip {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 1.4vw 0;
+  border-radius: 1.6vw;
+  background: rgba(35, 38, 45, 0.05);
+  color: rgba(35, 38, 45, 0.48);
+  font-size: 2.8vw;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+}
+.g9chip.on { background: var(--gold-2, #b5893f); color: #fff; }
+
+/* ---------- ⑦ 改名：跟踢人一个页内面板，不弹浏览器 prompt ---------- */
+.gn-rename {
+  position: fixed;
+  inset: 0;
+  z-index: 81;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12vw;
+  background: rgba(16, 18, 22, 0.86);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  animation: ruleFade 0.18s ease both;
+}
+.gn-rename[hidden] { display: none; }
+.gn-rename-box {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 7.4667vw 5.8667vw 5.3333vw;
+  border-radius: 6.4vw;
+  background: #fbf8f3;
+  box-shadow: 0 4vw 11vw rgba(20, 22, 26, 0.3);
+  animation: kickPop 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.gn-rename-t {
+  font-size: 5.3333vw;
+  font-weight: 600;
+  letter-spacing: 0.4vw;
+  color: var(--ink);
+}
+.gn-rename-sub {
+  margin-top: 1.2vw;
+  font-size: 2.9333vw;
+  line-height: 1.5;
+  color: rgba(35, 38, 45, 0.5);
+  text-align: center;
+}
+.gn-rename-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 4.2667vw;
+  padding: 3.2vw 4vw;
+  border: 0.32vw solid rgba(35, 38, 45, 0.14);
+  border-radius: 2.4vw;
+  background: #fff;
+  color: var(--ink);
+  font-size: 4.2667vw;
+  text-align: center;
+  outline: none;
+}
+.gn-rename-input:focus { border-color: var(--gold-deep, #8a5f18); }
+.gn-rename-ok { margin-top: 5.3333vw; }
+.gn-rename-no { margin-top: 2.1333vw; }

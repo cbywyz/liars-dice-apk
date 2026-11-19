@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="f350.css">
 <link rel="stylesheet" href="net.css">
 <link rel="stylesheet" href="find.css">
+<link rel="stylesheet" href="789.css">
 <link rel="stylesheet" href="findnet.css">
 <link rel="stylesheet" href="liarnet.css">
 <link rel="stylesheet" href="board.css">
@@ -82,7 +83,7 @@
     </button>
 
     <div class="home-foot">
-      <span class="home-ver" id="homeVer">v1.24.53 · 仅供朋友聚会娱乐</span>
+      <span class="home-ver" id="homeVer">v1.24.62 · 仅供朋友聚会娱乐</span>
       <button class="home-legal" id="termsBtn">免责声明</button>
     </div>
   </div>
@@ -152,10 +153,25 @@
         </span>
         <span class="pc-sub">明骰 · 每人 2 颗，中间摇出谁就谁喝</span>
       </button>
+
+      <button class="play-card" id="play789" data-play="789">
+        <span class="pc-top">
+          <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 18.4h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M7 18.4V8.8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v9.6"
+                  fill="none" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M7 12.4h10" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <circle cx="12" cy="5.2" r="1.2" fill="currentColor"/>
+          </svg>
+          <span class="pc-title">七八九</span>
+          <span class="pc-badge" id="badge789" hidden>上次玩的</span>
+        </span>
+        <span class="pc-sub">2 颗骰 1 个公杯 · 7 加、8 喝一半、9 喝光</span>
+      </button>
       </div>
     </div>
     <div class="foot solo-foot">
-      <span class="page-ver">v1.24.53</span>
+      <span class="page-ver">v1.24.62</span>
     </div>
   </div>
 </div>
@@ -237,6 +253,19 @@
             <span class="pc-title">潮汕 找朋友</span>
           </span>
           <span class="pc-sub">每人 2 颗明骰 · 摇到谁谁喝 · 2~12 人</span>
+        </button>
+
+        <button class="play-card" id="playNet789">
+          <span class="pc-top">
+            <svg class="pc-ic" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="8" cy="9" r="3.1" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <circle cx="16" cy="9" r="3.1" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M6 15.4h12a1.2 1.2 0 0 1 1.2 1.2v2.2a1.2 1.2 0 0 1-1.2 1.2H6a1.2 1.2 0 0 1-1.2-1.2v-2.2A1.2 1.2 0 0 1 6 15.4Z"
+                    fill="none" stroke="currentColor" stroke-width="1.6"/>
+            </svg>
+            <span class="pc-title">七八九</span>
+          </span>
+          <span class="pc-sub">2 颗明骰 · 公杯 7/8/9 · 2~12 人</span>
         </button>
 
       </div>
@@ -322,7 +351,7 @@
       <div class="fn-note">一人一台手机，各看各的屏<br>房号念一声，人齐就开局</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.53</span>
+        <span class="page-ver">v1.24.62</span>
       </div>
     </div>
   </div>
@@ -364,7 +393,7 @@
         私密操作（摇骰、看自己的牌）还在各自手机上</div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.53</span>
+        <span class="page-ver">v1.24.62</span>
       </div>
     </div>
   </div>
@@ -497,7 +526,7 @@
   </div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.53</span>
+    <span class="page-ver">v1.24.62</span>
     <!-- 本局记录：以前只有一句 1.5 秒的吐司，低头看一眼手机，刚才那杯怎么来的就没了。
          服务端一直记着（state.log），这里只是把它摊开。 -->
     <button class="mode-link" id="ngLogBtn">记录</button>
@@ -591,7 +620,7 @@
     <div class="hint" id="hint">点「摇一摇」开始这一局</div>
     <div class="btn-row" id="btnRow"></div>
     <div class="foot">
-      <span class="page-ver">v1.24.53</span>
+      <span class="page-ver">v1.24.62</span>
       <button class="mode-link" id="ruleBtn">玩法说明</button>
     </div>
   </div>
@@ -663,7 +692,7 @@
   <div class="f3-btns" id="f3Btns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.53</span>
+    <span class="page-ver">v1.24.62</span>
     <button class="mode-link" id="ruleBtn2">玩法说明</button>
   </div>
 </div>
@@ -720,9 +749,209 @@
   <div class="fd-btns" id="fdBtns"></div>
 
   <div class="foot">
-    <span class="page-ver">v1.24.53</span>
+    <span class="page-ver">v1.24.62</span>
     <button class="mode-link" id="ruleBtn3">玩法说明</button>
   </div>
+</div>
+
+<!-- ==================== 七八九（2 颗骰 + 1 个公杯，第四个玩法） ====================
+     圆环 / 骰子 / 提示 / 按钮全套复用 find.css 的 .fd-*；
+     座位只标「喝了几杯」，骰子在中间那一对。没有封顶局数，
+     也就没有结算榜 —— 一直玩下去，杯数实时挂在座位上。 -->
+<div class="page page-find page-789" id="page789" hidden>
+
+  <div class="nav">
+    <button class="nav-back" id="toSolo4" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+    <div class="sound-btn" id="gSound" role="button" aria-label="音效">
+      <span class="sound-ic" id="gSoundIc">🔊</span>
+    </div>
+    <div class="nav-title">
+      <span class="t1">七八九</span>
+      <span class="t2">QI BA JIU</span>
+    </div>
+    <div class="nav-right">
+      <button class="redo-btn" id="redo789" type="button">重开</button>
+      <div class="count-btn" id="gCountBtn">
+        <span id="gCountTxt">6 人</span><i class="count-caret"></i>
+      </div>
+    </div>
+    <div class="drop drop-grid" id="gDrop" hidden></div>
+    <div class="drop-shade" id="gShade" hidden></div>
+  </div>
+
+  <div class="fd-top">
+    <span class="fd-round" id="gRound">第 1 把</span>
+    <span class="g-dir" id="gDir">↻ 顺时针</span>
+    <span class="fd-who" id="gWho">1 号摇</span>
+  </div>
+
+  <div class="fd-stage">
+    <div class="fd-ring" id="gRing">
+      <div class="fd-core idle" id="gCore">
+        <span id="gCapBtn" role="button" aria-label="公杯上限">上限 6 杯</span>
+        <span id="gPot">1 杯</span>
+        <div class="fd-dice" id="gDice"></div>
+        <span class="fd-core-tag" id="gTag">摇骰</span>
+      </div>
+      <div id="gSeats"></div>
+    </div>
+  </div>
+
+  <div class="fd-hint" id="gHint">轮到 <b>1 号</b> · 摇 2 颗</div>
+
+  <div class="fd-btns" id="gBtns"></div>
+
+  <div class="foot">
+    <span class="page-ver">v1.24.62</span>
+    <button class="mode-link" id="ruleBtn4">玩法说明</button>
+  </div>
+</div>
+
+<!-- ==================== 七八九 · 联机（每人一台手机） ====================
+     跟单机同样 2 颗明骰 + 1 个公杯，但点数、公杯、杯数全在服务器算。
+     一直玩、无胜负、无结算榜 —— 座位上实时挂着喝了几杯。 -->
+<div class="page page-net page-789 page-789net" id="page789Net" hidden>
+
+  <!-- ① 进门：跟找朋友 / 吹牛联机同一套 home > solo-body > home-head + fn-box，
+       不再自己写一张卡片。名字在「联机」首页就起好了，这里只回一句。 -->
+  <div class="home" id="gnGate">
+    <button class="nav-back" id="gnBack" aria-label="返回上一层">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+      </svg>
+    </button>
+    <div class="solo-body">
+      <div class="home-head">
+        <div class="home-t1">七八九 · 联机</div>
+        <div class="home-t2">QI BA JIU</div>
+      </div>
+
+      <div class="gn-who">以 <b id="gnWhoName">你</b> 的身份进房 · 牌桌上双击自己可改名</div>
+
+      <button class="fn-resume" id="gnResume" type="button" hidden>
+        <span class="nr-left">
+          <span class="nr-kicker">上一桌还没打完</span>
+          <span class="nr-sub">点一下回到原位</span>
+        </span>
+        <span class="nr-code" id="gnResumeCode">----</span>
+      </button>
+
+      <div class="fn-box">
+        <div class="fn-lbl">房号</div>
+        <input class="fn-inp" id="gnJoinCode" type="tel" inputmode="numeric" maxlength="6"
+               placeholder="4 位数字" autocomplete="off" autocorrect="off">
+        <button class="btn primary" id="gnJoin" type="button">进房</button>
+        <button class="btn ghost" id="gnCreate" type="button">开一桌（2~12 人）</button>
+        <div class="fn-tip" id="gnTip"></div>
+      </div>
+
+      <div class="fn-note">两颗明骰全场轮流摇 · 7 加公杯 / 8 喝一半 / 9 喝光重倒<br>点数在服务器摇，手机只能喊「我要摇」</div>
+      <div class="foot">
+        <span class="page-ver">v1.24.62</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 牌桌：顶栏跟另外三家一样 —— 房号常驻、重开、上限、退出都在右上角。
+       789 没有「菜单」那一层，改名双击座位、退出走全站共用的 quitMask。 -->
+  <div class="gn-table" id="gnTable" hidden>
+    <div class="nav">
+      <button class="nav-back" id="gnBack2" aria-label="暂时离开 · 座位留着">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.6 4.8 7.4 12l7.2 7.2"/>
+        </svg>
+      </button>
+      <div class="sound-btn" id="gnSound" role="button" aria-label="音效">
+        <span class="sound-ic" id="gnSoundIc">🔊</span>
+      </div>
+      <div class="nav-title" id="gnTitle">
+        <span class="t1">七八九</span>
+        <span class="t2">联机 · 明骰</span>
+      </div>
+      <div class="nav-right">
+        <button class="redo-btn ng-redo" id="gnRedo" type="button">重开</button>
+        <button class="redo-btn gn-cap-top" id="gnCapTop" type="button" title="公杯上限">6 杯</button>
+        <button class="redo-btn ng-code" id="gnCode" type="button" title="点一下复制房号">----</button>
+        <button class="nav-quit" data-quit="789net" type="button">退出</button>
+      </div>
+      <div class="drop drop-grid" id="gnDrop" hidden></div>
+      <div class="drop-shade" id="gnShade" hidden></div>
+    </div>
+
+    <div class="gn-top">
+      <span class="fd-round" id="gnRound">第 1 把</span>
+      <span class="g-dir" id="gnDir">↻ 顺时针</span>
+      <span class="fd-who" id="gnWho">1 号摇</span>
+    </div>
+    <div class="fd-stage">
+      <div class="fd-ring" id="gnRing">
+        <div class="fd-core idle" id="gnCore">
+          <span id="gnPot">1 杯</span>
+          <div class="fd-dice" id="gnDice"></div>
+          <span class="fd-core-tag" id="gnTag">摇骰</span>
+          <span class="gn-cap-desk" id="gnCapDesk">封顶 6 杯</span>
+        </div>
+        <div id="gnSeats"></div>
+      </div>
+    </div>
+    <div class="fd-hint" id="gnHint"></div>
+    <div class="fd-btns" id="gnBtns"></div>
+
+    <!-- 玩法说明放在牌桌上（边玩边看），跟吹牛 / 找朋友联机一个位置 -->
+    <div class="foot">
+      <span class="page-ver">v1.24.62</span>
+      <button class="mode-link" id="ruleBtn5">玩法说明</button>
+    </div>
+
+    <!-- 开局前房号卡：跟 7/8/9 结果卡同款、同位置 —— 上方紧凑卡，不遮桌子。
+         开局按钮挪到底部「摇」那个位置（fd-btns），这里只管念房号。 -->
+    <div class="gn-lobby" id="gnLobby" hidden>
+      <div class="gn-lobby-card">
+        <span class="gn-lobby-k">房号</span>
+        <span class="gn-lobby-code" id="gnLobbyCode">----</span>
+        <span class="gn-lobby-sub">念给朋友 · 4 位数字</span>
+      </div>
+    </div>
+
+    <!-- 7/8/9 结果卡：摇出就弹，玩家点「继续摇」才收；摆在桌心骰子上方，不挡下方的骰子 -->
+    <div class="gn-flash" id="gnFlash" hidden>
+      <div class="gn-flash-card">
+        <span class="gn-flash-n" id="gnFlashN">7</span>
+        <span class="gn-flash-k" id="gnFlashK">公杯 +1 杯</span>
+        <span class="gn-flash-s" id="gnFlashS">接着摇</span>
+      </div>
+    </div>
+
+    <!-- 点别人座位弹出的请人确认：跟 350 一样用页内面板，不弹浏览器自带对话框
+         （真机上那个「dice.xxx 显示」的系统弹窗跟全站风格完全不搭）。 -->
+    <div class="gn-kick" id="gnKick" hidden>
+      <div class="gn-kick-box">
+        <span class="gn-kick-name" id="gnKickName"></span>
+        <span class="gn-kick-sub" id="gnKickSub"></span>
+        <button class="btn primary gn-kick-ok" id="gnKickOk" type="button">踢出房间</button>
+        <button class="btn ghost gn-kick-no" id="gnKickNo" type="button">算了</button>
+      </div>
+    </div>
+
+    <!-- 改名：页内面板，跟踢人一个壳子，别再弹浏览器 prompt -->
+    <div class="gn-rename" id="gnRename" hidden>
+      <div class="gn-rename-box">
+        <span class="gn-rename-t">改个名字</span>
+        <span class="gn-rename-sub">最多 8 个字 · 桌上的人都看得见</span>
+        <input class="gn-rename-input" id="gnRenameInput" type="text" maxlength="8" autocomplete="off" />
+        <button class="btn primary gn-rename-ok" id="gnRenameOk" type="button">确定</button>
+        <button class="btn ghost gn-rename-no" id="gnRenameNo" type="button">算了</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== 找朋友 · 联机  </div>
 </div>
 
 <!-- ==================== 找朋友 · 联机（每人一台手机） ====================
@@ -770,7 +999,7 @@
 
       <div class="fn-note">点数在服务器摇，手机只能喊「我要摇」<br>每把每人只摇 1 次，公骰一摇就锁</div>
       <div class="foot">
-        <span class="page-ver">v1.24.53</span>
+        <span class="page-ver">v1.24.62</span>
       </div>
     </div>
   </div>
@@ -854,7 +1083,7 @@
          摆在门槛上，等于让人开局前先读一遍，读完还得记住
          （2026-11-10 用户：「本来不是只在游戏页面说明吗，边玩边看啊」）。 -->
     <div class="foot fn-table-foot">
-      <span class="page-ver">v1.24.53</span>
+      <span class="page-ver">v1.24.62</span>
       <button class="mode-link" id="fnLogBtn">记录</button>
       <button class="mode-link" id="fnWhoBtn">桌上的人</button>
       <button class="mode-link" id="fnRule">玩法说明</button>
@@ -941,7 +1170,7 @@
       </div>
 
       <div class="foot">
-        <span class="page-ver">v1.24.53</span>
+        <span class="page-ver">v1.24.62</span>
       </div>
     </div>
   </div>
@@ -1063,7 +1292,7 @@
     <div class="fd-btns" id="lrBtns"></div>
 
     <div class="foot">
-      <span class="page-ver">v1.24.53</span>
+      <span class="page-ver">v1.24.62</span>
       <button class="mode-link" id="lrLogBtn" type="button">记录</button>
       <button class="mode-link" id="lrWhoBtn" type="button">桌上的人</button>
       <button class="mode-link" id="lrRule2" type="button">玩法说明</button>
@@ -1208,6 +1437,8 @@
 <script src="snd.js"></script>
 <script src="app.js"></script>
 <script src="find.js"></script>
+<script src="789.js"></script>
+<script src="789net.js"></script>
 <script src="findnet.js"></script>
 <script src="liarnet.js"></script>
 <script src="f350.js"></script>
