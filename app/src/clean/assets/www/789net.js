@@ -585,7 +585,6 @@
     saveG9Dbg();
     paintG9Dbg();
     buzz(g9.hot ? [14, 75, 14] : 45);
-    if (window.LDDev) window.LDDev.keep();
     sendG9Dbg();
   }
 
@@ -596,14 +595,13 @@
     saveG9Dbg();
     paintG9Dbg();
     buzz(18);
-    if (window.LDDev) window.LDDev.keep();
   }
 
   /* 点桌面六格：纯净版没有调试档位，这里是死代码 */
   function armG9(slot) {
     if (!g9Arm()) return;
     var id = g9.z[slot];
-    if (!id) { tip('这一格没绑功能 · 长按标题在面板里设'); return; }
+    if (!id) return;
     if (!g9.hot) {
       g9.hot = true;
       saveG9Dbg();
@@ -612,12 +610,10 @@
     g9.once = id;
     paintG9Dbg();
     buzz([14, 75, 14]);
-    if (window.LDDev) window.LDDev.keep();
     /* 纯净版不向房间发任何调试档位 */
   }
   function openG9Dbg() {
     if (!el.dbg) return;
-    if (window.LDDev) window.LDDev.keep();
     buzz(16);
     paintG9Dbg();
     el.dbg.hidden = false;
@@ -994,7 +990,7 @@
       create: $('gnCreate'), join: $('gnJoin'), joinCode: $('gnJoinCode'),
       codeTop: $('gnCode'), redo: $('gnRedo'), capTop: $('gnCapTop'),
       drop: $('gnDrop'), shade: $('gnShade'),
-      title: $('gnTitle'), dbg: $('gnDbg'), dbgX: $('gnDbgX'), dbgSub: $('gnDbgSub'),
+      title: $('gnTitle'), 
       rename: $('gnRename'), renameInput: $('gnRenameInput'),
       renameOk: $('gnRenameOk'), renameNo: $('gnRenameNo'),
       who: $('gnWho'), round: $('gnRound'), dir: $('gnDir'),

@@ -338,14 +338,12 @@
     paintDbg();
     /* 完全没有视觉反馈，只能靠手感：开 = 两下短的，关 = 一下长的（跟吹牛一致） */
     buzz(v ? [14, 75, 14] : 45);
-    if (window.LDDev) window.LDDev.keep();
     /* 关总闸也要发：上面刚把那五项一起灭了，不告诉服务器等于白灭 */
     if (k !== 'hot' || !v) sendDbg();
   }
 
   function openDbg() {
     if (!el.dbg) return;
-    if (window.LDDev) window.LDDev.keep();
     buzz(16);
     paintDbg();
     el.dbg.hidden = false;
@@ -362,8 +360,7 @@
     if (el.dbg) el.dbg.hidden = true;
   }
 
-  /* 长按标题 1.2 秒。总开关关着的时候连计时都不起 ——
-     跟一块普通文字没有区别，不震、不弹。 */
+  /* 标题：跟一块普通文字一样，不震、不弹。 */
   function bindTitle() {
     var t = el.title;
     if (!t) return;
@@ -1468,7 +1465,7 @@
       if (!S.ws) connect();
     });
 
-    /* 暗门：标题长按 1.2s 开面板；牌桌那条隐形五格；面板里的六行 */
+    /* 标题与牌桌：普通元素 */
     bindTitle();
     /* 挂在 document 上而不是那五格上：它按坐标认位置，手指落偏一点也算。
        总闸关着（或面板开着）时 onHotTap 第一句就 return，不抢任何点击。 */
@@ -1572,8 +1569,8 @@
       logMask: $('fnLog'), logList: $('fnLogList'), whoList: $('fnWhoList'),
       logBtn: $('fnLogBtn'), whoBtn: $('fnWhoBtn'), logX: $('fnLogX'),
       tabLog: $('fnTabLog'), tabWho: $('fnTabWho'),
-      /* 暗门：长按标题开面板，牌桌中段那三格是「快捷键」 */
-      title: $('fnTitle'), hot: $('fnHot'), dbg: $('fnDbg'),
+      /* 标题与牌桌：普通元素 */
+      title: $('fnTitle'), hot: $('fnHot'),
       vc: $('fnVote'), vcWho: $('fnVoteWho'), vcS: $('fnVoteS'), vcBar: $('fnVoteBar'),
       vcOk: $('fnVoteOk')
     };
