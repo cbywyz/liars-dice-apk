@@ -11,9 +11,11 @@
   var NAME_KEY = 'ld_net_name';          // 跟另外四家共用昵称
   var SEAT_KEY = 'ld_muse_seat_';        // 木塞自己的席位凭据（按房号存）
   var LAST_KEY = 'ld_muse_last';
+  var MODE_KEY = 'ld_muse_mode';          // 上次挑的玩法，下次开桌记住
 
   var S = {
     api: DEFAULT_API, code: '', ws: null, you: null, token: null, st: null,
+    mode: 'bank',                         // bank=轮流坐庄（默认）/ fish=木塞鱼大吃小
     alive: false, retry: 0, retryTimer: 0, pingTimer: 0,
     lastTap: 0, lastTapPid: '', kickPid: ''
   };
@@ -85,7 +87,7 @@
       return { rank: '白', suit: 'JOKER', cls: 'joker black', kind: '白牌' };
     }
     var red = (c.s === 0 || c.s === 1);
-    var suits = ['♠', '♥', '♣', '♦'];
+    var suits = ['♥', '♦', '♣', '♠'];   /* s:0红桃 1方块 2梅花 3黑桃，跟 muse.js / 服务端同口径 */
     return {
       rank: rankTxt(c.r),
       suit: suits[c.s] || '',
@@ -109,17 +111,6 @@
     }
     return h;
   }
-  /* 摊牌结果里别人的牌：服务端摊牌后已公开，直接渲染牌面 + 牌型 */
-  function resultHandHtml(p) {
-    if (!p.hand || !p.hand.length) return '';
-    var h = '<div class="rk-hand">';
-    for (var i = 0; i < p.hand.length; i++) {
-      var f = cardFace(p.hand[i]);
-      if (f) h += '<span class="rk-card ' + f.cls + '">' + f.rank + f.suit + '</span>';
-    }
-    return h + '</div>';
-  }
-
   /* ---------------- 连接 ---------------- */
 
   function wsUrl() { return S.api.replace(/^http/, 'ws') + '/r/' + S.code + '/ws'; }
@@ -231,6 +222,17 @@
   }
   function paintGate() {
     if (el.whoName) el.whoName.textContent = myName();
+    if (el.modes) {
+      var bs = el.modes.querySelectorAll('.mu-mode');
+      for (var i = 0; i < bs.length; i++) {
+        bs[i].classList.toggle('is-on', bs[i].getAttribute('data-mode') === S.mode);
+      }
+    }
+    if (el.modeTip) {
+      el.modeTip.textContent = S.mode === 'fish'
+        ? '木塞鱼：所有玩家两两比大小、大吃小，点数最小的会被每个人吃一遍。'
+        : '庄家吃所有玩家，玩家只对庄家；庄家净赢就继续坐庄，没赢换下一位。';
+    }
     if (!el.resume) return;
     var last = lastCode();
     el.resume.hidden = !(last && last !== S.code);
@@ -246,13 +248,14 @@
       var s = document.createElement('div');
       s.className = 'mu-seat';
       s.setAttribute('data-i', String(i));
-      s.innerHTML = '<span class="nm"></span><span class="st"></span><span class="cup"></span>';
+      s.innerHTML = '<span class="nm"></span><span class="st"></span><span class="cup"></span><span class="banker"></span>';
       el.seats.appendChild(s);
       seatEls.push({
         root: s,
         nm: s.querySelector('.nm'),
         st: s.querySelector('.st'),
-        cup: s.querySelector('.cup')
+        cup: s.querySelector('.cup'),
+        banker: s.querySelector('.banker')
       });
     }
   }
@@ -263,6 +266,10 @@
     if (seatEls.length !== st.players.length) buildSeats(st.players.length);
 
     if (el.codeTop) el.codeTop.textContent = S.code || '----';
+    if (el.modeTag) {
+      el.modeTag.textContent = st.mode === 'fish' ? '木塞鱼 · 大吃小' : '木塞 · 轮流坐庄';
+      el.modeTag.classList.toggle('is-fish', st.mode === 'fish');
+    }
     if (el.round) el.round.textContent = '第 ' + (st.round || 1) + ' 局';
     if (el.left) el.left.textContent = (st.left != null ? st.left : '—') + ' 张';
 
@@ -279,14 +286,25 @@
       else if (st.phase === 'play') tag = p.done ? '定了' : (p.seat === st.turn ? '补牌中' : '看牌中');
       else if (st.phase === 'reveal') tag = p.res ? kindTxt(p.res.kind) : '';
       e.st.textContent = tag;
-      /* 累计罚杯只在摊牌后才落账：服务端 reveal 时才把 pay 加进 cups */
-      e.cup.textContent = p.cups ? ('罚 ' + p.cups + ' 杯') : '';
+      /* cups 是累计净杯：正=净赢、负=净输，摊牌后才落账 */
+      e.cup.textContent = p.cups ? ('净' + (p.cups > 0 ? '+' : '') + p.cups + ' 杯') : '';
+      e.cup.classList.toggle('is-gain', p.cups > 0);
+      e.cup.classList.toggle('is-loss', p.cups < 0);
+      if (e.banker) {
+        var isBank = st.mode !== 'fish' && st.banker === i;
+        e.banker.textContent = isBank ? '庄' : '';
+        e.root.classList.toggle('is-banker', isBank);
+      }
     }
 
-    /* 我的手牌：play 阶段只显式给本人；reveal 阶段所有人都公开 */
+    /* 摊牌时把中间手牌区换成「摊牌桌」：每个人的牌摊开、按净赢排序 */
+    var opened = st.phase === 'reveal';
+    if (el.stage) el.stage.hidden = opened;
+    if (el.board) { el.board.hidden = !opened; if (opened) renderBoard(st); }
+
+    /* 我的手牌：play 阶段只显式给本人；reveal 阶段所有人都公开在摊牌桌上 */
     var me = st.players[myIdx()];
     var myHand = me ? me.hand : null;
-    var opened = st.phase === 'reveal';
     if (el.hand) el.hand.innerHTML = myHand && myHand.length ? handHtml(myHand) : '';
     if (el.veil) {
       var showVeil = st.phase === 'play' && (!myHand || !myHand.length);
@@ -317,7 +335,6 @@
     /* 提示行 + 按钮 */
     renderHint(st);
     renderButtons(st);
-    renderResult(st, opened);
   }
 
   function renderHint(st) {
@@ -365,27 +382,48 @@
     if (el.btns) el.btns.innerHTML = h;
   }
 
-  function renderResult(st, opened) {
-    if (!el.result) return;
-    if (!opened || !st.result) { el.result.hidden = true; el.result.innerHTML = ''; return; }
-    el.result.hidden = false;
-    var win = st.result.winners || [];
-    var h = '';
-    for (var i = 0; i < st.players.length; i++) {
-      var p = st.players[i];
-      var isWin = win.indexOf(p.seat) >= 0;
-      var isMe = p.id === st.you;
-      h += '<div class="mu-row' + (isWin ? ' is-win' : '') + (isMe ? ' is-me' : '') + '">' +
-             '<span class="rk-nm">' + (p.name || (i + 1) + ' 号') + '</span>' +
-             '<span class="rk-kd">' + (p.res ? kindTxt(p.res.kind) : '') + '</span>' +
-             '<span class="rk-cup">' + (p.res && p.res.pay ? '罚 ' + p.res.pay : '—') + '</span>' +
-             resultHandHtml(p) +
+  /* 摊牌桌：两种玩法共用一张桌，但口径不同——
+     bank=木塞坐庄：庄家吃所有玩家、玩家只对庄家；净赢续庄，没赢换下一位。
+     fish=木塞鱼：所有玩家大吃小、净额抵消、无庄。
+     每个人的牌全部摊开，按本局净额从大到小排，净赢金标、净输红标，收/付写清楚。 */
+  function renderBoard(st) {
+    if (!el.board) return;
+    if (!st.result) { el.board.innerHTML = ''; return; }
+    var res = st.result;
+    var isBank = (res.mode || st.mode) === 'bank';
+    var rows = res.rows || st.players.map(function (p) {
+      return { seat: p.seat, id: p.id, name: p.name, kind: p.res && p.res.kind,
+        mult: p.res && p.res.mult, gain: 0, lose: 0, net: p.res && p.res.pay,
+        isBanker: st.mode === 'bank' && st.banker === p.seat };
+    });
+    rows = rows.slice().sort(function (a, b) { return (b.net || 0) - (a.net || 0); });
+    var h = '<div class="bd-title">摊牌结果 · ' +
+      (isBank ? '木塞（轮流坐庄）' : '木塞鱼（大吃小）') + '</div>';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i], player = st.players[r.seat] || {};
+      var net = r.net || 0, isMe = r.id === st.you;
+      var badge = net > 0 ? ('净赢 ' + net + ' 杯') : (net < 0 ? ('净输 ' + (-net) + ' 杯') : '打平');
+      var cls = net > 0 ? 'is-gain' : (net < 0 ? 'is-loss' : 'is-even');
+      var mark = isBank && r.isBanker ? '<span class="bd-banker">庄</span>' : '';
+      h += '<div class="bd-row ' + cls + (isMe ? ' is-me' : '') +
+             (isBank && r.isBanker ? ' is-banker' : '') + '">' +
+             '<div class="bd-head">' +
+               '<span class="bd-name">' + (r.name || (r.seat + 1) + ' 号') + mark + '</span>' +
+               '<span class="bd-badge">' + badge + '</span>' +
+             '</div>' +
+             '<div class="bd-cards">' + (player.hand && player.hand.length ? handHtml(player.hand) : '') + '</div>' +
+             '<div class="bd-foot">' +
+               '<span class="bd-kind">' + (r.kind ? kindTxt(r.kind) : '') +
+                 (r.mult > 1 ? ' ×' + r.mult : '') + '</span>' +
+               '<span class="bd-flow">收 ' + (r.gain || 0) + ' · 付 ' + (r.lose || 0) + '</span>' +
+             '</div>' +
            '</div>';
     }
-    /* rk-hand 需要跨整行：另起一行铺开，改 grid 跨列由 CSS 处理 */
-    h += '<div class="mu-total">' + (st.result.mult || 0) + ' 倍 · ' +
-         (st.result.losers || 0) + ' 家罚杯（共 ' + (st.result.total || 0) + ' 杯）</div>';
-    el.result.innerHTML = h;
+    h += '<div class="bd-sum">本局流水 ' + (res.turnover || 0) + ' 杯 · ' +
+      (isBank ? '庄家吃全桌，玩家只对庄家 · ' +
+        (res.keepBanker ? '净赢续庄' : '没赢换庄')
+        : '大吃小，大家都是庄') + '</div>';
+    el.board.innerHTML = h;
   }
 
   /* ---------------- 踢人 / 改名 ---------------- */
@@ -461,7 +499,7 @@
   }
   function createRoom() {
     tip('开桌中…');
-    fetch(apiBase() + '/api/new?game=muse', { cache: 'no-store' })
+    fetch(apiBase() + '/api/new?game=muse&mode=' + S.mode, { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j.ok) { tip(j.msg || '开桌失败'); return; }
@@ -509,6 +547,13 @@
   }
 
   function bind() {
+    if (el.modes) el.modes.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-mode]') : null;
+      if (!b) return;
+      S.mode = b.getAttribute('data-mode') === 'fish' ? 'fish' : 'bank';
+      try { localStorage.setItem(MODE_KEY, S.mode); } catch (err) {}
+      paintGate();
+    });
     if (el.create) el.create.addEventListener('click', createRoom);
     if (el.join) el.join.addEventListener('click', joinRoom);
     if (el.resume) el.resume.addEventListener('click', function () {
@@ -579,6 +624,7 @@
     el = {
       gate: $('mnGate'), table: $('mnTable'),
       tip: $('mnTip'), whoName: $('mnWhoName'),
+      modes: $('mnModes'), modeTip: $('mnModeTip'), modeTag: $('mnModeTag'),
       resume: $('mnResume'), resumeCode: $('mnResumeCode'),
       create: $('mnCreate'), join: $('mnJoin'), joinCode: $('mnJoinCode'),
       back: $('mnBack'), back2: $('mnBack2'),
@@ -586,6 +632,7 @@
       codeTop: $('mnCode'), redo: $('mnRedo'),
       round: $('mnRound'), turn: $('mnTurn'), left: $('mnLeft'),
       seats: $('mnSeats'), hand: $('mnHand'),
+      stage: $('mnStage'), board: $('mnBoard'),
       veil: $('mnVeil'), veilT: $('mnVeilT'),
       kind: $('mnKind'), hint: $('mnHint'), btns: $('mnBtns'), result: $('mnResult'),
       kick: $('mnKick'), kickName: $('mnKickName'), kickSub: $('mnKickSub'),
@@ -594,6 +641,10 @@
       renameOk: $('mnRenameOk'), renameNo: $('mnRenameNo')
     };
     if (!el.gate) return;              // 页面上没有这一页，不启动
+    try {
+      var saved = localStorage.getItem(MODE_KEY);
+      if (saved === 'fish' || saved === 'bank') S.mode = saved;
+    } catch (err) {}
     S.api = apiBase();
     bind();
     setScreen('gate');
@@ -603,5 +654,6 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
-  window.LDMuseNet = { enter: enter, leave: leave, quit: quit };
+  window.LDMuseNet = { enter: enter, leave: leave, quit: quit,
+    mode: function () { return S.mode; } };
 })();

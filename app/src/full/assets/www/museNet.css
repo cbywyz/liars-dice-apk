@@ -36,3 +36,47 @@
 
 /* 摊牌后「下一局」投票进度写在提示行 */
 .mn-table .fd-hint.is-vote { color: var(--gold-deep, #8a5f18); font-weight: 600; }
+
+/* 顶栏右侧挤了三颗按钮（重开/房号/退出），标题收一点并左挪让位，
+   跟七八九那套同款 —— 否则「重开」会压在「木塞」标题上。 */
+.page-musenet .nav-title { padding: 0.4vw 2vw; transform: translateX(-4vw); }
+.page-musenet .nav-title .t1 { font-size: 3.4vw; letter-spacing: 0.4vw; text-indent: 0.4vw; }
+.page-musenet .nav-title .t2 { font-size: 1.6vw; }
+.page-musenet .nav-right { gap: 1.2vw; }
+.page-musenet .nav-right .redo-btn { padding: 0 1.6vw; font-size: 2.5vw; letter-spacing: 0; }
+.page-musenet .nav-right .nav-quit { padding: 0 1.8vw; }
+
+/* 进门页：玩法二选一（默认木塞坐庄，木塞鱼是大吃小那一套） */
+.mu-modes {
+  display: flex;
+  gap: 1.6vw;
+  margin: 0.8vw 0 1.2vw;
+}
+.mu-mode {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2vw 1vw;
+  border: 0.1333vw solid rgba(35, 38, 45, 0.12);
+  border-radius: var(--r-sm, 3.2vw);
+  background: var(--paper, #fbf7ef);
+  color: var(--ink-2, #3a3f49);
+  font-size: 2.4vw;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+.mu-mode.is-on {
+  border-color: var(--gold-mid, #c9922a);
+  background: #f6ecd2;
+  color: var(--gold-deep, #8a5f18);
+  box-shadow: inset 0 0 0 0.1333vw var(--gold-mid, #c9922a);
+}
+.mu-mode-tip {
+  padding: 0 0.4vw 1.6vw;
+  font-size: 2.2vw;
+  line-height: 1.5;
+  color: var(--ink-2, #3a3f49);
+  text-decoration: none;
+  opacity: 0.82;
+  text-align: center;
+}

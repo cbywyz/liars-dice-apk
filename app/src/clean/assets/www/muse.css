@@ -212,3 +212,133 @@
   font-weight: 700;
   color: #8a4a2c;
 }
+
+/* ---------------- 摊牌桌（木塞鱼：大吃小，大家都是庄） ----------------
+   摊牌时顶掉中间的手牌区，把每个人的牌摊开、按净赢从大到小排。
+   净赢金标、净输红标，收/付分开写，一眼看清谁吃谁。 */
+.mu-board {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6vw;
+  padding: 1vw 3vw 2vw;
+}
+.mu-board[hidden] { display: none; }
+.bd-title {
+  text-align: center;
+  font-size: 3.2vw;
+  font-weight: 700;
+  color: var(--gold-deep, #8a5f18);
+  padding-bottom: 0.6vw;
+}
+.bd-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vw;
+  padding: 1.2vw 2.4vw;
+  border-radius: var(--r-sm, 3.2vw);
+  background: var(--paper, #fbf7ef);
+  box-shadow: var(--sh-line, inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07));
+}
+.bd-row.is-gain { background: #f6ecd2; box-shadow: inset 0 0 0 0.32vw var(--gold-mid, #c9922a); }
+.bd-row.is-loss { background: #fbecea; }
+.bd-row.is-me .bd-name::before {
+  content: '我 ';
+  color: var(--gold-mid, #c9922a);
+  font-weight: 700;
+}
+.bd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2vw;
+}
+.bd-name { font-size: 3vw; font-weight: 700; }
+.bd-badge {
+  font-size: 2.9333vw;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0.6vw 1.8vw;
+  border-radius: 3vw;
+}
+.is-gain .bd-badge { color: #fff; background: var(--gold-deep, #8a5f18); }
+.is-loss .bd-badge { color: #fff; background: #b3352c; }
+.is-even .bd-badge { color: var(--ink-2, #3a3f49); background: rgba(35, 38, 45, 0.08); }
+.bd-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4vw;
+}
+/* 摊牌桌里的牌比手牌小一号，一桌人也能一屏看全 */
+.bd-cards .mu-card {
+  width: 13vw;
+  height: 18.4vw;
+  border-radius: 1.4vw;
+  padding: 1vw;
+}
+.bd-cards .mu-card .rk { font-size: 3.6vw; }
+.bd-cards .mu-card .st { font-size: 2.8vw; }
+.bd-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2vw;
+  font-size: 2.4vw;
+}
+.bd-kind { color: var(--gold-deep, #8a5f18); font-weight: 600; }
+.bd-flow { color: var(--ink-2, #3a3f49); opacity: 0.8; font-variant-numeric: tabular-nums; }
+.bd-sum {
+  text-align: center;
+  padding: 2.4vw 1vw 3vw;
+  font-size: 2.6667vw;
+  line-height: 1.5;
+  font-weight: 700;
+  color: #8a4a2c;
+}
+/* 座位卡累计净杯：净赢金、净输红 */
+.mu-seat .cup.is-gain { color: var(--gold-deep, #8a5f18); }
+.mu-seat .cup.is-loss { color: #b3352c; }
+
+/* ---------------- 玩法标签 / 庄家标（双模式） ---------------- */
+.mu-mode-tag {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 0.4vw 1.6vw;
+  border-radius: 999px;
+  background: rgba(138, 95, 24, 0.12);
+  color: var(--gold-deep, #8a5f18);
+  font-size: 2.2vw;
+  font-weight: 600;
+}
+.mu-mode-tag.is-fish {
+  background: rgba(106, 61, 145, 0.12);
+  color: #6a3d91;
+}
+.mu-seat .banker { display: none; }
+.mu-seat.is-banker {
+  box-shadow: inset 0 0 0 0.32vw var(--gold-mid, #c9922a);
+}
+.mu-seat.is-banker .banker {
+  display: inline-block;
+  margin-left: 0.6vw;
+  padding: 0 0.8vw;
+  border-radius: 0.8vw;
+  background: var(--gold-deep, #8a5f18);
+  color: #fff;
+  font-size: 1.8vw;
+  line-height: 1.5;
+}
+.bd-banker {
+  display: inline-block;
+  margin-left: 1vw;
+  padding: 0 1vw;
+  border-radius: 0.8vw;
+  background: var(--gold-deep, #8a5f18);
+  color: #fff;
+  font-size: 2.2vw;
+  vertical-align: middle;
+}
+.bd-row.is-banker .bd-name { color: var(--gold-deep, #8a5f18); }
