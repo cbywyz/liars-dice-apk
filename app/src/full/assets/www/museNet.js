@@ -20,7 +20,10 @@
     lastTap: 0, lastTapPid: '', kickPid: '',
     /* 发牌先盖牌背，玩家自己逐张翻开（纯前端表现，服务端仍权威下发真牌）。
        按 round 重置：换一把就重新盖上，摊牌时摊牌桌照常全公开。 */
-    flipRound: -1, flipProg: [], flipDir: []
+    flipRound: -1, flipProg: [], flipDir: [], flipLocked: [],
+    /* 面板模式（v1.24.74）：host=房主设置（顶栏 ⚙，底注/转杯）；drink=记喝（右下按钮）。
+       两个入口共用一块面板 DOM，按模式显示不同行，体验上彻底分开。 */
+    panelMode: 'host'
   };
   var el = {};
   var seatEls = [];
@@ -348,11 +351,17 @@
     if (!st) return;
     /* 换一把（round 变了）就重新盖上牌背；同一把里只按玩家自己翻开的进度显示 */
     if (st.round !== S.flipRound) {
-      S.flipRound = st.round; S.flipProg = []; S.flipDir = [];
+      S.flipRound = st.round; S.flipProg = []; S.flipDir = []; S.flipLocked = [];
     }
     if (seatEls.length !== st.players.length) buildSeats(st.players.length);
 
     if (el.codeTop) el.codeTop.textContent = S.code || '----';
+    /* 记喝按钮：全程常驻（赢家也可能需要记喝抵扣），副标题标出我自己的已喝量 */
+    if (el.drink) {
+      el.drink.hidden = false;
+      var meForDrink = st.players[myIdx()];
+      if (el.drinkSub) el.drinkSub.textContent = '已喝 ' + ((meForDrink && meForDrink.drunkMl) | 0) + 'ml';
+    }
     if (el.modeTag) {
       el.modeTag.textContent = st.mode === 'fish' ? '木塞鱼 · 大吃小' : '木塞 · 轮流坐庄';
       el.modeTag.classList.toggle('is-fish', st.mode === 'fish');
@@ -374,7 +383,7 @@
       e.root.classList.toggle('is-turn', st.phase === 'play' && p.seat === st.turn);
       var tag = '';
       if (!p.online) tag = '离线';
-      else if (st.phase === 'play') tag = p.done ? '定了' : (p.seat === st.turn ? '补牌中' : '看牌中');
+      else if (st.phase === 'play') tag = p.done ? '补好了' : (p.seat === st.turn ? '补牌中' : '看牌中');
       else if (st.phase === 'reveal') tag = p.res ? kindTxt(p.res.kind) : '';
       e.st.textContent = tag;
       /* cups 是累计净额（单位「倍」，摊牌后才落账）。1 倍 = baseMl 毫升；
@@ -433,8 +442,11 @@
     if (el.turn) {
       if (!st.started) el.turn.textContent = '等开局';
       else if (st.phase === 'play') {
-        var t = st.players[st.turn];
-        el.turn.textContent = '轮到 ' + (t ? (t.name || (st.turn + 1) + ' 号') : '?');
+        if (st.openWait) el.turn.textContent = '待开牌';
+        else {
+          var t = st.players[st.turn];
+          el.turn.textContent = '轮到 ' + (t ? (t.name || (st.turn + 1) + ' 号') : '?');
+        }
       } else if (st.phase === 'reveal') el.turn.textContent = '已摊牌';
       else el.turn.textContent = '';
     }
@@ -460,11 +472,17 @@
   function renderMlPanel(st) {
     if (!el.setPanel || el.setPanel.hidden) return;
     var isHost = !!(hostOf(st) && hostOf(st).id === S.you);
-    if (el.setHostRow) el.setHostRow.hidden = !isHost;
-    if (el.setHostRow2) el.setHostRow2.hidden = !isHost;
+    var hostMode = S.panelMode === 'host';
+    /* v1.24.74：房主设置与记喝彻底分开——顶栏 ⚙ 只露底注/转杯，
+       右下记喝按钮只露「我已喝 + 每人清单」，各自不再夹带对方的内容。 */
+    if (el.setTitle) el.setTitle.textContent = hostMode ? '房主设置 · 底注/转杯' : '记喝 · 已喝抵扣';
+    if (el.setHostRow) el.setHostRow.hidden = !hostMode || !isHost;
+    if (el.setHostRow2) el.setHostRow2.hidden = !hostMode || !isHost;
+    if (el.drinkRow) el.drinkRow.hidden = hostMode;
+    if (el.drinkList) el.drinkList.hidden = hostMode;
     if (el.baseOpts) el.baseOpts.innerHTML = optHtml(BASE_OPTS, baseMl(st));
     if (el.cupOpts) el.cupOpts.innerHTML = optHtml(CUP_OPTS, cupMl(st));
-    if (el.drinkList) {
+    if (!hostMode && el.drinkList) {
       var rows = '';
       for (var i = 0; i < st.players.length; i++) {
         var p = st.players[i], d = p.drunkMl | 0;
@@ -481,14 +499,22 @@
       el.drinkList.innerHTML = rows || '<div class="mn-set-empty">坐下后这里列出每人已喝 / 待喝</div>';
     }
   }
-  function openMl() {
+  function openMl(mode) {
     if (!S.st) { tip('先开一桌或进房'); return; }
     if (!el.setPanel) return;
-    el.setPanel.hidden = false;
-    if (el.drinkMl) el.drinkMl.value = '';
+    /* v1.24.74：顶栏 ⚙ 是房主专属——非房主点了别开个啥都没有的空面板，直接提示。 */
+    if (mode === 'host' && !(hostOf(S.st) && hostOf(S.st).id === S.you)) {
+      tip('只有房主能设置底注/转杯');
+      return;
+    }
+    S.panelMode = mode === 'drink' ? 'drink' : 'host';
+    if (el.setPanel.hidden) {
+      el.setPanel.hidden = false;
+      if (el.drinkMl) el.drinkMl.value = '';
+    }
     renderMlPanel(S.st);
   }
-  function closeMl() { if (el.setPanel) el.setPanel.hidden = true; }
+  function closeMl() { if (el.setPanel) { el.setPanel.hidden = true; S.panelMode = 'host'; } }
   function setBase(ml) {
     if (!S.st) return;
     if (!(hostOf(S.st) && hostOf(S.st).id === S.you)) { tip('只有房主能改底注'); return; }
@@ -515,9 +541,13 @@
       h = st.players.length < 2 ? '再多来一位就能开局' : '人齐了 · 点「开局」';
     } else if (st.phase === 'play') {
       var me = st.players[myIdx()];
-      if (me && me.seat === st.turn && !me.done) h = '轮到你 · 补一张搏大的，或不补保牌型';
-      else if (me && me.done) h = '你定了 · 等其他人';
-      else h = '等 ' + ((st.players[st.turn] || {}).name || '别人') + ' 定牌';
+      if (st.openWait) {
+        var ov = st.openVote;
+        h = '都补好了 · 慢慢看牌，点「开牌」揭盅';
+        if (ov) h += '（' + ov.yes.length + '/' + ov.need + ' 票' + (ov.mine ? ' · 已同意' : '') + '）';
+      } else if (me && me.seat === st.turn && !me.done) h = '轮到你 · 补一张搏大的，或不补保牌型';
+      else if (me && me.done) h = '你补好了 · 等其他人补完';
+      else h = '等 ' + ((st.players[st.turn] || {}).name || '别人') + ' 补牌';
     } else if (st.phase === 'reveal') {
       var v = st.vote;
       if (v && st.result) {
@@ -540,11 +570,17 @@
       }
     } else if (st.phase === 'play') {
       var me = st.players[myIdx()];
-      if (me && me.seat === st.turn && !me.done && me.n < 3) {
+      if (st.openWait) {
+        var ov = st.openVote;
+        h = ov && ov.mine
+          ? '<button class="btn ghost" type="button" data-act="unopen">撤回开牌票</button>'
+          : '<button class="btn primary" type="button" data-act="open">开牌' +
+            (ov ? ' · ' + ov.yes.length + '/' + ov.need : '') + '</button>';
+      } else if (me && me.seat === st.turn && !me.done && me.n < 3) {
         h = '<button class="btn primary" type="button" data-act="take">补一张</button>' +
             '<button class="btn ghost" type="button" data-act="stay">不补</button>';
       } else {
-        h = '<button class="btn ghost" type="button" disabled>等别人定牌</button>';
+        h = '<button class="btn ghost" type="button" disabled>等别人补牌</button>';
       }
     } else if (st.phase === 'reveal') {
       var v = st.vote;
@@ -764,17 +800,23 @@
       var rect = box.getBoundingClientRect();
       var diag = Math.sqrt(rect.width * rect.width + rect.height * rect.height) || 1;
       var dir = S.flipDir[i] || DEF_DIR;
+      /* v1.24.74：方向按下那一刻锁定，之后手指怎么转都不改变裁切线朝向 —— 牌背不再转圈。
+         只有这一把还没锁过方向时才取本次滑动方向（滑够阈值、避开起点抖动）。 */
+      var locked = !!S.flipLocked[i];
       try { box.setPointerCapture(e.pointerId); } catch (err) {}
       function move(ev) {
         var dx = ev.clientX - x0, dy = ev.clientY - y0;
         moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
         var dist = Math.sqrt(dx * dx + dy * dy);
-        /* 方向跟着本次实际滑动走：滑够一点才锁定，避免起点抖动让裁切线乱跳 */
-        if (dist > 10) {
+        if (!locked && dist > 12) {
           dir = { x: dx / dist, y: dy / dist };
           S.flipDir[i] = dir;
+          S.flipLocked[i] = true;
+          locked = true;
         }
-        var t = Math.max(0, Math.min(1, startProg + dist / diag));
+        /* 进度放慢：分母放大到对角线 1.5 倍，滑同样距离只掀一点，能停在中途细看。
+           真人开牌本来就是慢慢掀，不再一划到底。 */
+        var t = Math.max(0, Math.min(1, startProg + dist / (diag * 1.5)));
         back.style.clipPath = backClip(t, dir);
         S.flipProg[i] = t;
       }
@@ -783,11 +825,21 @@
         box.removeEventListener('pointerup', end);
         box.removeEventListener('pointercancel', end);
         var t = typeof S.flipProg[i] === 'number' ? S.flipProg[i] : 0;
-        if (moved < 12) t = 1;            // 轻点 = 直接翻开
-        else if (t > 0.82) t = 1;         // 快滑到底就吸开
-        else if (t < 0.06) t = 0;         // 几乎没动就盖回去
-        S.flipProg[i] = t;
-        render();
+        var target = t;
+        if (moved < 12) target = startProg > 0.02 ? 1 : Math.min(1, startProg + 0.34); // 轻点先掀一点，再点全开
+        else if (t > 0.9) target = 1;         // 滑过 90% 才吸开
+        else if (t < 0.06) target = 0;        // 几乎没动就盖回去
+        if (target === t) { S.flipProg[i] = t; return; }
+        /* 吸附/掀开走 0.22s 缓动，别瞬间跳变；纯表现层，服务端结算不受影响。 */
+        var from = t;
+        back.style.transition = 'clip-path 0.22s ease-out';
+        back.style.clipPath = backClip(target, dir);
+        S.flipProg[i] = target;
+        if (target >= 1) S.flipLocked[i] = true;
+        setTimeout(function () {
+          back.style.transition = '';
+          render();
+        }, 240);
       }
       box.addEventListener('pointermove', move);
       box.addEventListener('pointerup', end);
@@ -796,7 +848,8 @@
     if (el.codeTop) el.codeTop.addEventListener('click', copyCode);
     if (el.redo) el.redo.addEventListener('click', doNext);
     /* 毫升设置 / 已喝抵扣 */
-    if (el.set) el.set.addEventListener('click', openMl);
+    if (el.set) el.set.addEventListener('click', function () { openMl('host'); });
+    if (el.drink) el.drink.addEventListener('click', function () { openMl('drink'); });
     if (el.setClose) el.setClose.addEventListener('click', closeMl);
     if (el.setPanel) el.setPanel.addEventListener('click', function (e) {
       if (e.target === el.setPanel) closeMl();
@@ -823,6 +876,8 @@
       if (a === 'start') send({ t: 'start' });
       else if (a === 'take') send({ t: 'mtake' });
       else if (a === 'stay') send({ t: 'mstay' });
+      else if (a === 'open') send({ t: 'mopen' });
+      else if (a === 'unopen') send({ t: 'munvoteopen' });
       else if (a === 'next') doNext();
     });
 
@@ -880,9 +935,10 @@
       back: $('mnBack'), back2: $('mnBack2'),
       sound: $('mnSound'), soundIc: $('mnSoundIc'),
       codeTop: $('mnCode'), redo: $('mnRedo'),
-      set: $('mnSet'), setPanel: $('mnSetPanel'), setClose: $('mnSetClose'),
+      set: $('mnSet'), setPanel: $('mnSetPanel'), setClose: $('mnSetClose'), setTitle: $('mnSetTitle'),
       setHostRow: $('mnSetHostRow'), setHostRow2: $('mnSetHostRow2'),
       baseOpts: $('mnBaseOpts'), cupOpts: $('mnCupOpts'),
+      drink: $('mnDrink'), drinkSub: $('mnDrinkSub'), drinkRow: $('mnDrinkRow'),
       drinkMl: $('mnDrinkMl'), drinkOk: $('mnDrinkOk'), drinkList: $('mnDrinkList'),
       round: $('mnRound'), turn: $('mnTurn'), left: $('mnLeft'),
       seats: $('mnSeats'), hand: $('mnHand'),
