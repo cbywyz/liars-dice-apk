@@ -20,7 +20,7 @@
     lastTap: 0, lastTapPid: '', kickPid: '',
     /* 发牌先盖牌背，玩家自己逐张翻开（纯前端表现，服务端仍权威下发真牌）。
        按 round 重置：换一把就重新盖上，摊牌时摊牌桌照常全公开。 */
-    flipRound: -1, flipProg: []
+    flipRound: -1, flipProg: [], flipDir: []
   };
   var el = {};
   var seatEls = [];
@@ -135,19 +135,45 @@
     var owed = -(p.cups | 0) * baseMl(st);
     return owed > 0 ? Math.max(0, owed - (p.drunkMl | 0)) : 0;
   }
-  /* 牌背从左下角往右上角「滑开」：沿对角线实时裁切，跟手指走、松手定格。
-     prog 是每张牌翻开进度 0~1；摊牌桌不传 prog → 全部正面公开。 */
-  function backClip(t) {
+  /* 牌背「跟手指方向掀开」：裁切线垂直于本次滑动方向，从手指起点那一侧推进，
+     滑到哪停到哪。dir=(dx,dy) 是本次滑动的单位向量（屏幕坐标 y 向下）；
+     没记方向时（比如刚发牌）给默认左下→右上。prog 0~1，摊牌桌不传 prog → 全公开。 */
+  var CARD_W = 19, CARD_H = 27;   // 跟 .mu-flip 的 19vw×27vw 同比例，保证裁切线真垂直手指
+  var DEF_DIR = { x: 1 / Math.SQRT2, y: -1 / Math.SQRT2 };
+  function backClip(t, dir) {
     if (!(t > 0)) return 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
     if (t >= 1) return 'polygon(0% 0%, 0% 0%, 0% 0%, 0% 0%)';
-    var c = 2 * t - 1, pts;
-    if (c <= 0) pts = [[0, 0], [1, 0], [1, 1], [c + 1, 1], [0, -c]];
-    else pts = [[c, 0], [1, 0], [1, 1 - c]];
+    var d = dir || DEF_DIR;
+    var dl = Math.sqrt(d.x * d.x + d.y * d.y) || 1;
+    var ux = d.x / dl, uy = d.y / dl;
+    /* 矩形四角在滑动方向上的投影，取 max/min 得到推进区间 */
+    var corners = [[0, 0], [CARD_W, 0], [CARD_W, CARD_H], [0, CARD_H]];
+    var lo = Infinity, hi = -Infinity, proj = [];
+    for (var i = 0; i < 4; i++) {
+      var s = corners[i][0] * ux + corners[i][1] * uy;
+      proj.push(s);
+      if (s < lo) lo = s;
+      if (s > hi) hi = s;
+    }
+    /* 保留「投影较大」的那一端：t=0 保留全部（cut=lo），t=1 全掀掉（cut=hi）。
+       手指从投影小的一端滑向大的一端，所以先掀掉的正是手指起点那一侧。 */
+    var cut = lo + (hi - lo) * t;
+    var pts = [];
+    for (var k = 0; k < 4; k++) {
+      var a = corners[k], b = corners[(k + 1) % 4];
+      var sa = proj[k], sb = proj[(k + 1) % 4];
+      if (sa >= cut) pts.push(a);
+      if ((sa >= cut) !== (sb >= cut)) {
+        var u = (cut - sa) / (sb - sa);
+        pts.push([a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u]);
+      }
+    }
+    if (!pts.length) return 'polygon(0% 0%, 0% 0%, 0% 0%, 0% 0%)';
     return 'polygon(' + pts.map(function (p) {
-      return (p[0] * 100).toFixed(2) + '% ' + (p[1] * 100).toFixed(2) + '%';
+      return (p[0] / CARD_W * 100).toFixed(2) + '% ' + (p[1] / CARD_H * 100).toFixed(2) + '%';
     }).join(',') + ')';
   }
-  function handHtml(hand, prog) {
+  function handHtml(hand, prog, dirs) {
     var h = '';
     for (var i = 0; i < hand.length; i++) {
       var f = cardFace(hand[i]);
@@ -160,7 +186,8 @@
       var face = '<div class="mu-card ' + f.cls + '">' + corner +
                  '<span class="mid-suit">' + mid + '</span></div>';
       if (t >= 1) { h += face; continue; }
-      var back = '<div class="mu-card is-back" style="clip-path:' + backClip(t) + '">' +
+      var dir = dirs && dirs[i];
+      var back = '<div class="mu-card is-back" style="clip-path:' + backClip(t, dir) + '">' +
                  '<span class="back-mark">?</span><span class="back-tip">滑开看牌</span></div>';
       h += '<div class="mu-flip" data-i="' + i + '">' + face + back + '</div>';
     }
@@ -320,7 +347,9 @@
     var st = S.st;
     if (!st) return;
     /* 换一把（round 变了）就重新盖上牌背；同一把里只按玩家自己翻开的进度显示 */
-    if (st.round !== S.flipRound) { S.flipRound = st.round; S.flipProg = []; }
+    if (st.round !== S.flipRound) {
+      S.flipRound = st.round; S.flipProg = []; S.flipDir = [];
+    }
     if (seatEls.length !== st.players.length) buildSeats(st.players.length);
 
     if (el.codeTop) el.codeTop.textContent = S.code || '----';
@@ -382,7 +411,7 @@
     /* 我的手牌：play 阶段只显式给本人；reveal 阶段所有人都公开在摊牌桌上 */
     var me = st.players[myIdx()];
     var myHand = me ? me.hand : null;
-    if (el.hand) el.hand.innerHTML = myHand && myHand.length ? handHtml(myHand, S.flipProg) : '';
+    if (el.hand) el.hand.innerHTML = myHand && myHand.length ? handHtml(myHand, S.flipProg, S.flipDir) : '';
     if (el.veil) {
       var showVeil = st.phase === 'play' && (!myHand || !myHand.length);
       el.veil.hidden = !showVeil;
@@ -734,13 +763,19 @@
       var x0 = e.clientX, y0 = e.clientY, moved = 0;
       var rect = box.getBoundingClientRect();
       var diag = Math.sqrt(rect.width * rect.width + rect.height * rect.height) || 1;
+      var dir = S.flipDir[i] || DEF_DIR;
       try { box.setPointerCapture(e.pointerId); } catch (err) {}
       function move(ev) {
         var dx = ev.clientX - x0, dy = ev.clientY - y0;
         moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
-        var delta = (dx - dy) / Math.SQRT2;   // 左下 → 右上为正
-        var t = Math.max(0, Math.min(1, startProg + delta / diag));
-        back.style.clipPath = backClip(t);
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        /* 方向跟着本次实际滑动走：滑够一点才锁定，避免起点抖动让裁切线乱跳 */
+        if (dist > 10) {
+          dir = { x: dx / dist, y: dy / dist };
+          S.flipDir[i] = dir;
+        }
+        var t = Math.max(0, Math.min(1, startProg + dist / diag));
+        back.style.clipPath = backClip(t, dir);
         S.flipProg[i] = t;
       }
       function end() {
