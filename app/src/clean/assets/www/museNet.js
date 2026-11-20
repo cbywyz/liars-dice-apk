@@ -146,6 +146,13 @@
     if (n > 0) return n + '杯' + (r > 0 ? '+' + r + 'ml' : '');
     return ml > 0 ? ml + 'ml' : '0杯';
   }
+  /* v1.24.76：待喝文案要通俗——「90ml · 1杯+40ml」，别再绕成 ×N / ≈Y杯。
+     不满一杯时 drankTxt 就是纯毫升，别重复拼成「30ml · 30ml」。 */
+  function waitTxt(wait, st) {
+    if (wait <= 0) return '0ml';
+    var s = drankTxt(wait, st);
+    return s === wait + 'ml' ? s : wait + 'ml · ' + s;
+  }
   /* 净欠毫升 = |cups| × 底注；已喝只抵这块，抵完为 0（已结清） */
   function debtMl(p, st) {
     var owed = -(p.cups | 0) * baseMl(st);
@@ -439,8 +446,8 @@
         e.cup.classList.add('is-gain');
       } else if (cups < 0) {
         var d = p.drunkMl | 0, wait = debtMl(p, st);
-        e.cup.innerHTML = '<b>待喝 ' + wait + 'ml</b><small>×' + (-cups) + ' · ≈' +
-          num1(wait / cupMl(st)) + '杯' + (d > 0 ? ' · 已抵' + d + 'ml' : '') + '</small>';
+        e.cup.innerHTML = '<b>待喝 ' + waitTxt(wait, st) + '</b>' +
+          (d > 0 ? '<small>已抵 ' + d + 'ml</small>' : '');
         e.cup.classList.add('is-loss');
       } else if (p.drunkMl > 0) {
         e.cup.innerHTML = '<b>已喝 ' + drankTxt(p.drunkMl, st) + '</b>';
@@ -509,13 +516,13 @@
 
   /* ---------------- 毫升设置 / 已喝抵扣面板（v1.24.72）----------------
      房主改底注+转杯全桌同步；已喝是每人自己的账，只显示不替别人记。 */
-  var BASE_OPTS = [5, 10, 15, 20, 25, 30];
-  var CUP_OPTS = [50, 60, 80, 100];
+  var BASE_OPTS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+  var CUP_OPTS = [50, 60, 80, 100, 120];
   function optHtml(list, on) {
     var h = '';
     for (var i = 0; i < list.length; i++) {
       h += '<button type="button" class="mn-set-opt' + (list[i] === on ? ' is-on' : '') +
-           '" data-ml="' + list[i] + '">' + list[i] + '</button>';
+           '" data-ml="' + list[i] + '">' + list[i] + 'ml</button>';
     }
     return h;
   }
@@ -541,11 +548,13 @@
         var c = p.cups | 0;
         var owed = c < 0 ? (-c * baseMl(st)) : 0;
         var wait = owed > 0 ? Math.max(0, owed - d) : 0;
-        rows += '<div class="mn-set-p' + (p.id === S.you ? ' is-me' : '') + '">' +
-          '<span class="mn-set-pn">' + (p.name || (i + 1) + ' 号') + '</span>' +
+        var me = p.id === S.you;
+        rows += '<div class="mn-set-p' + (me ? ' is-me' : '') + '">' +
+          '<span class="mn-set-pn">' + (me && (p.name || '') !== '我' ? '<span class="mn-me">我</span>' : '') +
+            (p.name || (i + 1) + ' 号') + '</span>' +
           '<span class="mn-set-pd">已喝 ' + drankTxt(d, st) + '</span>' +
           '<span class="mn-set-pw">' + (c > 0 ? ('净赢 ×' + c) :
-            (owed > 0 ? ('待喝 ' + wait + 'ml · ×' + (-c)) : '打平')) + '</span>' +
+            (owed > 0 ? ('待喝 ' + waitTxt(wait, st)) : '打平')) + '</span>' +
           '</div>';
       }
       el.drinkList.innerHTML = rows || '<div class="mn-set-empty">坐下后这里列出每人已喝 / 待喝</div>';

@@ -550,6 +550,12 @@
   font-size: 2.6667vw;
 }
 .mn-set-p.is-me .mn-set-pn { color: var(--gold-deep, #8a5f18); font-weight: 800; }
+/* v1.24.76：记喝清单里自己的行显式写「我」，光靠金色高亮手机上认不出来 */
+.mn-me {
+  display: inline-block; margin-right: 1vw; padding: 0 1vw;
+  border-radius: 0.8vw; background: var(--gold-deep, #8a5f18);
+  color: #fff; font-size: 2.4vw; line-height: 1.5; vertical-align: middle;
+}
 .mn-set-pn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mn-set-pd { color: var(--ink-2, #3a3f49); font-variant-numeric: tabular-nums; }
 .mn-set-pw {
