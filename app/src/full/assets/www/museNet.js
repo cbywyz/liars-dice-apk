@@ -439,10 +439,20 @@
            （补牌的一般先开）。张数是公开信息，服务端 musePub 已对全桌下发 n。 */
         if (st.mode === 'bank' && !p.opened) {
           tag = (p.n || 2) + ' 张' + (p.done ? '' : ' · 补牌中');
-        } else if (p.opened) tag = '已开';
+        } else if (p.opened) {
+          /* v1.24.79：被庄家开的人当场公开点数 + 牌型（不能只显示输赢结果）。
+             服务端已下发已开玩家的 hand/res；kindTxt 传 hand 才能显示鬼鬼X 的具体点数。 */
+          tag = p.res
+            ? '点数 ' + (p.res.unit === undefined ? '-' : p.res.unit) +
+              ' · ' + kindTxt(p.res.kind, p.hand)
+            : '已开';
+        }
         else tag = p.done ? '补好了' : (p.seat === st.turn ? '补牌中' : '看牌中');
       }
-      else if (st.phase === 'reveal') tag = p.res ? kindTxt(p.res.kind) : '';
+      else if (st.phase === 'reveal') {
+        tag = p.res ? ('点数 ' + (p.res.unit === undefined ? '-' : p.res.unit) +
+          ' · ' + kindTxt(p.res.kind, p.hand)) : '';
+      }
       e.st.textContent = tag;
       /* 已开 / 可开的座位给个视觉标记，庄家一眼看出先开谁 */
       if (e.root.classList) {
@@ -643,10 +653,11 @@
            开完还能补最后一张再继续开，也可以直接全开。 */
         var left = (st.openable || []).length;
         h = left
-          ? '你是庄 · 点玩家座位开牌（看张数，补牌的先开）· 还剩 ' + left + ' 家'
+          ? '你是庄 · 点玩家座位开牌 · 还剩 ' + left + ' 家'
           : '都开好了 · 等摊牌';
-      } else if (st.mode === 'bank' && st.banker >= 0) {
-        /* 非庄家：看得到各家张数，但只有庄家能开 */
+      } else if (st.openWait && st.mode === 'bank' && st.banker >= 0) {
+        /* v1.24.79：只有补牌全结束、进控开阶段，非庄家才是「等庄家开牌」。
+           补牌阶段（openWait=false）不能截胡，否则轮到自己补牌却显示等庄家。 */
         var bk = st.players[st.banker];
         h = '等庄家 ' + (bk ? (bk.name || (st.banker + 1) + ' 号') : '') + ' 开牌';
       } else if (st.openWait) {
@@ -666,7 +677,11 @@
     }
     if (el.hint) {
       el.hint.textContent = h;
-      if (el.hint.classList) el.hint.classList.toggle('is-vote', !!(st.phase === 'reveal' && st.vote));
+      if (el.hint.classList) {
+        el.hint.classList.toggle('is-vote', !!(st.phase === 'reveal' && st.vote));
+        /* v1.24.79：庄家控开阶段高亮提示，一眼看到该自己点名开牌 */
+        el.hint.classList.toggle('is-open', !!(st.canOpen && (st.openable || []).length));
+      }
     }
   }
 
@@ -692,7 +707,9 @@
                 '" type="button" data-act="openall">全开 ' + openable.length + ' 家</button>';
         }
         h = h2 || '<button class="btn ghost" type="button" disabled>等玩家补牌</button>';
-      } else if (st.mode === 'bank' && st.banker >= 0) {
+      } else if (st.openWait && st.mode === 'bank' && st.banker >= 0) {
+        /* v1.24.79：补牌阶段（openWait=false）照常走下面的「补牌/不补」分支，
+           只有控开阶段非庄家才是「等庄家开牌」。 */
         h = '<button class="btn ghost" type="button" disabled>等庄家开牌</button>';
       } else if (st.openWait) {
         var ov = st.openVote;

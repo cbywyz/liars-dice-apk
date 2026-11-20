@@ -37,6 +37,19 @@
 /* 摊牌后「下一局」投票进度写在提示行 */
 .mn-table .fd-hint.is-vote { color: var(--gold-deep, #8a5f18); font-weight: 600; }
 
+/* v1.24.79 庄家控开：把「你是庄 · 点玩家座位开牌」高亮成一屏焦点 */
+.mn-table .fd-hint.is-open {
+  color: var(--gold-deep, #8a5f18);
+  font-weight: 700;
+  font-size: 2.9vw;
+  background: linear-gradient(90deg, rgba(201, 146, 42, 0.16), rgba(201, 146, 42, 0.04));
+  border: 0.1333vw solid var(--gold-mid, #c9922a);
+  border-radius: var(--r-sm, 3.2vw);
+  padding: 1.2vw 2vw;
+  box-shadow: 0 0.5vw 1.6vw rgba(138, 95, 24, 0.14);
+}
+.mn-table .fd-hint.is-open:not(.is-vote) { opacity: 1; }
+
 /* 顶栏右侧挤了三颗按钮（重开/房号/退出），标题收一点并左挪让位，
    跟七八九那套同款 —— 否则「重开」会压在「木塞」标题上。 */
 .page-musenet .nav-title { padding: 0.4vw 2vw; transform: translateX(-4vw); }
