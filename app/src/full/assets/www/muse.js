@@ -324,5 +324,5 @@
     RANK: RANK, BASE: BASE
   };
 
-  /* 木塞只做联机：判定层供服务端 / 单测复用，UI 与 WS 全在 museNet.js。 */
+  /* 木塞联机：判定层供服务端 / 单测复用，UI 与 WS 全在 museNet.js。 */
 })();
