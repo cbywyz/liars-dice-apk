@@ -17,13 +17,18 @@
     api: DEFAULT_API, code: '', ws: null, you: null, token: null, st: null,
     mode: 'bank',                         // bank=轮流坐庄（默认）/ fish=木塞鱼大吃小
     alive: false, retry: 0, retryTimer: 0, pingTimer: 0,
+    /* v1.24.75：pong 回音 / 假在线检测。手机切后台 WS 会挂成半开（readyState
+       还是 OPEN 但服务器收不到），只能靠「ping 有没有回音」识破。 */
+    lastMsgAt: 0, wasOffline: false, hiddenAt: 0,
     lastTap: 0, lastTapPid: '', kickPid: '',
     /* 发牌先盖牌背，玩家自己逐张翻开（纯前端表现，服务端仍权威下发真牌）。
        按 round 重置：换一把就重新盖上，摊牌时摊牌桌照常全公开。 */
     flipRound: -1, flipProg: [], flipDir: [], flipLocked: [],
     /* 面板模式（v1.24.74）：host=房主设置（顶栏 ⚙，底注/转杯）；drink=记喝（右下按钮）。
        两个入口共用一块面板 DOM，按模式显示不同行，体验上彻底分开。 */
-    panelMode: 'host'
+    panelMode: 'host',
+    /* v1.24.75：记喝单位 cup=按杯（满杯） / ml=按毫升（不满杯的零头） */
+    drinkUnit: 'cup'
   };
   var el = {};
   var seatEls = [];
@@ -133,6 +138,14 @@
   function cupMl(st) { return (st && st.cupMl > 0) ? st.cupMl : 50; }
   function num1(n) { return Math.round(n * 10) / 10; }
   function mlCup(ml, st) { return Math.round(ml) + 'ml ≈ ' + num1(ml / cupMl(st)) + '杯'; }
+  /* v1.24.75：记喝支持「杯 / 毫升」两种单位——满杯按杯记，不满杯的零头按毫升记。
+     底层仍存毫升（服务端 drunkMl），房主改转杯口径后杯数能重新折算。 */
+  function drankTxt(ml, st) {
+    ml = ml | 0;
+    var cm = cupMl(st), n = Math.floor(ml / cm), r = ml % cm;
+    if (n > 0) return n + '杯' + (r > 0 ? '+' + r + 'ml' : '');
+    return ml > 0 ? ml + 'ml' : '0杯';
+  }
   /* 净欠毫升 = |cups| × 底注；已喝只抵这块，抵完为 0（已结清） */
   function debtMl(p, st) {
     var owed = -(p.cups | 0) * baseMl(st);
@@ -141,7 +154,7 @@
   /* 牌背「跟手指方向掀开」：裁切线垂直于本次滑动方向，从手指起点那一侧推进，
      滑到哪停到哪。dir=(dx,dy) 是本次滑动的单位向量（屏幕坐标 y 向下）；
      没记方向时（比如刚发牌）给默认左下→右上。prog 0~1，摊牌桌不传 prog → 全公开。 */
-  var CARD_W = 19, CARD_H = 27;   // 跟 .mu-flip 的 19vw×27vw 同比例，保证裁切线真垂直手指
+  var CARD_W = 24, CARD_H = 34;   // 跟 .mu-flip 的 24vw×34vw 同比例，保证裁切线真垂直（v1.24.75 放大）手指
   var DEF_DIR = { x: 1 / Math.SQRT2, y: -1 / Math.SQRT2 };
   function backClip(t, dir) {
     if (!(t > 0)) return 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
@@ -211,6 +224,7 @@
     ws.onopen = function () {
       if (S.ws !== ws) return;
       S.retry = 0;
+      S.lastMsgAt = Date.now();
       var seat = loadSeat(S.code);
       ws.send(JSON.stringify({
         t: 'hello', name: myName(),
@@ -228,7 +242,11 @@
       if (S.ws !== ws) return;
       S.ws = null;
       stopPing();
-      if (S.alive) retryLater();
+      if (S.alive) {
+        S.wasOffline = true;
+        tip('连接断了，正在重连…');
+        retryLater();
+      }
     };
     ws.onerror = function () {};
   }
@@ -247,12 +265,33 @@
   function startPing() {
     stopPing();
     S.pingTimer = setInterval(function () {
-      if (S.ws && S.ws.readyState === 1) { try { S.ws.send('{"t":"ping"}'); } catch (e) {} }
-    }, 20000);
+      if (!S.ws || S.ws.readyState !== 1) return;
+      /* 30 秒收不到任何回音（含 pong）→ 半开连接，掐了重连，别让用户对着死连接点。 */
+      if (S.lastMsgAt && Date.now() - S.lastMsgAt > 30000) {
+        tip('网络好像断了，正在重连…');
+        S.wasOffline = true;
+        closeSocket();
+        connect();
+        return;
+      }
+      try {
+        S.ws.send('{"t":"ping"}');
+      } catch (e) {
+        S.wasOffline = true; closeSocket(); connect();
+      }
+    }, 10000);
   }
   function stopPing() { if (S.pingTimer) { clearInterval(S.pingTimer); S.pingTimer = 0; } }
   function send(o) {
     if (S.ws && S.ws.readyState === 1) {
+      /* 假在线：socket 看着开着，但 30 秒没有任何回音，先重连让用户再点一次。 */
+      if (S.lastMsgAt && Date.now() - S.lastMsgAt > 30000) {
+        tip('网络断开了，正在重连，请再点一次');
+        S.wasOffline = true;
+        closeSocket();
+        connect();
+        return false;
+      }
       try { S.ws.send(JSON.stringify(o)); return true; } catch (e) {}
     }
     tip('还没连上，等一下再点');
@@ -260,6 +299,9 @@
   }
 
   function onMsg(m) {
+    S.lastMsgAt = Date.now();
+    if (S.wasOffline) { S.wasOffline = false; tip('已重新连上'); }
+    if (m.t === 'pong') return;
     if (m.t === 'you') {
       S.you = m.pid;
       S.token = m.token;
@@ -360,7 +402,7 @@
     if (el.drink) {
       el.drink.hidden = false;
       var meForDrink = st.players[myIdx()];
-      if (el.drinkSub) el.drinkSub.textContent = '已喝 ' + ((meForDrink && meForDrink.drunkMl) | 0) + 'ml';
+      if (el.drinkSub) el.drinkSub.textContent = '已喝 ' + drankTxt(meForDrink ? meForDrink.drunkMl : 0, st);
     }
     if (el.modeTag) {
       el.modeTag.textContent = st.mode === 'fish' ? '木塞鱼 · 大吃小' : '木塞 · 轮流坐庄';
@@ -401,9 +443,17 @@
           num1(wait / cupMl(st)) + '杯' + (d > 0 ? ' · 已抵' + d + 'ml' : '') + '</small>';
         e.cup.classList.add('is-loss');
       } else if (p.drunkMl > 0) {
-        e.cup.innerHTML = '<b>已喝 ' + p.drunkMl + 'ml</b>';
+        e.cup.innerHTML = '<b>已喝 ' + drankTxt(p.drunkMl, st) + '</b>';
       } else {
         e.cup.textContent = '';
+      }
+      /* v1.24.75：房主（seat 0）高亮 + 「房主」标，跟「我」「庄」三者一眼分清 */
+      var isHostSeat = p.seat === 0;
+      e.root.classList.toggle('is-host', isHostSeat);
+      if (isHostSeat && e.nm.querySelector) {
+        if (!e.nm.querySelector('.host-tag')) {
+          e.nm.insertAdjacentHTML('afterbegin', '<span class="host-tag">房主</span>');
+        }
       }
       if (e.banker) {
         var isBank = st.mode !== 'fish' && st.banker === i;
@@ -475,7 +525,9 @@
     var hostMode = S.panelMode === 'host';
     /* v1.24.74：房主设置与记喝彻底分开——顶栏 ⚙ 只露底注/转杯，
        右下记喝按钮只露「我已喝 + 每人清单」，各自不再夹带对方的内容。 */
-    if (el.setTitle) el.setTitle.textContent = hostMode ? '房主设置 · 底注/转杯' : '记喝 · 已喝抵扣';
+    if (el.setTitle) el.setTitle.textContent = hostMode
+      ? '房主设置 · 底注/转杯'
+      : '记喝 · 满' + cupMl(st) + 'ml一杯';
     if (el.setHostRow) el.setHostRow.hidden = !hostMode || !isHost;
     if (el.setHostRow2) el.setHostRow2.hidden = !hostMode || !isHost;
     if (el.drinkRow) el.drinkRow.hidden = hostMode;
@@ -491,7 +543,7 @@
         var wait = owed > 0 ? Math.max(0, owed - d) : 0;
         rows += '<div class="mn-set-p' + (p.id === S.you ? ' is-me' : '') + '">' +
           '<span class="mn-set-pn">' + (p.name || (i + 1) + ' 号') + '</span>' +
-          '<span class="mn-set-pd">已喝 ' + d + 'ml</span>' +
+          '<span class="mn-set-pd">已喝 ' + drankTxt(d, st) + '</span>' +
           '<span class="mn-set-pw">' + (c > 0 ? ('净赢 ×' + c) :
             (owed > 0 ? ('待喝 ' + wait + 'ml · ×' + (-c)) : '打平')) + '</span>' +
           '</div>';
@@ -530,9 +582,30 @@
   function drinkOk() {
     if (!el.drinkMl) return;
     var v = parseInt(el.drinkMl.value, 10);
-    if (!v || v < 1 || v > 10000) { tip('填 1~10000 毫升'); return; }
+    var cup = S.drinkUnit !== 'ml';
+    if (cup) {
+      if (!v || v < 1 || v > 100) { tip('填 1~100 杯，满一杯按 ' + cupMl(S.st) + 'ml 折算'); return; }
+    } else {
+      if (!v || v < 1 || v > 10000) { tip('填 1~10000 毫升（不满一杯的零头）'); return; }
+    }
     buzz(10);
-    if (send({ t: 'mdrink', ml: v })) el.drinkMl.value = '';
+    /* 杯按当前转杯折算成毫升记账；毫升零头照记。两种单位落到同一个 drunkMl。 */
+    var ml = cup ? v * cupMl(S.st) : v;
+    if (send({ t: 'mdrink', ml: ml })) el.drinkMl.value = '';
+  }
+  function setDrinkUnit(unit) {
+    S.drinkUnit = unit === 'ml' ? 'ml' : 'cup';
+    if (el.drinkUnit) {
+      var bs = el.drinkUnit.querySelectorAll('[data-unit]');
+      for (var i = 0; i < bs.length; i++) {
+        bs[i].classList.toggle('is-on', bs[i].getAttribute('data-unit') === S.drinkUnit);
+      }
+    }
+    if (el.drinkMl) {
+      el.drinkMl.placeholder = S.drinkUnit === 'ml' ? '零头毫升' : '几杯';
+      el.drinkMl.max = S.drinkUnit === 'ml' ? '10000' : '100';
+      el.drinkMl.value = '';
+    }
   }
 
   function renderHint(st) {
@@ -618,7 +691,8 @@
       var badge = net > 0 ? ('净赢 ×' + netX + ' · ' + mlCup(netMl, st))
                     : (net < 0 ? ('净输 ×' + netX + ' · ' + mlCup(netMl, st)) : '打平');
       var cls = net > 0 ? 'is-gain' : (net < 0 ? 'is-loss' : 'is-even');
-      var mark = isBank && r.isBanker ? '<span class="bd-banker">庄</span>' : '';
+      var mark = (isBank && r.isBanker ? '<span class="bd-banker">庄</span>' : '') +
+                 (r.seat === 0 ? '<span class="bd-host">房主</span>' : '');
       /* 点数 / 牌型 / 倍率紧跟在牌后面做高亮标签，一桌人一眼扫到（用户 2026-11-20 要求） */
       var kindHtml = '<span class="bd-kind">' +
         '<b class="bd-pt">' + (r.unit === undefined ? '-' : ('点数 ' + r.unit)) + '</b>' +
@@ -845,6 +919,23 @@
       box.addEventListener('pointerup', end);
       box.addEventListener('pointercancel', end);
     });
+    /* v1.24.75：切后台回来主动重连 —— 手机把 WS 挂起后不会自己发 onclose，
+       回到前台 socket 看着还开着其实已经死了，直接重连最稳。短暂切换只补一记 ping。 */
+    document.addEventListener('visibilitychange', function () {
+      if (!S.alive || !S.code) return;
+      if (document.hidden) { S.hiddenAt = Date.now(); return; }
+      var away = S.hiddenAt ? Date.now() - S.hiddenAt : 0;
+      S.hiddenAt = 0;
+      if (away > 2000 || !S.ws || S.ws.readyState !== 1 || Date.now() - S.lastMsgAt > 15000) {
+        tip('回到桌面，正在重连…');
+        S.wasOffline = true;
+        closeSocket();
+        connect();
+      } else {
+        try { S.ws.send('{"t":"ping"}'); } catch (e) {}
+      }
+    });
+
     if (el.codeTop) el.codeTop.addEventListener('click', copyCode);
     if (el.redo) el.redo.addEventListener('click', doNext);
     /* 毫升设置 / 已喝抵扣 */
@@ -861,6 +952,10 @@
     if (el.cupOpts) el.cupOpts.addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('[data-ml]') : null;
       if (b) setCup(b.getAttribute('data-ml'));
+    });
+    if (el.drinkUnit) el.drinkUnit.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-unit]') : null;
+      if (b) setDrinkUnit(b.getAttribute('data-unit'));
     });
     if (el.drinkOk) el.drinkOk.addEventListener('click', drinkOk);
     if (el.drinkMl) el.drinkMl.addEventListener('keydown', function (e) {
@@ -940,6 +1035,7 @@
       baseOpts: $('mnBaseOpts'), cupOpts: $('mnCupOpts'),
       drink: $('mnDrink'), drinkSub: $('mnDrinkSub'), drinkRow: $('mnDrinkRow'),
       drinkMl: $('mnDrinkMl'), drinkOk: $('mnDrinkOk'), drinkList: $('mnDrinkList'),
+      drinkUnit: $('mnDrinkUnit'),
       round: $('mnRound'), turn: $('mnTurn'), left: $('mnLeft'),
       seats: $('mnSeats'), hand: $('mnHand'),
       stage: $('mnStage'), board: $('mnBoard'),
