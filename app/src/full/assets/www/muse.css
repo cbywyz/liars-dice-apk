@@ -59,6 +59,20 @@
 .mu-seat.is-turn {
   box-shadow: inset 0 0 0 0.32vw var(--gold-mid, #c9922a);
 }
+/* v1.24.78 坐庄控开：可开的座位描金边、张数标亮；已开的压暗。
+   庄家据此决定先开谁（补到 3 张的一般先开）。 */
+.mu-seat.is-openable {
+  box-shadow: inset 0 0 0 0.32vw var(--gold-mid, #c9922a);
+  background: #fff8e8;
+  cursor: pointer;
+}
+.mu-seat.is-openable .st {
+  color: var(--gold-deep, #8a5f18);
+  opacity: 1;
+  font-weight: 700;
+}
+.mu-seat.is-opened { opacity: 0.66; }
+.mu-seat.is-opened .st { color: #b3352c; opacity: 1; }
 .mu-seat.is-me .nm::before {
   content: '我 ';
   color: var(--gold-mid, #c9922a);

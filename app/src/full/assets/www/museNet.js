@@ -21,6 +21,8 @@
        还是 OPEN 但服务器收不到），只能靠「ping 有没有回音」识破。 */
     lastMsgAt: 0, wasOffline: false, hiddenAt: 0,
     lastTap: 0, lastTapPid: '', kickPid: '',
+    /* v1.24.78 庄家点名开牌的二次确认（点座位卡两次才真开，防误触） */
+    lastOpenTap: 0, lastOpenSeat: -1,
     /* 发牌先盖牌背，玩家自己逐张翻开（纯前端表现，服务端仍权威下发真牌）。
        按 round 重置：换一把就重新盖上，摊牌时摊牌桌照常全公开。 */
     flipRound: -1, flipProg: [], flipDir: [], flipLocked: [],
@@ -432,9 +434,22 @@
       e.root.classList.toggle('is-turn', st.phase === 'play' && p.seat === st.turn);
       var tag = '';
       if (!p.online) tag = '离线';
-      else if (st.phase === 'play') tag = p.done ? '补好了' : (p.seat === st.turn ? '补牌中' : '看牌中');
+      else if (st.phase === 'play') {
+        /* v1.24.78 坐庄控开：庄家要看得见每家是 2 张还是 3 张，决定先开谁
+           （补牌的一般先开）。张数是公开信息，服务端 musePub 已对全桌下发 n。 */
+        if (st.mode === 'bank' && !p.opened) {
+          tag = (p.n || 2) + ' 张' + (p.done ? '' : ' · 补牌中');
+        } else if (p.opened) tag = '已开';
+        else tag = p.done ? '补好了' : (p.seat === st.turn ? '补牌中' : '看牌中');
+      }
       else if (st.phase === 'reveal') tag = p.res ? kindTxt(p.res.kind) : '';
       e.st.textContent = tag;
+      /* 已开 / 可开的座位给个视觉标记，庄家一眼看出先开谁 */
+      if (e.root.classList) {
+        e.root.classList.toggle('is-opened', !!p.opened);
+        e.root.classList.toggle('is-openable',
+          !!(st.canOpen && !p.opened && p.seat !== st.banker && st.phase === 'play'));
+      }
       /* cups 是累计净额（单位「倍」，摊牌后才落账）。1 倍 = baseMl 毫升；
          净欠方按已喝抵扣后显示「待喝」，净赢方照实显示净赢不扣。 */
       var cups = p.cups | 0;
@@ -623,7 +638,18 @@
       h = st.players.length < 2 ? '再多来一位就能开局' : '人齐了 · 点「开局」';
     } else if (st.phase === 'play') {
       var me = st.players[myIdx()];
-      if (st.openWait) {
+      if (st.canOpen) {
+        /* v1.24.78 坐庄：庄家控开。先开部分玩家（张数少的/补牌的先开），
+           开完还能补最后一张再继续开，也可以直接全开。 */
+        var left = (st.openable || []).length;
+        h = left
+          ? '你是庄 · 点玩家座位开牌（看张数，补牌的先开）· 还剩 ' + left + ' 家'
+          : '都开好了 · 等摊牌';
+      } else if (st.mode === 'bank' && st.banker >= 0) {
+        /* 非庄家：看得到各家张数，但只有庄家能开 */
+        var bk = st.players[st.banker];
+        h = '等庄家 ' + (bk ? (bk.name || (st.banker + 1) + ' 号') : '') + ' 开牌';
+      } else if (st.openWait) {
         var ov = st.openVote;
         h = '都补好了 · 慢慢看牌，点「开牌」揭盅';
         if (ov) h += '（' + ov.yes.length + '/' + ov.need + ' 票' + (ov.mine ? ' · 已同意' : '') + '）';
@@ -652,7 +678,23 @@
       }
     } else if (st.phase === 'play') {
       var me = st.players[myIdx()];
-      if (st.openWait) {
+      if (st.canOpen) {
+        /* v1.24.78 庄家控开：可点座位卡点名开（开一个结一个），还能补最后一张再开，
+           也能一键全开。按钮区放「补牌 + 全开」，点名开走座位卡单击。 */
+        var openable = st.openable || [];
+        var h2 = '';
+        if (me && me.seat === st.turn && !me.done && me.n < 3) {
+          h2 += '<button class="btn primary" type="button" data-act="take">补最后一张</button>' +
+                '<button class="btn ghost" type="button" data-act="stay">不补</button>';
+        }
+        if (openable.length) {
+          h2 += '<button class="btn ' + (h2 ? 'ghost' : 'primary') +
+                '" type="button" data-act="openall">全开 ' + openable.length + ' 家</button>';
+        }
+        h = h2 || '<button class="btn ghost" type="button" disabled>等玩家补牌</button>';
+      } else if (st.mode === 'bank' && st.banker >= 0) {
+        h = '<button class="btn ghost" type="button" disabled>等庄家开牌</button>';
+      } else if (st.openWait) {
         var ov = st.openVote;
         h = ov && ov.mine
           ? '<button class="btn ghost" type="button" data-act="unopen">撤回开牌票</button>'
@@ -980,6 +1022,8 @@
       if (a === 'start') send({ t: 'start' });
       else if (a === 'take') send({ t: 'mtake' });
       else if (a === 'stay') send({ t: 'mstay' });
+      else if (a === 'openone') send({ t: 'mopenone', seats: [Number(b.getAttribute('data-seat'))] });
+      else if (a === 'openall') send({ t: 'mopenall' });
       else if (a === 'open') send({ t: 'mopen' });
       else if (a === 'unopen') send({ t: 'munvoteopen' });
       else if (a === 'next') doNext();
@@ -992,6 +1036,20 @@
       var st = S.st;
       if (!st || !st.players[i]) return;
       var pid = st.players[i].id;
+      /* v1.24.78 庄家控开：单击 openable 座位 = 点名开这家（两次确认防误触）。
+         开牌不可逆，第一次点只提示，第二次点才真发。 */
+      if (st.canOpen && i !== st.banker && !st.players[i].opened &&
+          (st.openable || []).indexOf(i) >= 0) {
+        var nowOpen = Date.now();
+        if ((nowOpen - S.lastOpenTap <= 2500) && (S.lastOpenSeat === i)) {
+          S.lastOpenTap = 0; S.lastOpenSeat = -1;
+          send({ t: 'mopenone', seats: [i] });
+          return;
+        }
+        S.lastOpenTap = nowOpen; S.lastOpenSeat = i;
+        tip('再点一次 · 开 ' + (st.players[i].name || (i + 1) + ' 号') + '（' + (st.players[i].n || 2) + ' 张）');
+        return;
+      }
       var now = Date.now();
       var dbl = (now - S.lastTap <= 600) && (S.lastTapPid === pid);
       S.lastTap = now; S.lastTapPid = pid;
