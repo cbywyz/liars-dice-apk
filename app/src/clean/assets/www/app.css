@@ -1094,12 +1094,22 @@ button[disabled] { opacity: 1; }
 .page-solo .home-head { padding-top: 0; }
 .page-solo .home-cards { margin-top: 13.3333vw; }
 
-/* 联机大厅从 4 张卡涨到 5 张（加了木塞）+ 底下一条公共屏带，单列大卡一屏放不下，
-   实测 solo-body 925px > 视口 844px、公共屏被顶到视口外。
-   只收紧这一页的卡间距 / 卡内边距 / 标题留白，不动单机选玩法页那套 ——
-   两页还是一家的，只是这页多一张卡，压到一屏刚好装下。 */
-.page-netmodes .home-cards { margin-top: 11vw; gap: 4.5vw; }
-.page-netmodes .play-card { padding: 6vw 7.4667vw; }
+/* 联机大厅 5 张卡 + 公共屏带，单列大卡一屏放不下。
+   2026-11-20 再收紧：实测带地址栏的浏览器可视高常只有 ~740px，旧版 board bottom=817
+   被顶出视口，而 solo-body 是 justify-content:center 且不可滚，用户滑都滑不到。
+   两处一起改：① 进一步压卡片/间距，把总高压到 ~640px；② 超高时允许滚动兜底。
+   仍只收紧这一页，不动单机选玩法页那套。 */
+.page-netmodes .solo-body {
+  justify-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(2vw + env(safe-area-inset-bottom));
+}
+.page-netmodes .home-head { padding-top: 3vw; }
+.page-netmodes .home-cards { margin-top: 6vw; gap: 3vw; }
+.page-netmodes .play-card { padding: 3.6vw 7.4667vw; gap: 1.4vw; }
+.page-netmodes .nm-name { margin-top: 3vw; }
+.page-netmodes .home .net-board { margin-top: 3vw; padding: 3vw 5.8667vw; }
 
 /* 版本号贴在选玩法页底部：.solo-body 已经 flex:1 把上面撑满，
    这里只要别再带 .foot 的上外边距，给足安全区，免得压在手势条下面 */

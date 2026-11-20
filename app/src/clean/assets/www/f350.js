@@ -1581,10 +1581,10 @@
       switchTo('789net');
     });
 
-    /* 木塞联机：同找朋友 / 吹牛 / 七八九，连接由它自己 enter() 里建（要先有房号） */
+    /* 木塞联机：暂未开放，入口点了提示开发中。 */
     var playNetMuse = $('playNetMuse');
     if (playNetMuse) playNetMuse.addEventListener('click', function () {
-      switchTo('musenet');
+      toast('正在开发，待完善');
     });
 
     /* 摆桌上：也不用先连，等它自己拿到房号再连 */

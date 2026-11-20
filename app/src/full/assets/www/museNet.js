@@ -96,11 +96,22 @@
     };
   }
   var KIND_TXT = {
-    tripleJoker: '三鬼', doubleJoker: '双鬼', joker5: '鬼鬼5', tiangong: '天公',
+    tripleJoker: '三鬼', doubleJoker: '双鬼', joker5: '鬼鬼X', tiangong: '天公',
     straightFlush: '同花顺', threeKind: '三条', straight: '顺子',
     muse: '木塞', normal: '普通牌'
   };
-  function kindTxt(k) { return KIND_TXT[k] || '普通牌'; }
+  /* 鬼鬼X 要显示成具体点数（鬼鬼9 / 鬼鬼5）：从手牌里找那张非鬼牌取面值。
+     注意不能用 res.unit——含鬼时 unit 一律算 9，显示不出真实牌面。 */
+  function kindTxt(k, hand) {
+    if (k === 'joker5') {
+      var x = '';
+      if (hand) for (var i = 0; i < hand.length; i++) {
+        if (hand[i].r !== 0) { x = rankTxt(hand[i].r); break; }
+      }
+      return '鬼鬼' + (x || 'X');
+    }
+    return KIND_TXT[k] || '普通牌';
+  }
   /* 摊牌显示用的「同花」标签：三张普通牌同花色。只是标注，不改牌型判定与倍率 */
   function flushLabel(hand) {
     if (!hand || hand.length !== 3 || typeof hand[0].s !== 'number') return '';
@@ -328,7 +339,7 @@
     if (el.kind) {
       if (opened && me && me.res) {
         el.kind.innerHTML = '点数 ' + (me.res.unit === undefined ? '-' : me.res.unit) +
-          ' · ' + kindTxt(me.res.kind) +
+          ' · ' + kindTxt(me.res.kind, me.hand) +
           (me.res.mult > 1 ? ' · <span class="mult">×' + me.res.mult + '</span>' : '');
       } else {
         el.kind.textContent = '';
@@ -411,7 +422,8 @@
         isBanker: st.mode === 'bank' && st.banker === p.seat };
     });
     rows = rows.slice().sort(function (a, b) { return (b.net || 0) - (a.net || 0); });
-    var h = '<div class="bd-title">摊牌结果 · ' +
+    var h = '<div class="bd-grid">' +
+      '<div class="bd-title">摊牌结果 · ' +
       (isBank ? '木塞（轮流坐庄）' : '木塞鱼（大吃小）') + '</div>';
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i], player = st.players[r.seat] || {};
@@ -422,7 +434,7 @@
       /* 点数 / 牌型 / 倍率紧跟在牌后面做高亮标签，一桌人一眼扫到（用户 2026-11-20 要求） */
       var kindHtml = '<span class="bd-kind">' +
         '<b class="bd-pt">' + (r.unit === undefined ? '-' : ('点数 ' + r.unit)) + '</b>' +
-        '<em class="bd-kd">' + (r.kind ? kindTxt(r.kind) : '普通牌') +
+        '<em class="bd-kd">' + (r.kind ? kindTxt(r.kind, player.hand) : '普通牌') +
           (r.mult > 1 ? ' ×' + r.mult : '') + '</em>' +
         (flushLabel(player.hand) ? '<i class="bd-flush">同花</i>' : '') +
         '</span>';
@@ -442,7 +454,7 @@
     h += '<div class="bd-sum">本局流水 ' + (res.turnover || 0) + ' · ' +
       (isBank ? '庄家吃全桌，玩家只对庄家 · ' +
         (res.keepBanker ? '净赢续庄' : '没赢换庄')
-        : '大吃小，大家都是庄') + '</div>';
+        : '大吃小，大家都是庄') + '</div></div>';
     el.board.innerHTML = h;
   }
 

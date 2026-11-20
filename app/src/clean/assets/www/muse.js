@@ -87,11 +87,29 @@
     return info.same ? info.n : 1;
   }
 
-  /* 三张普通牌是否顺子（A=1 不接 K；J-Q-K=11,12,13 算顺；鬼不在其中，另由枚举处理） */
+  /* 天公是否「双倍」（用户 2026-11-20 纠正，不是一律 2 倍）：
+     · 对子天公（两张点数相同，如 4♦4♣=8、9♠9♥=18→8）→ 2 倍
+     · 同花天公（两张花色相同，如 3♦5♦=8）→ 2 倍
+     · 杂花且非对子（如 3♦5♣=8）→ 1 倍
+     带鬼不判天公，这里保险返回 false。 */
+  function tiangongDouble(hand) {
+    if (!hand || hand.length !== 2) return false;
+    var a = hand[0], b = hand[1];
+    if (isJoker(a) || isJoker(b)) return false;
+    var pair = (a.r === b.r);             // 对子
+    var flush = suitBonus(hand) >= 2;     // 同花
+    return pair || flush;
+  }
+
+  /* 三张普通牌是否顺子（rs 已升序；A=1）。两种顺：
+       ① A-2-3(1,2,3) 到 J-Q-K(11,12,13) 的递增串；
+       ② Q-K-A：A 当 14 接 K，排序后是 [1,12,13]（用户 2026-11-20 确认 Q+鬼+A 补 K 算顺子）。
+     鬼不在其中，另由下面的枚举处理。 */
   function isStraight3(rs) {
     if (rs.length !== 3) return false;
     var a = rs[0], b = rs[1], c = rs[2];
-    return b === a + 1 && c === b + 1 && a >= 1 && a <= 11;
+    if (b === a + 1 && c === b + 1 && a >= 1 && a <= 11) return true;
+    return a === 1 && b === 12 && c === 13;                  // Q-K-A（A=14）
   }
   function isThreeKind(rs) { return rs.length === 3 && rs[0] === rs[1] && rs[1] === rs[2]; }
 
@@ -104,11 +122,14 @@
     var jn = 0, i;
     for (i = 0; i < hand.length; i++) if (isJoker(hand[i])) jn++;
     if (jn >= 3) return 'tripleJoker';
-    /* ★ 鬼鬼5：两张鬼 + 一张 5，8 倍（2026-11-20 实战第7局用户确认）；别的双鬼仍 10 倍 */
+    /* ★ 鬼鬼X：两张鬼 + 任意一张普通牌，8 倍。按「手牌张数」区分鬼牌型：
+       · 三张全是鬼 → tripleJoker（30 倍），上面已返回
+       · 两张牌都是鬼 → doubleJoker（双鬼，10 倍）
+       · 两张鬼 + 一张普通牌 → joker5（鬼鬼X，8 倍；X 是那张普通牌的点数）
+       用户 2026-11-20 图2 纠正：「鬼鬼9 不是 10 倍是 8 倍」——以前只认点数=5 是鬼鬼5，
+       其它点数的两鬼+普通牌被当成双鬼 10 倍，错了。现在只要「两鬼+一普通牌」就是鬼鬼X。 */
     if (jn === 2) {
-      for (i = 0; i < hand.length; i++) {
-        if (!isJoker(hand[i]) && hand[i].r === 5) return 'joker5';
-      }
+      if (hand.length === 3) return 'joker5';
       return 'doubleJoker';
     }
 
@@ -174,7 +195,7 @@
   };
   function rankOf(kind) { return RANK[kind] === undefined ? 0 : RANK[kind]; }
 
-  /* 牌型底倍率（花色加成之前）。用户确认：三条5/同花顺7/顺子4/双鬼10/鬼鬼5=8/三鬼30/
+  /* 牌型底倍率（花色加成之前）。用户确认：三条5/同花顺7/顺子4/双鬼10/鬼鬼X=8/三鬼30/
      天公底1/木塞底1。同花顺的 7 已含同花概念，不再叠花色加成。 */
   var BASE = {
     tripleJoker: 30, doubleJoker: 10, joker5: 8,
@@ -187,8 +208,10 @@
      木塞克双鬼：花色倍率 × 10（用户确认 10/20/30）；鬼鬼5 固定 8、同花固定 3。 */
   function finalMult(kind, hand, opponentKind) {
     var b = suitBonus(hand);
-    if (kind === 'joker5') return 8;       // 鬼鬼5 固定 8 倍，含鬼不算花色加成
-    if (kind === 'tiangong') return b * BASE.tiangong;
+    if (kind === 'joker5') return 8;       // 鬼鬼X 固定 8 倍，含鬼不算花色加成
+    /* 天公倍率（用户 2026-11-20 纠正）：对子 或 同花 → 2 倍；杂花非对子 → 1 倍。
+       图1 的 4♦4♣ 是对子（虽杂花）应 2 倍；图3 天公之间按此双倍/单倍裁决谁吃谁。 */
+    if (kind === 'tiangong') return tiangongDouble(hand) ? 2 : 1;
     if (kind === 'muse' && opponentKind === 'doubleJoker') return b * 10;
     if (kind === 'muse' && opponentKind === 'tripleJoker') return b * 30;
     if (kind === 'muse' || kind === 'normal') return b * BASE[kind];
@@ -197,15 +220,15 @@
 
   /* 循环相克：a 克 b 返回 1 / b 克 a 返回 -1 / 同档 0。
      ★ 用户 2026-11-20 实战截图确认的特例，其余按倍率（BASE）大的吃小的：
-        木塞只赢双鬼、三鬼，别的都赢不了；
-        鬼鬼5=8 倍，克 8 倍以下（木塞/普通/同花/顺子/三条/同花顺），但输天公；
-        天公克鬼鬼5；同花越级赢双鬼；倍率相同时交给 compare 比点数个位。 */
+        木塞只赢双鬼、三鬼，别的都赢不了（含鬼鬼X）；
+        鬼鬼X=8 倍，克 8 倍以下（木塞/普通/同花/顺子/三条/同花顺），但输天公、双鬼、三鬼；
+        天公克鬼鬼X；同花越级赢双鬼；倍率相同时交给 compare 比点数个位。 */
   function beats(a, b) {
     if (a === b) return 0;
-    /* 木塞只赢双鬼、三鬼，别的都赢不了 */
+    /* 木塞只赢双鬼、三鬼，别的都赢不了（鬼鬼X 也不行） */
     if (a === 'muse' && (b === 'doubleJoker' || b === 'tripleJoker')) return 1;
     if (b === 'muse' && (a === 'doubleJoker' || a === 'tripleJoker')) return -1;
-    /* 鬼鬼5=8 倍，克 8 倍以下（木塞/普通/同花顺/三条/顺子），但输天公、双鬼、三鬼 */
+    /* 鬼鬼X=8 倍，克 8 倍以下（木塞/普通/同花顺/三条/顺子），但输天公、双鬼、三鬼 */
     if (a === 'joker5' && b !== 'tiangong' && (BASE[b] === undefined ? 1 : BASE[b]) < 8) return 1;
     if (b === 'joker5' && a !== 'tiangong' && (BASE[a] === undefined ? 1 : BASE[a]) < 8) return -1;
     if (a === 'tiangong' && b === 'joker5') return 1;
@@ -218,14 +241,18 @@
     return ra === rb ? 0 : (ra > rb ? 1 : -1);
   }
 
-  /* 比大小：返回 1=A赢 / -1=B赢 / 0=平。同倍率时比点数个位（鬼万能补到 9）。 */
+  /* 比大小：返回 1=A赢 / -1=B赢 / 0=平。
+     用户 2026-11-20 图3 规则：同牌型一律不互吃、不拼点数（同花顺/顺子/三条/普通/木塞…）。
+     唯一例外是天公——同为天公时按『花色倍率』裁决：同花(双=2)吃异花(单=1)；花色也相同才打平。 */
   function compare(handA, handB) {
     var ka = kindOf(handA), kb = kindOf(handB);
     var c = beats(ka, kb);
     if (c !== 0) return c;
-    var ua = unitDigit(handA), ub = unitDigit(handB);
-    if (ua !== ub) return ua > ub ? 1 : -1;
-    return 0;
+    if (ka === 'tiangong') {
+      var da = tiangongDouble(handA), db = tiangongDouble(handB);
+      if (da !== db) return da ? 1 : -1;                  // 双倍吃单倍
+    }
+    return 0;   // 其余同牌型一律打平，不拼点数个位
   }
 
   /* 生成一副 55 张：52 普通 + 大鬼 + 小王 + 白牌 */
@@ -263,6 +290,7 @@
     MIN_P: MIN_P, MAX_P: MAX_P,
     isJoker: isJoker, isWhite: isWhite, pointOf: pointOf, unitDigit: unitDigit,
     colorOf: colorOf, sameSuitInfo: sameSuitInfo, suitBonus: suitBonus,
+    tiangongDouble: tiangongDouble,
     kindOf: kindOf, rankOf: rankOf, baseMult: baseMult, finalMult: finalMult,
     beats: beats,
     compare: compare, newDeck: newDeck, shuffle: shuffle, deal: deal,

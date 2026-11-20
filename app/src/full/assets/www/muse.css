@@ -239,6 +239,14 @@
   padding: 1vw 3vw 2vw;
 }
 .mu-board[hidden] { display: none; }
+.bd-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.6vw;
+  align-content: start;
+}
+.bd-grid .bd-title,
+.bd-grid .bd-sum { grid-column: 1 / -1; }
 .bd-title {
   text-align: center;
   font-size: 3.2vw;
@@ -249,11 +257,12 @@
 .bd-row {
   display: flex;
   flex-direction: column;
-  gap: 1.2vw;
-  padding: 1.2vw 2.4vw;
+  gap: 1vw;
+  padding: 1.2vw 1.8vw;
   border-radius: var(--r-sm, 3.2vw);
   background: var(--paper, #fbf7ef);
   box-shadow: var(--sh-line, inset 0 0 0 0.1333vw rgba(35, 38, 45, 0.07));
+  min-width: 0;
 }
 .bd-row.is-gain { background: #f6ecd2; box-shadow: inset 0 0 0 0.32vw var(--gold-mid, #c9922a); }
 .bd-row.is-loss { background: #fbecea; }
@@ -265,16 +274,26 @@
 .bd-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 2vw;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.4vw 1.2vw;
 }
-.bd-name { font-size: 3vw; font-weight: 700; }
+/* ★ 必须带 .bd-row 前缀（两级）压过 board.css 的 .bd-name（公共屏白字、后加载）。
+   否则摊牌页玩家名被 board.css 的 rgba(244,240,233,.72) 白字覆盖，浅底上看不见。 */
+.bd-row .bd-name {
+  font-size: 3vw;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--ink, #23262d);
+  letter-spacing: 0.05vw;
+}
 .bd-badge {
-  font-size: 2.9333vw;
+  font-size: 2.3vw;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 0.6vw 1.8vw;
+  padding: 0.5vw 1.1vw;
   border-radius: 3vw;
+  margin-left: auto;
 }
 .is-gain .bd-badge { color: #fff; background: var(--gold-deep, #8a5f18); }
 .is-loss .bd-badge { color: #fff; background: #b3352c; }
@@ -282,23 +301,25 @@
 .bd-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.4vw;
+  align-items: center;
+  gap: 0.8vw;
+  min-width: 0;
 }
-/* 摊牌桌里的牌比手牌小一号，一桌人也能一屏看全 */
+/* 两列网格：牌缩到能塞进半屏（每列约 46vw，三张牌 + 高亮 chip 一排） */
 .bd-cards .mu-card {
-  width: 13vw;
-  height: 18.4vw;
-  border-radius: 1.4vw;
-  padding: 1vw;
+  width: 8.6vw;
+  height: 12.1vw;
+  border-radius: 1vw;
+  padding: 0.6vw;
 }
-.bd-cards .mu-card .rk { font-size: 3.6vw; }
-.bd-cards .mu-card .st { font-size: 2.8vw; }
+.bd-cards .mu-card .rk { font-size: 2.5vw; }
+.bd-cards .mu-card .st { font-size: 1.9vw; }
 .bd-foot {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 2vw;
-  font-size: 2.4vw;
+  gap: 1.4vw;
+  font-size: 2.1vw;
 }
 /* 点数 / 牌型 / 倍率紧跟在牌后面做高亮 chip —— 一桌人一眼扫到（用户 2026-11-20 要求） */
 .bd-kind {
@@ -306,30 +327,32 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.3vw;
-  margin-left: 0.4vw;
-  padding: 0.9vw 1.5vw;
-  border-radius: 1.6vw;
+  gap: 0.2vw;
+  margin-left: 0.2vw;
+  padding: 0.6vw 1vw;
+  border-radius: 1.4vw;
   background: linear-gradient(180deg, #fff7e2, #f7e6bd);
   box-shadow: inset 0 0 0 0.24vw var(--gold-mid, #c9922a), 0 0.4vw 1.2vw rgba(138, 95, 24, 0.14);
-  min-width: 23vw;
   font-variant-numeric: tabular-nums;
+  min-width: 0;
 }
 .bd-kind .bd-pt {
-  font-size: 3.1vw;
+  font-size: 2.2vw;
   font-weight: 800;
   line-height: 1.1;
   color: #7a4a12;
+  white-space: nowrap;
 }
 .bd-kind .bd-kd {
-  font-size: 2.4vw;
+  font-size: 1.9vw;
   font-style: normal;
   font-weight: 700;
   line-height: 1.15;
   color: var(--gold-deep, #8a5f18);
+  white-space: nowrap;
 }
 .bd-kind .bd-flush {
-  font-size: 2vw;
+  font-size: 1.7vw;
   font-style: normal;
   font-weight: 600;
   color: #2f6b8a;
