@@ -87,6 +87,16 @@
     return info.same ? info.n : 1;
   }
 
+  /* ★ 对子加成（用户 2026-11-20 实机图6「对8 应该是两倍 可以收2」）：
+     只认「两张手牌且两张点数相同、都不带鬼」= 2 倍；三张含对不加成（不干扰三条/顺子）。
+     图6 的 8♦+8♣ 杂花，花色倍率=1，但对子=2 → 收 2。 */
+  function pairBonus(hand) {
+    if (!hand || hand.length !== 2) return 1;
+    var a = hand[0], b = hand[1];
+    if (!a || !b || a.r === 0 || b.r === 0) return 1;   // 鬼不算对子
+    return a.r === b.r ? 2 : 1;
+  }
+
   /* 天公是否「双倍」（用户 2026-11-20 纠正，不是一律 2 倍）：
      · 对子天公（两张点数相同，如 4♦4♣=8、9♠9♥=18→8）→ 2 倍
      · 同花天公（两张花色相同，如 3♦5♦=8）→ 2 倍
@@ -214,7 +224,10 @@
     if (kind === 'tiangong') return tiangongDouble(hand) ? 2 : 1;
     if (kind === 'muse' && opponentKind === 'doubleJoker') return b * 10;
     if (kind === 'muse' && opponentKind === 'tripleJoker') return b * 30;
-    if (kind === 'muse' || kind === 'normal') return b * BASE[kind];
+    /* 普通牌：花色倍率 × 对子倍率（两张手牌同点数=2）。
+       图6 的 8♦8♣ 杂花对子 → 1×2=2 倍、收 2；图1 三张同花 8♣3♣2♣ → 3×1=3 倍。 */
+    if (kind === 'normal') return b * pairBonus(hand) * BASE[kind];
+    if (kind === 'muse') return b * BASE[kind];
     return BASE[kind];
   }
 
@@ -242,17 +255,31 @@
   }
 
   /* 比大小：返回 1=A赢 / -1=B赢 / 0=平。
-     用户 2026-11-20 图3 规则：同牌型一律不互吃、不拼点数（同花顺/顺子/三条/普通/木塞…）。
-     唯一例外是天公——同为天公时按『花色倍率』裁决：同花(双=2)吃异花(单=1)；花色也相同才打平。 */
-  function compare(handA, handB) {
+     ★ 用户 2026-11-20 澄清（两个模式的关系）：
+       · 木塞(坐庄) ≈ 木塞鱼(大吃小)，唯一差别是木塞鱼多一条「同点数时三倍吃两倍、两倍吃一倍」。
+       · 『同牌型打平』只针对顺子/同花顺/三条这类「成型牌型」——它们同牌型不拼点数。
+       · 普通牌、木塞这些「按点数算」的牌型：两种模式都要比点数个位（8吃6/6吃3/6吃5）。
+       · 天公两种模式都只按『双倍吃单倍』裁决，同倍打平，不比点数。
+     mode='fish' 额外在同点数时按最终倍率裁决；缺省/'bank' 同点数打平。 */
+  function compare(handA, handB, mode) {
     var ka = kindOf(handA), kb = kindOf(handB);
     var c = beats(ka, kb);
     if (c !== 0) return c;
     if (ka === 'tiangong') {
       var da = tiangongDouble(handA), db = tiangongDouble(handB);
       if (da !== db) return da ? 1 : -1;                  // 双倍吃单倍
+      return 0;                                          // 天公同倍打平，不比点数
     }
-    return 0;   // 其余同牌型一律打平，不拼点数个位
+    /* 只有「按点数算」的牌型（普通牌/木塞）才比点数；成型牌型同牌型打平。 */
+    if (ka === 'normal' || ka === 'muse') {
+      var ua = unitDigit(handA), ub = unitDigit(handB);
+      if (ua !== ub) return ua > ub ? 1 : -1;             // 两模式通吃：点数个位大的吃小的
+      if (mode === 'fish') {
+        var ma = finalMult(ka, handA, kb), mb = finalMult(kb, handB, ka);
+        if (ma !== mb) return ma > mb ? 1 : -1;           // ★ 木塞鱼独有：同点数比倍率
+      }
+    }
+    return 0;   // 成型牌型同牌型打平；点数类同点数（bank 一律 / fish 倍率也同）打平
   }
 
   /* 生成一副 55 张：52 普通 + 大鬼 + 小王 + 白牌 */

@@ -10,6 +10,11 @@
 /* .page 是 display:flex，会盖过 [hidden]，单独声明 */
 .page-muse[hidden] { display: none; }
 
+/* 木塞联机门页没有顶栏，.nav-back 默认的 top:50% 会把返回箭头撂到屏幕正中间。
+   这里只把门页(#mnGate)的箭头提到左上角，跟找朋友/吹牛等选玩法页一致；
+   牌桌页 #mnBack2 在顶栏 .nav 里，不受影响。 */
+#mnGate .nav-back { top: 3.2vw; margin-top: 0; }
+
 /* ---------------- 顶部状态行 ---------------- */
 .mu-top {
   display: flex;
