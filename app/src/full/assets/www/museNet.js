@@ -17,7 +17,10 @@
     api: DEFAULT_API, code: '', ws: null, you: null, token: null, st: null,
     mode: 'bank',                         // bank=轮流坐庄（默认）/ fish=木塞鱼大吃小
     alive: false, retry: 0, retryTimer: 0, pingTimer: 0,
-    lastTap: 0, lastTapPid: '', kickPid: ''
+    lastTap: 0, lastTapPid: '', kickPid: '',
+    /* 发牌先盖牌背，玩家自己逐张翻开（纯前端表现，服务端仍权威下发真牌）。
+       按 round 重置：换一把就重新盖上，摊牌时摊牌桌照常全公开。 */
+    flipRound: -1, flipOpen: []
   };
   var el = {};
   var seatEls = [];
@@ -119,13 +122,25 @@
     for (var i = 1; i < hand.length; i++) if (hand[i].s !== s) return '';
     return '同花';
   }
-  function handHtml(hand) {
+  /* open 是「我的手牌逐张是否已翻开」的数组：
+     · 摊牌桌不传 → 全部正面公开；
+     · 我的手牌传 S.flipOpen → 未翻的盖牌背，点一下才亮。 */
+  function handHtml(hand, open) {
     var h = '';
     for (var i = 0; i < hand.length; i++) {
       var f = cardFace(hand[i]);
       if (!f) continue;
-      h += '<div class="mu-card ' + f.cls + '"><span class="rk">' + f.rank +
-           '</span><span class="st">' + f.suit + '</span></div>';
+      if (open && open[i] !== true) {
+        h += '<div class="mu-card is-back" data-i="' + i + '" role="button" aria-label="点开看牌">' +
+             '<span class="back-mark">?</span><span class="back-tip">点开看牌</span></div>';
+        continue;
+      }
+      /* 两角都写点数（右下角 CSS 旋转 180°，跟真扑克一样），中间一个放大的花色 */
+      var corner = '<span class="corner tl"><b>' + f.rank + '</b><i>' + f.suit + '</i></span>' +
+                   '<span class="corner br"><b>' + f.rank + '</b><i>' + f.suit + '</i></span>';
+      var mid = (f.suit === 'JOKER') ? '★' : f.suit;
+      h += '<div class="mu-card ' + f.cls + '">' + corner +
+           '<span class="mid-suit">' + mid + '</span></div>';
     }
     return h;
   }
@@ -282,6 +297,8 @@
   function render() {
     var st = S.st;
     if (!st) return;
+    /* 换一把（round 变了）就重新盖上牌背；同一把里只按玩家自己翻开的进度显示 */
+    if (st.round !== S.flipRound) { S.flipRound = st.round; S.flipOpen = []; }
     if (seatEls.length !== st.players.length) buildSeats(st.players.length);
 
     if (el.codeTop) el.codeTop.textContent = S.code || '----';
@@ -328,7 +345,7 @@
     /* 我的手牌：play 阶段只显式给本人；reveal 阶段所有人都公开在摊牌桌上 */
     var me = st.players[myIdx()];
     var myHand = me ? me.hand : null;
-    if (el.hand) el.hand.innerHTML = myHand && myHand.length ? handHtml(myHand) : '';
+    if (el.hand) el.hand.innerHTML = myHand && myHand.length ? handHtml(myHand, S.flipOpen) : '';
     if (el.veil) {
       var showVeil = st.phase === 'play' && (!myHand || !myHand.length);
       el.veil.hidden = !showVeil;
@@ -594,6 +611,15 @@
     });
     if (el.back) el.back.addEventListener('click', function () { window.history.back(); });
     if (el.back2) el.back2.addEventListener('click', function () { window.history.back(); });
+    /* 手牌：点牌背逐张翻开。纯本地表现，服务端仍按已下发的真牌结算 */
+    if (el.hand) el.hand.addEventListener('click', function (e) {
+      var card = e.target && e.target.closest ? e.target.closest('.mu-card.is-back') : null;
+      if (!card) return;
+      var i = parseInt(card.getAttribute('data-i'), 10);
+      if (isNaN(i)) return;
+      S.flipOpen[i] = true;
+      render();
+    });
     if (el.codeTop) el.codeTop.addEventListener('click', copyCode);
     if (el.redo) el.redo.addEventListener('click', doNext);
     /* 音效按钮由 snd.js 给所有 .sound-btn 统一绑定，这里不再重复绑（否则点一下切两次） */
