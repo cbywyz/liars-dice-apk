@@ -20,7 +20,7 @@
     lastTap: 0, lastTapPid: '', kickPid: '',
     /* 发牌先盖牌背，玩家自己逐张翻开（纯前端表现，服务端仍权威下发真牌）。
        按 round 重置：换一把就重新盖上，摊牌时摊牌桌照常全公开。 */
-    flipRound: -1, flipOpen: []
+    flipRound: -1, flipProg: []
   };
   var el = {};
   var seatEls = [];
@@ -122,25 +122,47 @@
     for (var i = 1; i < hand.length; i++) if (hand[i].s !== s) return '';
     return '同花';
   }
-  /* open 是「我的手牌逐张是否已翻开」的数组：
-     · 摊牌桌不传 → 全部正面公开；
-     · 我的手牌传 S.flipOpen → 未翻的盖牌背，点一下才亮。 */
-  function handHtml(hand, open) {
+  /* ---------------- 毫升结算 / 已喝抵扣（v1.24.72）----------------
+     服务端 cups 和 row.net 都是「倍」，1 倍 = baseMl 毫升，累计够 cupMl 折 1 杯。
+     每人记自己的已喝 drunkMl：只有自己净欠（cups<0）才拿来抵，净赢方的应收不动
+     —— 对方把酒喝掉就等于还了。换底注只影响换算口径，不改服务端账。 */
+  function baseMl(st) { return (st && st.baseMl > 0) ? st.baseMl : 15; }
+  function cupMl(st) { return (st && st.cupMl > 0) ? st.cupMl : 50; }
+  function num1(n) { return Math.round(n * 10) / 10; }
+  function mlCup(ml, st) { return Math.round(ml) + 'ml ≈ ' + num1(ml / cupMl(st)) + '杯'; }
+  /* 净欠毫升 = |cups| × 底注；已喝只抵这块，抵完为 0（已结清） */
+  function debtMl(p, st) {
+    var owed = -(p.cups | 0) * baseMl(st);
+    return owed > 0 ? Math.max(0, owed - (p.drunkMl | 0)) : 0;
+  }
+  /* 牌背从左下角往右上角「滑开」：沿对角线实时裁切，跟手指走、松手定格。
+     prog 是每张牌翻开进度 0~1；摊牌桌不传 prog → 全部正面公开。 */
+  function backClip(t) {
+    if (!(t > 0)) return 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
+    if (t >= 1) return 'polygon(0% 0%, 0% 0%, 0% 0%, 0% 0%)';
+    var c = 2 * t - 1, pts;
+    if (c <= 0) pts = [[0, 0], [1, 0], [1, 1], [c + 1, 1], [0, -c]];
+    else pts = [[c, 0], [1, 0], [1, 1 - c]];
+    return 'polygon(' + pts.map(function (p) {
+      return (p[0] * 100).toFixed(2) + '% ' + (p[1] * 100).toFixed(2) + '%';
+    }).join(',') + ')';
+  }
+  function handHtml(hand, prog) {
     var h = '';
     for (var i = 0; i < hand.length; i++) {
       var f = cardFace(hand[i]);
       if (!f) continue;
-      if (open && open[i] !== true) {
-        h += '<div class="mu-card is-back" data-i="' + i + '" role="button" aria-label="点开看牌">' +
-             '<span class="back-mark">?</span><span class="back-tip">点开看牌</span></div>';
-        continue;
-      }
-      /* 两角都写点数（右下角 CSS 旋转 180°，跟真扑克一样），中间一个放大的花色 */
+      var t = prog ? (typeof prog[i] === 'number' ? prog[i] : 0) : 1;
+      /* 两角都写点数（右下角 CSS 旋转 180°），中间一个放大的花色 */
       var corner = '<span class="corner tl"><b>' + f.rank + '</b><i>' + f.suit + '</i></span>' +
                    '<span class="corner br"><b>' + f.rank + '</b><i>' + f.suit + '</i></span>';
       var mid = (f.suit === 'JOKER') ? '★' : f.suit;
-      h += '<div class="mu-card ' + f.cls + '">' + corner +
-           '<span class="mid-suit">' + mid + '</span></div>';
+      var face = '<div class="mu-card ' + f.cls + '">' + corner +
+                 '<span class="mid-suit">' + mid + '</span></div>';
+      if (t >= 1) { h += face; continue; }
+      var back = '<div class="mu-card is-back" style="clip-path:' + backClip(t) + '">' +
+                 '<span class="back-mark">?</span><span class="back-tip">滑开看牌</span></div>';
+      h += '<div class="mu-flip" data-i="' + i + '">' + face + back + '</div>';
     }
     return h;
   }
@@ -298,7 +320,7 @@
     var st = S.st;
     if (!st) return;
     /* 换一把（round 变了）就重新盖上牌背；同一把里只按玩家自己翻开的进度显示 */
-    if (st.round !== S.flipRound) { S.flipRound = st.round; S.flipOpen = []; }
+    if (st.round !== S.flipRound) { S.flipRound = st.round; S.flipProg = []; }
     if (seatEls.length !== st.players.length) buildSeats(st.players.length);
 
     if (el.codeTop) el.codeTop.textContent = S.code || '----';
@@ -326,10 +348,25 @@
       else if (st.phase === 'play') tag = p.done ? '定了' : (p.seat === st.turn ? '补牌中' : '看牌中');
       else if (st.phase === 'reveal') tag = p.res ? kindTxt(p.res.kind) : '';
       e.st.textContent = tag;
-      /* cups 是累计净杯：正=净赢、负=净输，摊牌后才落账 */
-      e.cup.textContent = p.cups ? ('净' + (p.cups > 0 ? '+' : '') + p.cups) : '';
-      e.cup.classList.toggle('is-gain', p.cups > 0);
-      e.cup.classList.toggle('is-loss', p.cups < 0);
+      /* cups 是累计净额（单位「倍」，摊牌后才落账）。1 倍 = baseMl 毫升；
+         净欠方按已喝抵扣后显示「待喝」，净赢方照实显示净赢不扣。 */
+      var cups = p.cups | 0;
+      e.cup.classList.remove('is-gain', 'is-loss');
+      if (cups > 0) {
+        var gm = cups * baseMl(st);
+        e.cup.innerHTML = '<b>净赢 ' + gm + 'ml</b><small>×' + cups + ' · ≈' +
+          num1(gm / cupMl(st)) + '杯</small>';
+        e.cup.classList.add('is-gain');
+      } else if (cups < 0) {
+        var d = p.drunkMl | 0, wait = debtMl(p, st);
+        e.cup.innerHTML = '<b>待喝 ' + wait + 'ml</b><small>×' + (-cups) + ' · ≈' +
+          num1(wait / cupMl(st)) + '杯' + (d > 0 ? ' · 已抵' + d + 'ml' : '') + '</small>';
+        e.cup.classList.add('is-loss');
+      } else if (p.drunkMl > 0) {
+        e.cup.innerHTML = '<b>已喝 ' + p.drunkMl + 'ml</b>';
+      } else {
+        e.cup.textContent = '';
+      }
       if (e.banker) {
         var isBank = st.mode !== 'fish' && st.banker === i;
         e.banker.textContent = isBank ? '庄' : '';
@@ -345,7 +382,7 @@
     /* 我的手牌：play 阶段只显式给本人；reveal 阶段所有人都公开在摊牌桌上 */
     var me = st.players[myIdx()];
     var myHand = me ? me.hand : null;
-    if (el.hand) el.hand.innerHTML = myHand && myHand.length ? handHtml(myHand, S.flipOpen) : '';
+    if (el.hand) el.hand.innerHTML = myHand && myHand.length ? handHtml(myHand, S.flipProg) : '';
     if (el.veil) {
       var showVeil = st.phase === 'play' && (!myHand || !myHand.length);
       el.veil.hidden = !showVeil;
@@ -376,6 +413,71 @@
     /* 提示行 + 按钮 */
     renderHint(st);
     renderButtons(st);
+    renderMlPanel(st);
+  }
+
+  /* ---------------- 毫升设置 / 已喝抵扣面板（v1.24.72）----------------
+     房主改底注+转杯全桌同步；已喝是每人自己的账，只显示不替别人记。 */
+  var BASE_OPTS = [5, 10, 15, 20, 25, 30];
+  var CUP_OPTS = [50, 60, 80, 100];
+  function optHtml(list, on) {
+    var h = '';
+    for (var i = 0; i < list.length; i++) {
+      h += '<button type="button" class="mn-set-opt' + (list[i] === on ? ' is-on' : '') +
+           '" data-ml="' + list[i] + '">' + list[i] + '</button>';
+    }
+    return h;
+  }
+  function renderMlPanel(st) {
+    if (!el.setPanel || el.setPanel.hidden) return;
+    var isHost = !!(hostOf(st) && hostOf(st).id === S.you);
+    if (el.setHostRow) el.setHostRow.hidden = !isHost;
+    if (el.setHostRow2) el.setHostRow2.hidden = !isHost;
+    if (el.baseOpts) el.baseOpts.innerHTML = optHtml(BASE_OPTS, baseMl(st));
+    if (el.cupOpts) el.cupOpts.innerHTML = optHtml(CUP_OPTS, cupMl(st));
+    if (el.drinkList) {
+      var rows = '';
+      for (var i = 0; i < st.players.length; i++) {
+        var p = st.players[i], d = p.drunkMl | 0;
+        var c = p.cups | 0;
+        var owed = c < 0 ? (-c * baseMl(st)) : 0;
+        var wait = owed > 0 ? Math.max(0, owed - d) : 0;
+        rows += '<div class="mn-set-p' + (p.id === S.you ? ' is-me' : '') + '">' +
+          '<span class="mn-set-pn">' + (p.name || (i + 1) + ' 号') + '</span>' +
+          '<span class="mn-set-pd">已喝 ' + d + 'ml</span>' +
+          '<span class="mn-set-pw">' + (c > 0 ? ('净赢 ×' + c) :
+            (owed > 0 ? ('待喝 ' + wait + 'ml · ×' + (-c)) : '打平')) + '</span>' +
+          '</div>';
+      }
+      el.drinkList.innerHTML = rows || '<div class="mn-set-empty">坐下后这里列出每人已喝 / 待喝</div>';
+    }
+  }
+  function openMl() {
+    if (!S.st) { tip('先开一桌或进房'); return; }
+    if (!el.setPanel) return;
+    el.setPanel.hidden = false;
+    if (el.drinkMl) el.drinkMl.value = '';
+    renderMlPanel(S.st);
+  }
+  function closeMl() { if (el.setPanel) el.setPanel.hidden = true; }
+  function setBase(ml) {
+    if (!S.st) return;
+    if (!(hostOf(S.st) && hostOf(S.st).id === S.you)) { tip('只有房主能改底注'); return; }
+    buzz(10);
+    send({ t: 'msetml', baseMl: Number(ml), cupMl: cupMl(S.st) });
+  }
+  function setCup(ml) {
+    if (!S.st) return;
+    if (!(hostOf(S.st) && hostOf(S.st).id === S.you)) { tip('只有房主能改转杯'); return; }
+    buzz(10);
+    send({ t: 'msetml', baseMl: baseMl(S.st), cupMl: Number(ml) });
+  }
+  function drinkOk() {
+    if (!el.drinkMl) return;
+    var v = parseInt(el.drinkMl.value, 10);
+    if (!v || v < 1 || v > 10000) { tip('填 1~10000 毫升'); return; }
+    buzz(10);
+    if (send({ t: 'mdrink', ml: v })) el.drinkMl.value = '';
   }
 
   function renderHint(st) {
@@ -445,7 +547,11 @@
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i], player = st.players[r.seat] || {};
       var net = r.net || 0, isMe = r.id === st.you;
-      var badge = net > 0 ? ('净赢 ×' + net) : (net < 0 ? ('净输 ×' + (-net)) : '打平');
+      /* 本局净额本身就是「倍」，先把未换算的 ×N 写出来，再给毫升+杯，免得只对毫升搞混 */
+      var netX = Math.abs(net);
+      var netMl = netX * baseMl(st);
+      var badge = net > 0 ? ('净赢 ×' + netX + ' · ' + mlCup(netMl, st))
+                    : (net < 0 ? ('净输 ×' + netX + ' · ' + mlCup(netMl, st)) : '打平');
       var cls = net > 0 ? 'is-gain' : (net < 0 ? 'is-loss' : 'is-even');
       var mark = isBank && r.isBanker ? '<span class="bd-banker">庄</span>' : '';
       /* 点数 / 牌型 / 倍率紧跟在牌后面做高亮标签，一桌人一眼扫到（用户 2026-11-20 要求） */
@@ -464,11 +570,14 @@
              '<div class="bd-cards">' + (player.hand && player.hand.length ? handHtml(player.hand) : '') +
                kindHtml + '</div>' +
              '<div class="bd-foot">' +
-               '<span class="bd-flow">收 ' + (r.gain || 0) + ' · 付 ' + (r.lose || 0) + '</span>' +
+               '<span class="bd-flow">收 ×' + (r.gain || 0) + ' ' +
+                 Math.round((r.gain || 0) * baseMl(st)) + 'ml · 付 ×' + (r.lose || 0) + ' ' +
+                 Math.round((r.lose || 0) * baseMl(st)) + 'ml</span>' +
              '</div>' +
            '</div>';
     }
-    h += '<div class="bd-sum">本局流水 ' + (res.turnover || 0) + ' · ' +
+    h += '<div class="bd-sum">本局流水 ' + mlCup((res.turnover || 0) * baseMl(st), st) +
+      '<br>底注 ' + baseMl(st) + 'ml/倍 · 满 ' + cupMl(st) + 'ml 自动转一杯<br>' +
       (isBank ? '庄家吃全桌，玩家只对庄家 · ' +
         (res.keepBanker ? '净赢续庄' : '没赢换庄')
         : '大吃小，大家都是庄') + '</div></div>';
@@ -611,17 +720,64 @@
     });
     if (el.back) el.back.addEventListener('click', function () { window.history.back(); });
     if (el.back2) el.back2.addEventListener('click', function () { window.history.back(); });
-    /* 手牌：点牌背逐张翻开。纯本地表现，服务端仍按已下发的真牌结算 */
-    if (el.hand) el.hand.addEventListener('click', function (e) {
-      var card = e.target && e.target.closest ? e.target.closest('.mu-card.is-back') : null;
-      if (!card) return;
-      var i = parseInt(card.getAttribute('data-i'), 10);
+    /* 手牌：从左下往右上滑动揭牌（沿对角线裁切牌背），轻点则直接翻开。
+       纯本地表现，服务端仍按已下发的真牌结算。 */
+    if (el.hand) el.hand.addEventListener('pointerdown', function (e) {
+      var box = e.target && e.target.closest ? e.target.closest('.mu-flip') : null;
+      if (!box) return;
+      var back = box.querySelector('.mu-card.is-back');
+      if (!back) return;
+      e.preventDefault();
+      var i = parseInt(box.getAttribute('data-i'), 10);
       if (isNaN(i)) return;
-      S.flipOpen[i] = true;
-      render();
+      var startProg = typeof S.flipProg[i] === 'number' ? S.flipProg[i] : 0;
+      var x0 = e.clientX, y0 = e.clientY, moved = 0;
+      var rect = box.getBoundingClientRect();
+      var diag = Math.sqrt(rect.width * rect.width + rect.height * rect.height) || 1;
+      try { box.setPointerCapture(e.pointerId); } catch (err) {}
+      function move(ev) {
+        var dx = ev.clientX - x0, dy = ev.clientY - y0;
+        moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
+        var delta = (dx - dy) / Math.SQRT2;   // 左下 → 右上为正
+        var t = Math.max(0, Math.min(1, startProg + delta / diag));
+        back.style.clipPath = backClip(t);
+        S.flipProg[i] = t;
+      }
+      function end() {
+        box.removeEventListener('pointermove', move);
+        box.removeEventListener('pointerup', end);
+        box.removeEventListener('pointercancel', end);
+        var t = typeof S.flipProg[i] === 'number' ? S.flipProg[i] : 0;
+        if (moved < 12) t = 1;            // 轻点 = 直接翻开
+        else if (t > 0.82) t = 1;         // 快滑到底就吸开
+        else if (t < 0.06) t = 0;         // 几乎没动就盖回去
+        S.flipProg[i] = t;
+        render();
+      }
+      box.addEventListener('pointermove', move);
+      box.addEventListener('pointerup', end);
+      box.addEventListener('pointercancel', end);
     });
     if (el.codeTop) el.codeTop.addEventListener('click', copyCode);
     if (el.redo) el.redo.addEventListener('click', doNext);
+    /* 毫升设置 / 已喝抵扣 */
+    if (el.set) el.set.addEventListener('click', openMl);
+    if (el.setClose) el.setClose.addEventListener('click', closeMl);
+    if (el.setPanel) el.setPanel.addEventListener('click', function (e) {
+      if (e.target === el.setPanel) closeMl();
+    });
+    if (el.baseOpts) el.baseOpts.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-ml]') : null;
+      if (b) setBase(b.getAttribute('data-ml'));
+    });
+    if (el.cupOpts) el.cupOpts.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('[data-ml]') : null;
+      if (b) setCup(b.getAttribute('data-ml'));
+    });
+    if (el.drinkOk) el.drinkOk.addEventListener('click', drinkOk);
+    if (el.drinkMl) el.drinkMl.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.keyCode === 13) drinkOk();
+    });
     /* 音效按钮由 snd.js 给所有 .sound-btn 统一绑定，这里不再重复绑（否则点一下切两次） */
 
     if (el.btns) el.btns.addEventListener('click', function (e) {
@@ -675,6 +831,7 @@
     closeSocket();
     closeKick();
     closeRename();
+    closeMl();
   }
   function quit() { if (S.code) send({ t: 'quit' }); }
 
@@ -688,6 +845,10 @@
       back: $('mnBack'), back2: $('mnBack2'),
       sound: $('mnSound'), soundIc: $('mnSoundIc'),
       codeTop: $('mnCode'), redo: $('mnRedo'),
+      set: $('mnSet'), setPanel: $('mnSetPanel'), setClose: $('mnSetClose'),
+      setHostRow: $('mnSetHostRow'), setHostRow2: $('mnSetHostRow2'),
+      baseOpts: $('mnBaseOpts'), cupOpts: $('mnCupOpts'),
+      drinkMl: $('mnDrinkMl'), drinkOk: $('mnDrinkOk'), drinkList: $('mnDrinkList'),
       round: $('mnRound'), turn: $('mnTurn'), left: $('mnLeft'),
       seats: $('mnSeats'), hand: $('mnHand'),
       stage: $('mnStage'), board: $('mnBoard'),

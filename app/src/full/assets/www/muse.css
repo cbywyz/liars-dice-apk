@@ -153,6 +153,10 @@
 }
 .mu-card.is-back .back-mark { font-size: 8vw; font-weight: 700; color: #f0d9a0; line-height: 1; }
 .mu-card.is-back .back-tip { font-size: 2.2vw; color: rgba(240, 217, 160, 0.85); margin-top: 1vw; }
+/* 滑动揭牌：牌背盖在牌面上，露出多少由 JS 按手指位置裁切 */
+.mu-flip { position: relative; width: 19vw; height: 27vw; }
+.mu-flip .mu-card { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mu-flip .mu-card.is-back { z-index: 3; touch-action: none; }
 
 /* 遮罩：点一下掀开看牌；看完点「遮回去」再传下一位 */
 .mu-veil {
@@ -442,3 +446,93 @@
   vertical-align: middle;
 }
 .bd-row.is-banker .bd-name { color: var(--gold-deep, #8a5f18); }
+
+/* ---------------- 毫升结算 / 已喝抵扣（v1.24.72）---------------- */
+/* 座位卡两行：主行是毫升，副行是折算的杯数/已抵毫升 */
+.mu-seat .cup b { display: block; font-size: 2.3vw; line-height: 1.25; }
+.mu-seat .cup small { display: block; font-size: 1.7vw; font-weight: 500; opacity: 0.72; }
+
+/* 设置面板：房主改底注/转杯，每人记自己的已喝 */
+.mn-setpanel {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 7vw;
+  background: rgba(16, 18, 22, 0.86);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  animation: ruleFade 0.18s ease both;
+}
+.mn-setpanel[hidden] { display: none; }
+.mn-set-card {
+  width: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column;
+  padding: 5.3333vw 5.3333vw 4.8vw;
+  border-radius: 6.4vw;
+  background: #fbf8f3;
+  box-shadow: 0 4vw 11vw rgba(20, 22, 26, 0.3);
+  animation: kickPop 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.mn-set-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 3.2vw;
+  border-bottom: 0.2667vw solid rgba(138, 95, 24, 0.18);
+  font-size: 4.2667vw; font-weight: 800; color: var(--gold-deep, #8a5f18);
+}
+.mn-set-x {
+  border: 0; background: transparent; color: var(--ink-2, #3a3f49);
+  font-size: 6.4vw; line-height: 1; padding: 0 1.3333vw;
+}
+.mn-set-row {
+  display: flex; align-items: center; gap: 2.6667vw;
+  padding: 3.2vw 0 0.8vw;
+}
+.mn-set-lb {
+  flex: 0 0 auto; font-size: 2.9333vw; font-weight: 700;
+  color: var(--ink-2, #3a3f49);
+}
+.mn-set-opts { display: flex; flex-wrap: wrap; gap: 1.3333vw; }
+.mn-set-opt {
+  min-width: 9.3333vw; padding: 1.3333vw 2.1333vw;
+  border: 0; border-radius: 1.6vw;
+  background: rgba(35, 38, 45, 0.07); color: var(--ink, #23262d);
+  font-size: 2.9333vw; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.mn-set-opt.is-on {
+  background: var(--gold-deep, #8a5f18); color: #fff;
+  box-shadow: 0 0.8vw 2vw rgba(138, 95, 24, 0.28);
+}
+.mn-set-drink { display: flex; flex: 1 1 auto; gap: 1.3333vw; min-width: 0; }
+.mn-set-drink input {
+  flex: 1 1 auto; min-width: 0; box-sizing: border-box;
+  padding: 1.3333vw 1.6vw;
+  border: 0.2667vw solid rgba(35, 38, 45, 0.14); border-radius: 1.6vw;
+  background: #fff; color: var(--ink, #23262d); font-size: 2.9333vw;
+}
+.mn-set-drink button {
+  flex: 0 0 auto; border: 0; border-radius: 1.6vw;
+  padding: 1.3333vw 2.6667vw;
+  background: var(--gold-deep, #8a5f18); color: #fff;
+  font-size: 2.9333vw; font-weight: 700;
+}
+.mn-set-list {
+  margin-top: 2.6667vw; padding-top: 2.1333vw;
+  border-top: 0.2667vw solid rgba(138, 95, 24, 0.18);
+  display: flex; flex-direction: column; gap: 1.3333vw;
+  max-height: 38vh; overflow-y: auto;
+}
+.mn-set-p {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 2.1333vw;
+  align-items: center; padding: 1.0667vw 0;
+  border-bottom: 0.1333vw dashed rgba(35, 38, 45, 0.1);
+  font-size: 2.6667vw;
+}
+.mn-set-p.is-me .mn-set-pn { color: var(--gold-deep, #8a5f18); font-weight: 800; }
+.mn-set-pn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-set-pd { color: var(--ink-2, #3a3f49); font-variant-numeric: tabular-nums; }
+.mn-set-pw {
+  min-width: 18vw; text-align: right; font-weight: 700;
+  color: #b3352c; font-variant-numeric: tabular-nums;
+}
+.mn-set-empty {
+  padding: 2.6667vw 0; text-align: center;
+  font-size: 2.6667vw; color: var(--ink-2, #3a3f49); opacity: 0.7;
+}
