@@ -553,7 +553,7 @@
           '<span class="mn-set-pn">' + (me && (p.name || '') !== '我' ? '<span class="mn-me">我</span>' : '') +
             (p.name || (i + 1) + ' 号') + '</span>' +
           '<span class="mn-set-pd">已喝 ' + drankTxt(d, st) + '</span>' +
-          '<span class="mn-set-pw">' + (c > 0 ? ('净赢 ×' + c) :
+          '<span class="mn-set-pw">' + (c > 0 ? ('净赢 ' + (c * baseMl(st)) + 'ml') :
             (owed > 0 ? ('待喝 ' + waitTxt(wait, st)) : '打平')) + '</span>' +
           '</div>';
       }

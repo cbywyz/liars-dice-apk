@@ -1581,8 +1581,7 @@
       switchTo('789net');
     });
 
-    /* 木塞联机：同找朋友 / 吹牛 / 七八九，连接由它自己 enter() 里建（要先有房号）。
-       ★ 只在完整版开放；纯净版由 make_clean_h5.py 裁成「正在开发，待完善」拦截。 */
+    /* 木塞联机：同找朋友 / 吹牛 / 七八九，连接由它自己 enter() 里建（要先有房号） */
     var playNetMuse = $('playNetMuse');
     if (playNetMuse) playNetMuse.addEventListener('click', function () {
       switchTo('musenet');
