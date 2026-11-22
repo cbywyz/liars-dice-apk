@@ -1582,7 +1582,7 @@
     });
 
     /* 木塞联机：同找朋友 / 吹牛 / 七八九，连接由它自己 enter() 里建（要先有房号）。
-       ★ 只在完整版开放；纯净版由 make_clean_h5.py 裁成「正在开发，待完善」拦截。 */
+       纯净版 / 完整版都开放，点入口直接进建房 / 进房门页。 */
     var playNetMuse = $('playNetMuse');
     if (playNetMuse) playNetMuse.addEventListener('click', function () {
       switchTo('musenet');

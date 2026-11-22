@@ -6,6 +6,16 @@
 > 仓库 [Releases](https://github.com/cbywyz/liars-dice-apk/releases) 里的是安卓包，发得比网页版慢。
 > 版本号在首页页脚、每个玩法页底栏都能看到。
 
+## v1.24.83 · 2026-11-22
+
+### 纯净版木塞入口开放
+
+用户要求解除纯净版对木塞入口的拦截。v1.24.79 起纯净版点「木塞 · 联机」只弹「正在开发，待完善」，现在对外链接也能真的进木塞了。
+
+- **去掉裁剪层的入口替换**：`make_clean_h5.py` 不再把 `playNetMuse` 的 `switchTo('musenet')` rep 成 toast，完整版源码注释同步改成「两版都开放」。源码里不留 `ld_muse_dev` / `?musedev=1` 这类绕过开关。
+- 线上核验：根 `/`、`/clean/`、`/ld-9x4k2m/` 三版 f350.js 的入口代码都是 `switchTo('musenet')`，「正在开发，待完善」残留 0，版本均 v1.24.83。
+- 打包自检全绿：纯净 build `23df92b`、完整 `c933ade`；Cloudflare Version ID `b57b8060-a13d-4d5a-84c1-00374c47e3c6`。
+
 ## v1.24.82 · 2026-11-20
 
 ### 首页联机卡副标题补齐 + Hero 换 AI 插画
