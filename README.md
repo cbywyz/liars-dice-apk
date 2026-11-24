@@ -35,9 +35,9 @@
 
 <p align="center">
   <img src="docs/shots/cover-netpick-v12481.png" width="23%" alt="联机选玩法：五个玩法入口">
-  <img src="docs/shots/cover-muse-v12479.png" width="23%" alt="木塞坐庄：点玩家座位开牌">
+  <img src="docs/shots/cover-muse-v12484.png" width="23%" alt="木塞坐庄：点玩家座位开牌">
   <img src="docs/shots/cover-board-v12481.png" width="23%" alt="公共屏：分数与轮到谁">
-  <img src="docs/shots/cover-boardmuse-v12479.png" width="23%" alt="木塞摊牌桌：逐行收付">
+  <img src="docs/shots/cover-boardmuse-v12484.png" width="23%" alt="木塞摊牌桌(v1.24.84)：鬼鬼5、同花顺、三张8点天公逐行收付">
 </p>
 <p align="center"><sub>联机选玩法 → 木塞坐庄控开 → 公共屏 → 摊牌桌</sub></p>
 
