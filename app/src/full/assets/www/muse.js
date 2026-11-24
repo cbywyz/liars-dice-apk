@@ -56,28 +56,19 @@
     return (c.s === 0 || c.s === 1) ? 0 : 1;
   }
 
-  /* 这手牌能否算"同花"：普通牌花色统一，鬼按红/黑补到该花色，白牌无色不参与 → false。
-     返回 {same:bool, n:同花张数}；n 取手牌张数（2 或 3）。 */
+  /* 这手牌能否算"同花"（v1.24.84 起，用户 2026-11-24 确认）：
+     普通牌花色统一就算同花；大小鬼和白牌都当万能牌，不限颜色。
+     即「红7红8 + 任意鬼」= 同花，点数成顺就是同花顺。鬼本身不算花色。 */
   function sameSuitInfo(hand) {
     if (!hand || (hand.length !== 2 && hand.length !== 3)) return { same: false, n: hand ? hand.length : 0 };
     var suits = {};
-    var jokerRed = false, jokerBlack = false;
     for (var i = 0; i < hand.length; i++) {
       var c = hand[i];
-      if (colorOf(c) === 2) return { same: false, n: hand.length };   // 白牌无色，凑不了同花
-      if (isJoker(c)) {
-        if (colorOf(c) === 0) jokerRed = true; else jokerBlack = true;
-      } else {
-        suits[c.s] = true;
-      }
+      if (!isJoker(c)) suits[c.s] = true;   // 鬼（含白牌）万能，不限颜色
     }
     var keys = Object.keys(suits);
-    if (keys.length === 0) return { same: false, n: hand.length };    // 全是鬼，走鬼牌型不谈同花（D）
-    if (keys.length > 1) return { same: false, n: hand.length };
-    var s = +keys[0];
-    var need = (s === 0 || s === 1) ? 0 : 1;                          // 该花色需要的鬼颜色
-    if (need === 0 && jokerBlack) return { same: false, n: hand.length }; // 小鬼(黑)补不了红花
-    if (need === 1 && jokerRed) return { same: false, n: hand.length };   // 大鬼(红)补不了黑花
+    if (keys.length === 0) return { same: false, n: hand.length };    // 全是鬼，走鬼牌型不谈同花
+    if (keys.length > 1) return { same: false, n: hand.length };      // 普通牌花色不一致，鬼救不回来
     return { same: true, n: hand.length };
   }
 
@@ -169,23 +160,19 @@
 
     /* 单鬼：枚举鬼补成普通牌，取能凑的最强牌型。
        优先级 三条 > 同花顺 > 顺子；都不成就按鬼=0点看木塞/普通。
-       ★ 鬼的花色限制（用户确认）：大鬼红=只补红桃/方块(s 0/1)、小王黑=只补梅花/黑桃(s 2/3)，
-         白牌无色=不能补同花；但三条/顺子只看点数，三种鬼都能补。
-         不可把白牌/大鬼枚举成任意花色，否则「红7红8+白牌」会被误判成同花顺。 */
-    var ghost = jokers[0];
-    var canFlush = !isWhite(ghost);
-    var gc = colorOf(ghost);                             // 0红 1黑 2无色
-    var candSuits = gc === 0 ? [0, 1] : (gc === 1 ? [2, 3] : [0, 1, 2, 3]);
+       ★ v1.24.84 起（用户 2026-11-24 确认）：大鬼/小鬼/白牌都能补任意花色，
+         两张普通牌花色一样 + 任意鬼 = 同花（「红7红8+白牌」算同花顺）。
+         枚举四种花色只是让补牌能匹配上普通牌的花色，鬼本身不限颜色。 */
     var best = 'normal';
     var base = normals[0], other = normals[1];
     for (var r = 1; r <= 13; r++) {
-      for (var ci = 0; ci < candSuits.length; ci++) {
-        var cand = { r: r, s: candSuits[ci] };
+      for (var s = 0; s < 4; s++) {
+        var cand = { r: r, s: s };
         var three = [base, other, cand];
         var rs3 = three.map(function (c) { return c.r; }).sort(function (a, b) { return a - b; });
         var info3 = sameSuitInfo(three);
         if (isThreeKind(rs3)) { return 'threeKind'; }
-        if (canFlush && info3.same && isStraight3(rs3)) { best = 'straightFlush'; }
+        if (info3.same && isStraight3(rs3)) { best = 'straightFlush'; }
         else if (isStraight3(rs3) && best !== 'straightFlush') { best = 'straight'; }
       }
     }
@@ -255,31 +242,30 @@
   }
 
   /* 比大小：返回 1=A赢 / -1=B赢 / 0=平。
-     ★ 用户 2026-11-20 澄清（两个模式的关系）：
-       · 木塞(坐庄) ≈ 木塞鱼(大吃小)，唯一差别是木塞鱼多一条「同点数时三倍吃两倍、两倍吃一倍」。
-       · 『同牌型打平』只针对顺子/同花顺/三条这类「成型牌型」——它们同牌型不拼点数。
-       · 普通牌、木塞这些「按点数算」的牌型：两种模式都要比点数个位（8吃6/6吃3/6吃5）。
-       · 天公两种模式都只按『双倍吃单倍』裁决，同倍打平，不比点数。
-     mode='fish' 额外在同点数时按最终倍率裁决；缺省/'bank' 同点数打平。 */
+     ★ v1.24.84（用户 2026-11-24 确认）：木塞(坐庄) 和 木塞鱼(大吃小) 裁决完全一致——
+       所有牌型只比点数个位（8 吃 6、6 吃 3），点数相同一律打平，不再比花色/对子倍率。
+       原先木塞鱼独有的「同点数时三倍吃两倍、两倍吃一倍」已取消。
+       · 天公：牌型大于普通牌，天公 8/9 赢补牌的普 8/普 9（同点也赢）；
+         两张天公互比才拼点数——9 吃 8，同点打平，不按双倍/单倍裁决。
+       · 顺子/同花顺/三条这类成型牌型：同牌型打平，不拼点数。
+       两玩法差别只剩流程：坐庄模式庄家控开，木塞鱼 2/3 投票一起开。 */
   function compare(handA, handB, mode) {
     var ka = kindOf(handA), kb = kindOf(handB);
     var c = beats(ka, kb);
     if (c !== 0) return c;
     if (ka === 'tiangong') {
-      var da = tiangongDouble(handA), db = tiangongDouble(handB);
-      if (da !== db) return da ? 1 : -1;                  // 双倍吃单倍
-      return 0;                                          // 天公同倍打平，不比点数
-    }
-    /* 只有「按点数算」的牌型（普通牌/木塞）才比点数；成型牌型同牌型打平。 */
-    if (ka === 'normal' || ka === 'muse') {
+      /* ★ v1.24.84（用户 2026-11-24 确认）：天公之间只拼点数——9 吃 8，点数相同就打平。
+         不再按双倍/单倍裁决（对子/同花那种加倍只算罚酒倍率，不参与谁吃谁）。
+         补牌的普通 8/9 点赢不了天公，但两张天公互比时点数说了算。 */
       var ua = unitDigit(handA), ub = unitDigit(handB);
-      if (ua !== ub) return ua > ub ? 1 : -1;             // 两模式通吃：点数个位大的吃小的
-      if (mode === 'fish') {
-        var ma = finalMult(ka, handA, kb), mb = finalMult(kb, handB, ka);
-        if (ma !== mb) return ma > mb ? 1 : -1;           // ★ 木塞鱼独有：同点数比倍率
-      }
+      if (ua !== ub) return ua > ub ? 1 : -1;
+      return 0;                                          // 同点数打平，不拼倍数
     }
-    return 0;   // 成型牌型同牌型打平；点数类同点数（bank 一律 / fish 倍率也同）打平
+    /* v1.24.84（用户 2026-11-24 确认）：木塞≈木塞鱼，全部只拼点数，同点就平。
+       原先木塞鱼独有的「同点数比倍率（三同花×3 吃杂花×1）」已取消，两玩法裁决一致。 */
+    var ua = unitDigit(handA), ub = unitDigit(handB);
+    if (ua !== ub) return ua > ub ? 1 : -1;             // 两模式通吃：点数个位大的吃小的
+    return 0;   // 点数类同点数一律打平；成型牌型同牌型也打平
   }
 
   /* 生成一副 55 张：52 普通 + 大鬼 + 小王 + 白牌 */
